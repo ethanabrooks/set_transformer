@@ -108,3 +108,4 @@ venv.bak/
 *.pkl
 *.log
 .direnv
+wandb/
