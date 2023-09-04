@@ -85,6 +85,7 @@ def train():
         )
     )
     logger.info(str(args) + "\n")
+    ce_loss = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(net.parameters(), lr=args.lr)
     tick = time.time()
@@ -94,15 +95,24 @@ def train():
         net.train()
         optimizer.zero_grad()
         N = np.random.randint(N_min, N_max)
-        X = mog.sample(B, N, K)
-        ll = mog.log_prob(X, *mvn.parse(net(X)))
-        loss = -ll
+        X = torch.randint(0, 2, (B, K)).cuda()
+        Y = net(X)
+        ll = ce_loss(Y, X)
+        # I = torch.arange(B)[..., None]
+        # logits_acc = torch.softmax(Y, -1)[I, X, :]
+        argmax_acc = (Y.argmax(-1) == X).float()
+        print((torch.softmax(Y[0], -1) * 100).round())
+        # print("logits_acc", logits_acc.mean())
+        print("argmax_acc", argmax_acc.mean())
+        # ll = mog.log_prob(X, *mvn.parse(Y))
+        loss = ll
+        print("loss", loss)
         loss.backward()
         optimizer.step()
 
         if t % args.test_freq == 0:
             line = "step {}, lr {:.3e}, ".format(t, optimizer.param_groups[0]["lr"])
-            line += test(bench, verbose=False)
+            # line += test(bench, verbose=False)
             line += " ({:.3f} secs)".format(time.time() - tick)
             tick = time.time()
             logger.info(line)
