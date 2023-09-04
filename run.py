@@ -1,3 +1,4 @@
+import tomli
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,6 +11,7 @@ import logging
 import time
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import wandb
 from models import SetTransformer, DeepSet
 from mixture_of_mvns import MixtureOfMVNs
 from mvn_diag import MultivariateNormalDiag
@@ -23,11 +25,13 @@ parser.add_argument("--N_min", type=int, default=300)
 parser.add_argument("--N_max", type=int, default=600)
 parser.add_argument("--K", type=int, default=4)
 parser.add_argument("--gpu", type=str, default="0")
-parser.add_argument("--lr", type=float, default=1e-3)
+parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--run_name", type=str, default="trial")
 parser.add_argument("--num_steps", type=int, default=50000)
 parser.add_argument("--test_freq", type=int, default=200)
 parser.add_argument("--save_freq", type=int, default=400)
+parser.add_argument("--debug", action="store_true")
+parser.add_argument("--notes")
 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
@@ -41,6 +45,23 @@ D = 2
 mvn = MultivariateNormalDiag(D)
 mog = MixtureOfMVNs(mvn)
 dim_output = 2 * D
+
+
+def project_name():
+    with open("pyproject.toml", "rb") as f:
+        pyproject = tomli.load(f)
+    return pyproject["tool"]["poetry"]["name"]
+
+
+run = (
+    None
+    if args.debug
+    else wandb.init(
+        config=vars(args),
+        notes=args.notes,
+        project=project_name(),
+    )
+)
 
 if args.net == "set_transformer":
     net = SetTransformer(D, K, dim_output).cuda()
@@ -101,12 +122,16 @@ def train():
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == X).float()
-        print((torch.softmax(Y[0], -1) * 100).round())
-        # print("logits_acc", logits_acc.mean())
-        print("argmax_acc", argmax_acc.mean())
-        # ll = mog.log_prob(X, *mvn.parse(Y))
         loss = ll
-        print("loss", loss)
+        if run is not None:
+            wandb.log(
+                {
+                    "loss": loss.item(),
+                    "ll": ll.item(),
+                    "argmax_acc": argmax_acc.mean().item(),
+                },
+                step=t,
+            )
         loss.backward()
         optimizer.step()
 
