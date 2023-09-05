@@ -32,13 +32,13 @@ def main(
     N_min: int = 300,
     debug: bool = False,
     gpu: str = "0",
+    log_freq: int = 20,
     lr: float = 1e-4,
     net: str = "set_transformer",
     notes: Optional[str] = None,
     num_steps: int = 50000,
     run_name: str = "trial",
     save_freq: int = 400,
-    test_freq: int = 200,
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -79,17 +79,9 @@ def main(
         os.makedirs(save_dir)
 
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(run_name)
-    logger.addHandler(
-        logging.FileHandler(
-            os.path.join(save_dir, "train_" + time.strftime("%Y%m%d-%H%M") + ".log"),
-            mode="w",
-        )
-    )
     ce_loss = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    tick = time.time()
     for t in range(1, num_steps + 1):
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
@@ -105,24 +97,17 @@ def main(
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == X).float()
         loss = ll
-        if run is not None:
-            wandb.log(
-                {
-                    "loss": loss.item(),
-                    "ll": ll.item(),
-                    "argmax_acc": argmax_acc.mean().item(),
-                },
-                step=t,
+        if t % log_freq == 0:
+            log = dict(
+                loss=loss.item(),
+                ll=ll.item(),
+                argmax_acc=argmax_acc.mean().item(),
             )
+            console.log(log)
+            if run is not None:
+                wandb.log(log, step=t)
         loss.backward()
         optimizer.step()
-
-        if t % test_freq == 0:
-            line = "step {}, lr {:.3e}, ".format(t, optimizer.param_groups[0]["lr"])
-            # line += test(bench, verbose=False)
-            line += " ({:.3f} secs)".format(time.time() - tick)
-            tick = time.time()
-            logger.info(line)
 
         if t % save_freq == 0:
             torch.save(
