@@ -65,7 +65,7 @@ def main(
         console.log("S", S)
         console.log("D", D)
 
-        net = SetTransformer(K, S, D).cuda()
+        net = SetTransformer(K, D).cuda()
         console.log("Input (B, K*S)", B, K * S)
         console.log("Output (B, S, D)", B, S, D)
     elif net == "deepset":
