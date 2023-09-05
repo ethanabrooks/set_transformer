@@ -101,7 +101,7 @@ class TransformerModel(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        dim_input,
+        I,
         num_outputs,
         dim_output,
         num_inds=32,
@@ -110,7 +110,7 @@ class SetTransformer(nn.Module):
         ln=False,
     ):
         super(SetTransformer, self).__init__()
-        self.emb = nn.Embedding(dim_input, dim_hidden)
+        self.emb = nn.Embedding(I, dim_hidden)
         self.enc = nn.Sequential(
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),

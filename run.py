@@ -15,6 +15,9 @@ import wandb
 from models import SetTransformer, DeepSet
 from mixture_of_mvns import MixtureOfMVNs
 from mvn_diag import MultivariateNormalDiag
+from rich.console import Console
+
+console = Console()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mode", type=str, default="train")
@@ -39,12 +42,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 B = args.B
 N_min = args.N_min
 N_max = args.N_max
-K = args.K
+S = args.K
 
-D = 2
-mvn = MultivariateNormalDiag(D)
+K = 2
+mvn = MultivariateNormalDiag(K)
 mog = MixtureOfMVNs(mvn)
-dim_output = 2 * D
+D = 2 * K
 
 
 def project_name():
@@ -64,12 +67,19 @@ run = (
 )
 
 if args.net == "set_transformer":
-    net = SetTransformer(D, K, dim_output).cuda()
+    console.log("B", B)
+    console.log("K", K)
+    console.log("S", S)
+    console.log("D", D)
+
+    net = SetTransformer(K, S, D).cuda()
+    console.log("Input (B, K*S)", B, K * S)
+    console.log("Output (B, S, D)", B, S, D)
 elif args.net == "deepset":
-    net = DeepSet(D, K, dim_output).cuda()
+    net = DeepSet(K, S, D).cuda()
 else:
     raise ValueError("Invalid net {}".format(args.net))
-benchfile = os.path.join("benchmark", "mog_{:d}.pkl".format(K))
+benchfile = os.path.join("benchmark", "mog_{:d}.pkl".format(S))
 
 
 def generate_benchmark():
@@ -79,7 +89,7 @@ def generate_benchmark():
     data = []
     ll = 0.0
     for N in tqdm(N_list):
-        X, labels, pi, params = mog.sample(B, N, K, return_gt=True)
+        X, labels, pi, params = mog.sample(B, N, S, return_gt=True)
         ll += mog.log_prob(X, pi, params).item()
         data.append(X)
     bench = [data, ll / args.num_bench]
@@ -96,7 +106,6 @@ def train():
     if not os.path.isfile(benchfile):
         generate_benchmark()
 
-    bench = torch.load(benchfile)
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(args.run_name)
     logger.addHandler(
@@ -116,8 +125,10 @@ def train():
         net.train()
         optimizer.zero_grad()
         N = np.random.randint(N_min, N_max)
-        X = torch.randint(0, 2, (B, K)).cuda()
+        X = torch.randint(0, 2, (B, S)).cuda()
         Y = net(X)
+        # console.log("X", X.shape)
+        # console.log("Y", Y.shape)
         ll = ce_loss(Y, X)
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
@@ -171,7 +182,7 @@ def test(bench, verbose=True):
 
 def plot():
     net.eval()
-    X = mog.sample(B, np.random.randint(N_min, N_max), K)
+    X = mog.sample(B, np.random.randint(N_min, N_max), S)
     pi, params = mvn.parse(net(X))
     ll, labels = mog.log_prob(X, pi, params, return_labels=True)
     fig, axes = plt.subplots(2, B // 2, figsize=(7 * B // 5, 5))
