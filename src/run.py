@@ -11,6 +11,7 @@ from rich.console import Console
 
 import wandb
 from models import DeepSet, SetTransformer
+from pretty import print_row
 
 console = Console()
 
@@ -79,7 +80,7 @@ def main(
     ce_loss = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    for t in range(1, num_steps + 1):
+    for t in range(num_steps):
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
@@ -88,18 +89,17 @@ def main(
         Y = net(X)
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
-        ll = ce_loss(Y, X)
+        loss = ce_loss(Y, X)
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == X).float()
-        loss = ll
         if t % log_freq == 0:
             log = dict(
                 loss=loss.item(),
-                ll=ll.item(),
                 argmax_acc=argmax_acc.mean().item(),
             )
-            console.log(log)
+
+            print_row(log, show_header=(t % (log_freq * 30) == 0))
             if run is not None:
                 wandb.log(log, step=t)
         loss.backward()
