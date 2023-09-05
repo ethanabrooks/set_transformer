@@ -1,5 +1,5 @@
-import numpy as np
 import h5py
+import numpy as np
 
 
 def rotate_z(theta, x):
@@ -43,7 +43,6 @@ class ModelFetcher(object):
         do_standardize=True,
         do_augmentation=False,
     ):
-
         self.fname = fname
         self.batch_size = batch_size
         self.down_sample = down_sample

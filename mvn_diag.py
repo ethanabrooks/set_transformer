@@ -1,7 +1,9 @@
-from mixture_of_mvns import MultivariateNormal
+import math
+
 import torch
 import torch.nn.functional as F
-import math
+
+from mixture_of_mvns import MultivariateNormal
 
 
 class MultivariateNormalDiag(MultivariateNormal):
@@ -21,7 +23,6 @@ class MultivariateNormalDiag(MultivariateNormal):
 
     def log_prob(self, X, params):
         mu, sigma = params
-        dim = self.dim
         X = X.unsqueeze(2)
         mu = mu.unsqueeze(1)
         sigma = sigma.unsqueeze(1)

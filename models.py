@@ -1,5 +1,10 @@
-from modules import *
+import math
+
+import torch
+import torch.nn as nn
 from torch import Tensor
+
+from modules import ISAB
 
 
 class DeepSet(nn.Module):

@@ -1,8 +1,7 @@
-import numpy as np
-from scipy.stats import chi2
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
 import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Ellipse
 
 
 def scatter(X, labels=None, ax=None, colors=None, **kwargs):
@@ -17,7 +16,7 @@ def scatter(X, labels=None, ax=None, colors=None, **kwargs):
         colors = (
             cm.rainbow(np.linspace(0, 1, len(ulabels))) if colors is None else colors
         )
-        for (l, c) in zip(ulabels, colors):
+        for l, c in zip(ulabels, colors):
             ax.scatter(
                 X[labels == l, 0],
                 X[labels == l, 1],
@@ -29,10 +28,6 @@ def scatter(X, labels=None, ax=None, colors=None, **kwargs):
 
 
 def draw_ellipse(pos, cov, ax=None, **kwargs):
-    if type(pos) != np.ndarray:
-        pos = to_numpy(pos)
-    if type(cov) != np.ndarray:
-        cov = to_numpy(cov)
     ax = ax or plt.gca()
     U, s, Vt = np.linalg.svd(cov)
     angle = np.degrees(np.arctan2(U[1, 0], U[0, 0]))
