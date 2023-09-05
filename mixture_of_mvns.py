@@ -1,7 +1,8 @@
-import torch
-from torch.distributions import Dirichlet, Categorical
-from plots import scatter_mog
 import matplotlib.pyplot as plt
+import torch
+from torch.distributions import Categorical, Dirichlet
+
+from plots import scatter_mog
 
 
 class MultivariateNormal(object):

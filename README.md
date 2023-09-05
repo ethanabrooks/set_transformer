@@ -1,6 +1,6 @@
 # set_transformer
 
-Official PyTorch implementation of the paper 
+Official PyTorch implementation of the paper
 [Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks
 ](http://proceedings.mlr.press/v97/lee19d.html).
 
@@ -14,8 +14,8 @@ Official PyTorch implementation of the paper
 
 ## Abstract
 
-Many machine learning tasks such as multiple instance learning, 3D shape recognition, and few-shot image classification are defined on sets of instances. 
-Since solutions to such problems do not depend on the order of elements of the set, models used to address them should be permutation invariant. 
+Many machine learning tasks such as multiple instance learning, 3D shape recognition, and few-shot image classification are defined on sets of instances.
+Since solutions to such problems do not depend on the order of elements of the set, models used to address them should be permutation invariant.
 We present an attention-based neural network module, the Set Transformer, specifically designed to model interactions among elements in the input set.
 The model consists of an encoder and a decoder, both of which rely on attention mechanisms.
 In an effort to reduce computational complexity, we introduce an attention scheme inspired by inducing point methods from sparse Gaussian process literature.

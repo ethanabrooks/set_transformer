@@ -1,19 +1,16 @@
+import logging
+import os
 from typing import Optional
+
 import tomli
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
-import os
-import logging
-import time
-import wandb
-from models import SetTransformer, DeepSet
-from mixture_of_mvns import MixtureOfMVNs
-from mvn_diag import MultivariateNormalDiag
-from rich.console import Console
 from dollar_lambda import command
+from rich.console import Console
+
+import wandb
+from models import DeepSet, SetTransformer
 
 console = Console()
 
@@ -87,7 +84,6 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        N = np.random.randint(N_min, N_max)
         X = torch.randint(0, 2, (B, S)).cuda()
         Y = net(X)
         # console.log("X", X.shape)
