@@ -1,3 +1,4 @@
+from typing import Optional
 import tomli
 import torch
 import torch.nn as nn
@@ -5,48 +6,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import os
-import argparse
 import logging
 import time
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 import wandb
 from models import SetTransformer, DeepSet
 from mixture_of_mvns import MixtureOfMVNs
 from mvn_diag import MultivariateNormalDiag
 from rich.console import Console
+from dollar_lambda import command
 
 console = Console()
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--mode", type=str, default="train")
-parser.add_argument("--num_bench", type=int, default=100)
-parser.add_argument("--net", type=str, default="set_transformer")
-parser.add_argument("--B", type=int, default=10)
-parser.add_argument("--N_min", type=int, default=300)
-parser.add_argument("--N_max", type=int, default=600)
-parser.add_argument("--K", type=int, default=4)
-parser.add_argument("--gpu", type=str, default="0")
-parser.add_argument("--lr", type=float, default=1e-4)
-parser.add_argument("--run_name", type=str, default="trial")
-parser.add_argument("--num_steps", type=int, default=50000)
-parser.add_argument("--test_freq", type=int, default=200)
-parser.add_argument("--save_freq", type=int, default=400)
-parser.add_argument("--debug", action="store_true")
-parser.add_argument("--notes")
-
-args = parser.parse_args()
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-
-B = args.B
-N_min = args.N_min
-N_max = args.N_max
-S = args.K
-
-K = 2
-D = 2 * K
-mvn = MultivariateNormalDiag(K)
-mog = MixtureOfMVNs(mvn)
 
 
 def project_name():
@@ -55,54 +24,74 @@ def project_name():
     return pyproject["tool"]["poetry"]["name"]
 
 
-run = (
-    None
-    if args.debug
-    else wandb.init(
-        config=vars(args),
-        notes=args.notes,
-        project=project_name(),
+@command()
+def main(
+    B: int = 10,
+    K: int = 4,
+    N_max: int = 600,
+    N_min: int = 300,
+    debug: bool = False,
+    gpu: str = "0",
+    lr: float = 1e-4,
+    net: str = "set_transformer",
+    notes: Optional[str] = None,
+    num_steps: int = 50000,
+    run_name: str = "trial",
+    save_freq: int = 400,
+    test_freq: int = 200,
+) -> None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpu
+
+    B = B
+    N_min = N_min
+    N_max = N_max
+    S = K
+
+    K = 2
+    D = 2 * K
+
+    run = (
+        None
+        if debug
+        else wandb.init(
+            config=vars(),
+            notes=notes,
+            project=project_name(),
+        )
     )
-)
 
-if args.net == "set_transformer":
-    console.log("B", B)
-    console.log("K", K)
-    console.log("S", S)
-    console.log("D", D)
+    save_dir = os.path.join("results", net, run_name)
+    if net == "set_transformer":
+        console.log("B", B)
+        console.log("K", K)
+        console.log("S", S)
+        console.log("D", D)
 
-    net = SetTransformer(K, S, D).cuda()
-    console.log("Input (B, K*S)", B, K * S)
-    console.log("Output (B, S, D)", B, S, D)
-elif args.net == "deepset":
-    net = DeepSet(K, S, D).cuda()
-else:
-    raise ValueError("Invalid net {}".format(args.net))
-benchfile = os.path.join("benchmark", "mog_{:d}.pkl".format(S))
+        net = SetTransformer(K, S, D).cuda()
+        console.log("Input (B, K*S)", B, K * S)
+        console.log("Output (B, S, D)", B, S, D)
+    elif net == "deepset":
+        net = DeepSet(K, S, D).cuda()
+    else:
+        raise ValueError("Invalid net {}".format(net))
 
-
-save_dir = os.path.join("results", args.net, args.run_name)
-
-
-def train():
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(args.run_name)
+    logger = logging.getLogger(run_name)
     logger.addHandler(
         logging.FileHandler(
             os.path.join(save_dir, "train_" + time.strftime("%Y%m%d-%H%M") + ".log"),
             mode="w",
         )
     )
-    logger.info(str(args) + "\n")
     ce_loss = nn.CrossEntropyLoss()
 
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
     tick = time.time()
-    for t in range(1, args.num_steps + 1):
-        if t == int(0.5 * args.num_steps):
+    for t in range(1, num_steps + 1):
+        if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
@@ -128,14 +117,14 @@ def train():
         loss.backward()
         optimizer.step()
 
-        if t % args.test_freq == 0:
+        if t % test_freq == 0:
             line = "step {}, lr {:.3e}, ".format(t, optimizer.param_groups[0]["lr"])
             # line += test(bench, verbose=False)
             line += " ({:.3f} secs)".format(time.time() - tick)
             tick = time.time()
             logger.info(line)
 
-        if t % args.save_freq == 0:
+        if t % save_freq == 0:
             torch.save(
                 {"state_dict": net.state_dict()}, os.path.join(save_dir, "model.tar")
             )
@@ -144,4 +133,4 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    main()
