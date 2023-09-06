@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from typing import Optional
 
@@ -36,9 +37,8 @@ def main(
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-    N = 20
+    N = 100
     S = 50
-    T = 1
 
     run = (
         None
@@ -70,7 +70,13 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        X = torch.randint(0, N, (B, T, S)).cuda()
+        states = torch.randint(0, int(math.sqrt(N)), (B, 2, S))
+        actions = torch.randint(0, 4, (B, S))
+        mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+        deltas = mapping[actions].swapaxes(1, 2)
+        X = torch.cat([states, actions[:, None]], 1).long().cuda()
+        Z = (states + deltas).sum(-1).abs()
+
         Y = net(X)
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
