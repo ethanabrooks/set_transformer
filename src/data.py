@@ -5,15 +5,13 @@ from torch.utils.data import Dataset
 
 
 class RLData(Dataset):
-    def __init__(self, n_token, n_steps, n_batch, seq_len):
-        states = torch.randint(
-            0, int(math.sqrt(n_token)), (n_steps, n_batch, seq_len, 2)
+    def __init__(self, n_token, n_steps, seq_len):
+        states = torch.randint(0, int(math.sqrt(n_token)), (n_steps, seq_len, 2))
+        goals = torch.randint(0, int(math.sqrt(n_token)), (n_steps, 1, 2)).expand_as(
+            states
         )
-        goals = torch.randint(
-            0, int(math.sqrt(n_token)), (n_steps, n_batch, 1, 2)
-        ).expand_as(states)
         rewards = (states - goals).sum(-1).abs()
-        actions = torch.randint(0, 4, (n_steps, n_batch, seq_len))
+        actions = torch.randint(0, 4, (n_steps, seq_len))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
         deltas = mapping[actions]
         self.X = (

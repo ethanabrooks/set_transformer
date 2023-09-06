@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from dollar_lambda import command
 from rich.console import Console
+from torch.utils.data import DataLoader
 
 import wandb
 from data import RLData
@@ -62,10 +63,13 @@ def main(
     logging.basicConfig(level=logging.INFO)
     ce_loss = nn.CrossEntropyLoss()
 
-    dataset = RLData(n_token, num_steps, n_batch, seq_len)
+    dataset = RLData(n_token, num_steps, seq_len)
+
+    # Split the dataset into train and test sets
+    train_loader = DataLoader(dataset, batch_size=n_batch, shuffle=False)
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    for t, (X, Z) in enumerate(dataset):
+    for t, (X, Z) in enumerate(train_loader):
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
