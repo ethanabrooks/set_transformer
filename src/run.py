@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 from typing import Optional
 
@@ -38,7 +37,7 @@ def main(
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-    N = 100
+    N = 200
     S = 50
 
     run = (
@@ -71,14 +70,19 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        states = torch.randint(0, int(math.sqrt(N)), (B, 2, S))
-        goals = torch.randint(0, int(math.sqrt(N)), (B, 2, 1))
-        rewards = (states - goals).sum(1).abs()
-        actions = torch.randint(0, 4, (B, S))
+        St = torch.randint(0, int(10), (B, 2, S))
+        G = torch.randint(0, int(10), (B, 2, 1))
+        R = (St - G).sum(1).abs().float()
+        Sl = 1 + torch.rand(R.shape, device=R.device)
+        R *= Sl
+        R = R.round().long()
+        A = torch.randint(0, 4, (B, S))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        deltas = mapping[actions].swapaxes(1, 2)
-        X = torch.cat([states, actions[:, None], rewards[:, None]], 1).long().cuda()
-        Z = (states + deltas - goals).sum(1).abs()
+        𝚫 = mapping[A].swapaxes(1, 2)
+        X = torch.cat([St, A[:, None], R[:, None]], 1).long().cuda()
+        Z = (St + 𝚫 - G).sum(1).abs().float()
+        Z *= Sl
+        Z = Z.round().long()
 
         Y = net(X)
         # console.log("X", X.shape)
