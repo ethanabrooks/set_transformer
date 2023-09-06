@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 from typing import Optional
 
@@ -11,6 +10,7 @@ from dollar_lambda import command
 from rich.console import Console
 
 import wandb
+from data import RLData
 from models import SetTransformer
 from pretty import print_row
 
@@ -21,21 +21,6 @@ def project_name():
     with open("pyproject.toml", "rb") as f:
         pyproject = tomli.load(f)
     return pyproject["tool"]["poetry"]["name"]
-
-
-def get_data(n_steps, n_token, n_batch, seq_len):
-    states = torch.randint(0, int(math.sqrt(n_token)), (n_steps, n_batch, seq_len, 2))
-    goals = torch.randint(
-        0, int(math.sqrt(n_token)), (n_steps, n_batch, 1, 2)
-    ).expand_as(states)
-    rewards = (states - goals).sum(-1).abs()
-    actions = torch.randint(0, 4, (n_steps, n_batch, seq_len))
-    mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-    deltas = mapping[actions]
-    X = torch.cat([states, rewards[..., None], actions[..., None]], -1).long().cuda()
-    Z = (states + deltas - goals).sum(-1).abs().cuda()
-
-    return X.cuda(), Z.cuda()
 
 
 @command()
@@ -77,8 +62,10 @@ def main(
     logging.basicConfig(level=logging.INFO)
     ce_loss = nn.CrossEntropyLoss()
 
+    dataset = RLData(n_token, num_steps, n_batch, seq_len)
+
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    for t, (X, Z) in enumerate(zip(*get_data(num_steps, n_token, n_batch, seq_len))):
+    for t, (X, Z) in enumerate(dataset):
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
