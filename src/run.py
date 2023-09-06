@@ -34,6 +34,7 @@ def main(
     num_steps: int = 50000,
     run_name: str = "trial",
     save_freq: int = 400,
+    seq2seq: str = "gru",
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -54,7 +55,7 @@ def main(
     console.log("B", B)
     console.log("K", S)
 
-    net = SetTransformer(N).cuda()
+    net = SetTransformer(N, seq2seq=seq2seq).cuda()
     console.log("Input (B, K*S)", B, f"{S} * S")
     console.log("Output (B, S, K)", B, "S", S)
 
