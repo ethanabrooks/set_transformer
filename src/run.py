@@ -31,9 +31,9 @@ def main(
     gpu: str = "0",
     log_freq: int = 20,
     lr: float = 1e-4,
+    n_steps: int = 100000,
     n_token: int = 200,
     notes: Optional[str] = None,
-    num_steps: int = 100000,
     run_name: str = "trial",
     save_freq: int = 400,
     seq_len: int = 50,
@@ -62,7 +62,7 @@ def main(
     logging.basicConfig(level=logging.INFO)
     ce_loss = nn.CrossEntropyLoss()
 
-    dataset = RLData(n_token, num_steps, seq_len)
+    dataset = RLData(n_token, n_steps, seq_len)
 
     # Split the dataset into train and test sets
     test_size = int(test_split * len(dataset))
@@ -90,7 +90,7 @@ def main(
             if run is not None:
                 wandb.log(log, step=t)
 
-        if t == int(0.5 * num_steps):
+        if t == int(0.5 * n_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
