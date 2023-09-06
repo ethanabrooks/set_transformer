@@ -32,7 +32,7 @@ def main(
     log_freq: int = 20,
     lr: float = 1e-4,
     n_steps: int = 100000,
-    n_token: int = 9,
+    n_token: int = 25,
     notes: Optional[str] = None,
     run_name: str = "trial",
     save_freq: int = 400,
@@ -47,7 +47,22 @@ def main(
         None
         if debug
         else wandb.init(
-            config=vars(),
+            config=dict(
+                n_batch=n_batch,
+                debug=debug,
+                gpu=gpu,
+                log_freq=log_freq,
+                lr=lr,
+                n_steps=n_steps,
+                n_token=n_token,
+                notes=notes,
+                run_name=run_name,
+                save_freq=save_freq,
+                seq_len=seq_len,
+                seq2seq=seq2seq,
+                test_split=test_split,
+                test_freq=test_freq,
+            ),
             notes=notes,
             project=project_name(),
         )
