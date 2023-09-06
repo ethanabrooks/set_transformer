@@ -111,7 +111,7 @@ class SetTransformer(nn.Module):
         ln=False,
         num_inds=32,
         num_heads=4,
-        seq2seq="transformer",
+        seq2seq="gru",
     ):
         super(SetTransformer, self).__init__()
         self.embedding = nn.Embedding(ntoken, dim_hidden)
