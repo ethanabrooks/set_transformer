@@ -23,6 +23,21 @@ def project_name():
     return pyproject["tool"]["poetry"]["name"]
 
 
+def get_data(n_steps, n_token, n_batch, seq_len):
+    states = torch.randint(0, int(math.sqrt(n_token)), (n_steps, n_batch, seq_len, 2))
+    goals = torch.randint(
+        0, int(math.sqrt(n_token)), (n_steps, n_batch, 1, 2)
+    ).expand_as(states)
+    rewards = (states - goals).sum(-1).abs()
+    actions = torch.randint(0, 4, (n_steps, n_batch, seq_len))
+    mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+    deltas = mapping[actions]
+    X = torch.cat([states, rewards[..., None], actions[..., None]], -1).long().cuda()
+    Z = (states + deltas - goals).sum(-1).abs().cuda()
+
+    return X.cuda(), Z.cuda()
+
+
 @command()
 def main(
     n_batch: int = 10,
@@ -63,25 +78,11 @@ def main(
     ce_loss = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    for t in range(num_steps):
+    for t, (X, Z) in enumerate(zip(*get_data(num_steps, n_token, n_batch, seq_len))):
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        states = torch.randint(0, int(math.sqrt(n_token)), (n_batch, seq_len, 2))
-        goals = torch.randint(0, int(math.sqrt(n_token)), (n_batch, 1, 2)).expand_as(
-            states
-        )
-        rewards = (states - goals).sum(-1).abs()
-        actions = torch.randint(0, 4, (n_batch, seq_len))
-        mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        deltas = mapping[actions]
-        X = (
-            torch.cat([states, rewards[..., None], actions[..., None]], -1)
-            .long()
-            .cuda()
-        )
-        Z = (states + deltas - goals).sum(-1).abs().cuda()
 
         Y = net(X)
         # console.log("X", X.shape)
