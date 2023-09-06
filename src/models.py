@@ -64,7 +64,6 @@ class TransformerModel(nn.Module):
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     def __init__(
         self,
-        ntoken: int,
         d_model: int,
         nhead: int,
         d_hid: int,
@@ -76,14 +75,7 @@ class TransformerModel(nn.Module):
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
-        self.embedding = nn.Embedding(ntoken, d_model)
         self.d_model = d_model
-
-        self.init_weights()
-
-    def init_weights(self) -> None:
-        initrange = 0.1
-        self.embedding.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
         """
@@ -94,29 +86,48 @@ class TransformerModel(nn.Module):
         Returns:
             output Tensor of shape ``[seq_len, batch_size, ntoken]``
         """
-        src = self.embedding(src) * math.sqrt(self.d_model)
+        src = src * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         output = self.transformer_encoder(src, src_mask)
         return output
+
+
+class GRU(nn.Module):
+    def __init__(self, dim_hidden):
+        super().__init__()
+        self.gru = nn.GRU(dim_hidden, dim_hidden, batch_first=False)
+
+    def forward(self, x):
+        h, _ = self.gru(x)
+        return h
 
 
 class SetTransformer(nn.Module):
     def __init__(
         self,
         ntoken,
-        num_inds=32,
         dim_hidden=128,
-        num_heads=4,
         ln=False,
+        num_inds=32,
+        num_heads=4,
+        seq2seq="gru",
     ):
         super(SetTransformer, self).__init__()
-        self.transformer = TransformerModel(
-            ntoken=ntoken,
-            d_model=dim_hidden,
-            nhead=num_heads,
-            d_hid=dim_hidden,
-            nlayers=1,
-        )
+        self.embedding = nn.Embedding(ntoken, dim_hidden)
+        initrange = 0.1
+        self.embedding.weight.data.uniform_(-initrange, initrange)
+        if seq2seq == "transformer":
+            self.seq2seq = TransformerModel(
+                d_model=dim_hidden,
+                nhead=num_heads,
+                d_hid=dim_hidden,
+                nlayers=1,
+            )
+        elif seq2seq == "gru":
+            self.seq2seq = GRU(dim_hidden)
+        else:
+            raise ValueError(f"Unknown seq2seq {seq2seq}")
+
         self.enc = nn.Sequential(
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
@@ -130,8 +141,10 @@ class SetTransformer(nn.Module):
     def forward(self, X):
         B, T, S = X.shape
         X = X.reshape(B * T, S).T
-        Y = self.transformer(X)
-        _, _, D = Y.shape
+        X = self.embedding(X)
+        _, _, D = X.shape
+        assert [*X.shape] == [S, B * T, D]
+        Y = self.seq2seq(X)
         assert [*Y.shape] == [S, B * T, D]
         Y = Y.reshape(S, B, T, D).sum(2)
         assert [*Y.shape] == [S, B, D]
