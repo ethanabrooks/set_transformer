@@ -36,9 +36,9 @@ def main(
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-    B = B
-
-    K = 100
+    N = 20
+    S = 50
+    T = 1
 
     run = (
         None
@@ -52,11 +52,11 @@ def main(
 
     save_dir = os.path.join("results", run_name)
     console.log("B", B)
-    console.log("K", K)
+    console.log("K", S)
 
-    net = SetTransformer(K, K).cuda()
-    console.log("Input (B, K*S)", B, f"{K} * S")
-    console.log("Output (B, S, K)", B, "S", K)
+    net = SetTransformer(N).cuda()
+    console.log("Input (B, K*S)", B, f"{S} * S")
+    console.log("Output (B, S, K)", B, "S", S)
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -70,14 +70,16 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        X = torch.randint(0, K, (B, K)).cuda()
+        X = torch.randint(0, N, (B, S, T)).cuda()
         Y = net(X)
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
-        loss = ce_loss(Y.swapaxes(1, 2), X)
+        Z = X.sum(-1)
+        loss = ce_loss(Y.swapaxes(1, 2), Z)
+        assert [*Y.shape] == [B, S, N]
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
-        argmax_acc = (Y.argmax(-1) == X).float()
+        argmax_acc = (Y.argmax(-1) == Z).float()
         if t % log_freq == 0:
             log = dict(
                 loss=loss.item(),

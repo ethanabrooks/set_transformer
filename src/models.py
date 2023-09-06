@@ -61,6 +61,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TransformerModel(nn.Module):
+    # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     def __init__(
         self,
         ntoken: int,
@@ -77,58 +78,64 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
         self.embedding = nn.Embedding(ntoken, d_model)
         self.d_model = d_model
-        self.linear = nn.Linear(d_model, ntoken)
 
         self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.linear.bias.data.zero_()
-        self.linear.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
         """
         Arguments:
-            src: Tensor, shape ``[seq_len, batch_size]``
+            src: Tensor, shape ``[batch_size, seq_len, d_model]``
             src_mask: Tensor, shape ``[seq_len, seq_len]``
 
         Returns:
-            output Tensor of shape ``[seq_len, batch_size, ntoken]``
+            output Tensor of shape ``[batch_size, seq_len, ntoken]``
         """
+        src = src.swapaxes(0, 1)
         src = self.embedding(src) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         output = self.transformer_encoder(src, src_mask)
-        output = self.linear(output)
-        return output
+        return output.swapaxes(0, 1)
 
 
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        num_inputs,
-        dim_output,
+        ntoken,
         num_inds=32,
         dim_hidden=128,
         num_heads=4,
         ln=False,
     ):
         super(SetTransformer, self).__init__()
-        self.emb = nn.Embedding(num_inputs, dim_hidden)
+        self.transformer = TransformerModel(
+            ntoken=ntoken,
+            d_model=dim_hidden,
+            nhead=num_heads,
+            d_hid=dim_hidden,
+            nlayers=1,
+        )
         self.enc = nn.Sequential(
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
         )
-        self.dec = nn.Sequential(
-            # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
-            # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            nn.Linear(dim_hidden, dim_output),
-        )
+        # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
+        # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
+        self.dec = nn.Linear(dim_hidden, ntoken)
 
     def forward(self, X):
-        Y = self.emb(X)
+        B, S, T = X.shape
+        X = X.reshape(B * S, T)
+        Y = self.transformer(X)
+        _, _, D = Y.shape
+        assert [*Y.shape] == [B * S, T, D]
+        Y = Y.reshape(B, S, T, D).sum(2)
+        assert [*Y.shape] == [B, S, D]
         Y = self.enc(Y)
+        assert [*Y.shape] == [B, S, D]
         return self.dec(Y)
-        # return self.dec(self.enc(Y))
