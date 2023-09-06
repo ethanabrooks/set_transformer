@@ -11,12 +11,9 @@ class RLData(Dataset):
         delta = mapping[actions].swapaxes(1, 2)
 
         rewards = (states - goals).sum(1).abs().float()
-        slow = 1 + torch.rand(rewards.shape, device=rewards.device)
-        rewards *= slow
         rewards = rewards.round().long()
 
         Z = (states + delta - goals).sum(1).abs().float()
-        Z *= slow
         Z = Z.round().long()
 
         self.X = (
