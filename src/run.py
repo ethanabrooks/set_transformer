@@ -33,7 +33,7 @@ def main(
     lr: float = 1e-4,
     n_token: int = 200,
     notes: Optional[str] = None,
-    num_steps: int = 50000,
+    num_steps: int = 100000,
     run_name: str = "trial",
     save_freq: int = 400,
     seq_len: int = 50,
