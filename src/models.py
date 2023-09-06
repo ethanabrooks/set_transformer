@@ -81,7 +81,7 @@ class GRU(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        ntoken,
+        n_tokens,
         dim_hidden=128,
         ln=False,
         num_inds=32,
@@ -89,7 +89,7 @@ class SetTransformer(nn.Module):
         seq2seq="gru",
     ):
         super(SetTransformer, self).__init__()
-        self.embedding = nn.Embedding(ntoken, dim_hidden)
+        self.embedding = nn.Embedding(n_tokens, dim_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
         if seq2seq == "transformer":
@@ -112,7 +112,7 @@ class SetTransformer(nn.Module):
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-        self.dec = nn.Linear(dim_hidden, ntoken)
+        self.dec = nn.Linear(dim_hidden, n_tokens)
 
     def forward(self, X):
         B, S, T = X.shape

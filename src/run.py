@@ -32,7 +32,7 @@ def main(
     log_freq: int = 20,
     lr: float = 1e-4,
     n_steps: int = 100000,
-    n_token: int = 25,
+    grid_size: int = 5,
     notes: Optional[str] = None,
     run_name: str = "trial",
     save_freq: int = 400,
@@ -54,7 +54,7 @@ def main(
                 log_freq=log_freq,
                 lr=lr,
                 n_steps=n_steps,
-                n_token=n_token,
+                grid_size=grid_size,
                 notes=notes,
                 run_name=run_name,
                 save_freq=save_freq,
@@ -69,7 +69,8 @@ def main(
     )
 
     save_dir = os.path.join("results", run_name)
-    net = SetTransformer(n_token, seq2seq=seq2seq).cuda()
+    n_tokens = grid_size**2
+    net = SetTransformer(n_tokens=n_tokens, seq2seq=seq2seq).cuda()
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -77,7 +78,7 @@ def main(
     logging.basicConfig(level=logging.INFO)
     ce_loss = nn.CrossEntropyLoss()
 
-    dataset = RLData(n_token, n_steps, seq_len)
+    dataset = RLData(grid_size, n_steps, seq_len)
 
     # Split the dataset into train and test sets
     test_size = int(test_split * len(dataset))
@@ -114,7 +115,7 @@ def main(
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
         loss = ce_loss(Y.swapaxes(1, 2), Z)
-        assert [*Y.shape] == [n_batch, seq_len, n_token]
+        assert [*Y.shape] == [n_batch, seq_len, n_tokens]
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == Z).float().mean()
