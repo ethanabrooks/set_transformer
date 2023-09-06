@@ -85,7 +85,6 @@ def main(
             with torch.no_grad():
                 for X, Z in test_loader:
                     Y = net(X)
-                    Z = X.sum(1)
                     loss += ce_loss(Y.swapaxes(1, 2), Z)
                     argmax_acc += (Y.argmax(-1) == Z).float().mean()
             log = dict(loss=loss, argmax_acc=argmax_acc)
@@ -102,7 +101,6 @@ def main(
         Y = net(X)
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
-        Z = X.sum(1)
         loss = ce_loss(Y.swapaxes(1, 2), Z)
         assert [*Y.shape] == [n_batch, seq_len, n_token]
         # I = torch.arange(B)[..., None]
