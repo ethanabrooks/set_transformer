@@ -54,9 +54,6 @@ def main(
     )
 
     save_dir = os.path.join("results", run_name)
-    console.log("B", n_batch)
-    console.log("K", seq_len)
-
     net = SetTransformer(n_token, seq2seq=seq2seq).cuda()
 
     if not os.path.isdir(save_dir):
