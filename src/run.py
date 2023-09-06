@@ -72,11 +72,17 @@ def main(
         net.train()
         optimizer.zero_grad()
         states = torch.randint(0, int(math.sqrt(N)), (B, S, 2))
+        goals = torch.randint(0, int(math.sqrt(N)), (B, 1, 2)).expand_as(states)
+        rewards = (states - goals).sum(-1).abs()
         actions = torch.randint(0, 4, (B, S))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
         deltas = mapping[actions]
-        X = torch.cat([states, actions[..., None]], -1).long().cuda()
-        Z = (states + deltas).sum(-1).abs().cuda()
+        X = (
+            torch.cat([states, rewards[..., None], actions[..., None]], -1)
+            .long()
+            .cuda()
+        )
+        Z = (states + deltas - goals).sum(-1).abs().cuda()
 
         Y = net(X)
         # console.log("X", X.shape)
