@@ -38,6 +38,8 @@ def main(
     save_freq: int = 400,
     seq_len: int = 50,
     seq2seq: str = "gru",
+    test_split: float = 0.02,
+    test_freq: int = 500,
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -66,16 +68,31 @@ def main(
     dataset = RLData(n_token, num_steps, seq_len)
 
     # Split the dataset into train and test sets
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
+    test_size = int(test_split * len(dataset))
+    train_size = len(dataset) - test_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
     # Split the dataset into train and test sets
     train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
-    _ = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for t, (X, Z) in enumerate(train_loader):
+        if t % test_freq == 0:
+            net.eval()
+            loss = 0
+            argmax_acc = 0
+            with torch.no_grad():
+                for X, Z in test_loader:
+                    Y = net(X)
+                    loss += ce_loss(Y.swapaxes(1, 2), Z)
+                    argmax_acc += (Y.argmax(-1) == Z).float().mean()
+            log = dict(loss=loss, argmax_acc=argmax_acc)
+            log = {f"test/{k}": (v / len(test_loader)).item() for k, v in log.items()}
+            print_row(log, show_header=True)
+            if run is not None:
+                wandb.log(log, step=t)
+
         if t == int(0.5 * num_steps):
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
@@ -88,18 +105,18 @@ def main(
         assert [*Y.shape] == [n_batch, seq_len, n_token]
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
-        argmax_acc = (Y.argmax(-1) == Z).float()
+        argmax_acc = (Y.argmax(-1) == Z).float().mean()
+        loss.backward()
+        optimizer.step()
         if t % log_freq == 0:
             log = dict(
                 loss=loss.item(),
-                argmax_acc=argmax_acc.mean().item(),
+                argmax_acc=argmax_acc.item(),
             )
 
-            print_row(log, show_header=(t % (log_freq * 30) == 0))
+            print_row(log, show_header=(t % test_freq == 0))
             if run is not None:
                 wandb.log(log, step=t)
-        loss.backward()
-        optimizer.step()
 
         if t % save_freq == 0:
             torch.save(
