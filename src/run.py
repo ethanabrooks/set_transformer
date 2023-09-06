@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from dollar_lambda import command
 from rich.console import Console
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 import wandb
 from data import RLData
@@ -66,7 +66,13 @@ def main(
     dataset = RLData(n_token, num_steps, seq_len)
 
     # Split the dataset into train and test sets
-    train_loader = DataLoader(dataset, batch_size=n_batch, shuffle=False)
+    train_size = int(0.8 * len(dataset))
+    test_size = len(dataset) - train_size
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+
+    # Split the dataset into train and test sets
+    train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
+    _ = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for t, (X, Z) in enumerate(train_loader):
