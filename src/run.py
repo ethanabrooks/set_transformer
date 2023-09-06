@@ -67,18 +67,18 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        St = torch.randint(0, int(10), (n_batch, 2, seq_len))
-        G = torch.randint(0, int(10), (n_batch, 2, 1))
-        R = (St - G).sum(1).abs().float()
-        Sl = 1 + torch.rand(R.shape, device=R.device)
-        R *= Sl
-        R = R.round().long()
-        A = torch.randint(0, 4, (n_batch, seq_len))
+        states = torch.randint(0, int(10), (n_batch, 2, seq_len))
+        goals = torch.randint(0, int(10), (n_batch, 2, 1))
+        rewards = (states - goals).sum(1).abs().float()
+        slow = 1 + torch.rand(rewards.shape, device=rewards.device)
+        rewards *= slow
+        rewards = rewards.round().long()
+        actions = torch.randint(0, 4, (n_batch, seq_len))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        𝚫 = mapping[A].swapaxes(1, 2)
-        X = torch.cat([St, A[:, None], R[:, None]], 1).long().cuda()
-        Z = (St + 𝚫 - G).sum(1).abs().float()
-        Z *= Sl
+        delta = mapping[actions].swapaxes(1, 2)
+        X = torch.cat([states, actions[:, None], rewards[:, None]], 1).long().cuda()
+        Z = (states + delta - goals).sum(1).abs().float()
+        Z *= slow
         Z = Z.round().long()
 
         Y = net(X)
