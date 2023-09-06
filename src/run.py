@@ -109,10 +109,8 @@ def main(
         loss.backward()
         optimizer.step()
         if t % log_freq == 0:
-            log = dict(
-                loss=loss.item(),
-                argmax_acc=argmax_acc.item(),
-            )
+            log = dict(loss=loss, argmax_acc=argmax_acc)
+            log = {f"train/{k}": (v).item() for k, v in log.items()}
 
             print_row(log, show_header=(t % test_freq == 0))
             if run is not None:
