@@ -61,6 +61,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TransformerModel(nn.Module):
+    # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     def __init__(
         self,
         ntoken: int,
@@ -77,15 +78,12 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
         self.embedding = nn.Embedding(ntoken, d_model)
         self.d_model = d_model
-        self.linear = nn.Linear(d_model, ntoken)
 
         self.init_weights()
 
     def init_weights(self) -> None:
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.linear.bias.data.zero_()
-        self.linear.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
         """
@@ -99,36 +97,46 @@ class TransformerModel(nn.Module):
         src = self.embedding(src) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         output = self.transformer_encoder(src, src_mask)
-        output = self.linear(output)
         return output
 
 
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        num_inputs,
-        dim_output,
+        ntoken,
         num_inds=32,
         dim_hidden=128,
         num_heads=4,
         ln=False,
     ):
         super(SetTransformer, self).__init__()
-        self.emb = nn.Embedding(num_inputs, dim_hidden)
+        self.transformer = TransformerModel(
+            ntoken=ntoken,
+            d_model=dim_hidden,
+            nhead=num_heads,
+            d_hid=dim_hidden,
+            nlayers=1,
+        )
         self.enc = nn.Sequential(
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
         )
-        self.dec = nn.Sequential(
-            # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
-            # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            nn.Linear(dim_hidden, dim_output),
-        )
+        # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
+        # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
+        self.dec = nn.Linear(dim_hidden, ntoken)
 
     def forward(self, X):
-        Y = self.emb(X)
+        B, T, S = X.shape
+        X = X.reshape(B * T, S).T
+        Y = self.transformer(X)
+        _, _, D = Y.shape
+        assert [*Y.shape] == [S, B * T, D]
+        Y = Y.reshape(S, B, T, D).sum(2)
+        assert [*Y.shape] == [S, B, D]
+        Y = Y.swapaxes(0, 1)
+        assert [*Y.shape] == [B, S, D]
         Y = self.enc(Y)
+        assert [*Y.shape] == [B, S, D]
         return self.dec(Y)
-        # return self.dec(self.enc(Y))
