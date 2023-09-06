@@ -32,7 +32,7 @@ def main(
     log_freq: int = 20,
     lr: float = 1e-4,
     n_steps: int = 100000,
-    n_token: int = 200,
+    n_token: int = 9,
     notes: Optional[str] = None,
     run_name: str = "trial",
     save_freq: int = 400,

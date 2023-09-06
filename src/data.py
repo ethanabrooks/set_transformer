@@ -10,7 +10,7 @@ class RLData(Dataset):
         goals = torch.randint(0, int(math.sqrt(n_token)), (n_steps, 1, 2)).expand_as(
             states
         )
-        rewards = (states - goals).sum(-1).abs()
+        rewards = (states == goals).all(-1).long()
         actions = torch.randint(0, 4, (n_steps, seq_len))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
         deltas = mapping[actions]
