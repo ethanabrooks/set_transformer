@@ -36,10 +36,10 @@ def main(
     notes: Optional[str] = None,
     run_name: str = "trial",
     save_freq: int = 400,
-    seq_len: int = 50,
+    seq_len: int = 200,
     seq2seq: str = "gru",
     test_split: float = 0.02,
-    test_freq: int = 200,
+    test_freq: int = 100,
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
