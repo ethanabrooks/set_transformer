@@ -30,6 +30,11 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class TransformerEncoderLayer(nn.TransformerEncoderLayer):
+    def _ff_block(self, x: Tensor) -> Tensor:
+        return x
+
+
 class TransformerModel(nn.Module):
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     def __init__(
@@ -43,7 +48,7 @@ class TransformerModel(nn.Module):
         super().__init__()
         self.model_type = "Transformer"
         self.pos_encoder = PositionalEncoding(d_model, dropout)
-        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
+        encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
         self.d_model = d_model
 
