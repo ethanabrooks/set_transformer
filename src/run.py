@@ -10,7 +10,7 @@ from dollar_lambda import command
 from rich.console import Console
 
 import wandb
-from models import DeepSet, SetTransformer
+from models import SetTransformer
 from pretty import print_row
 
 console = Console()
@@ -32,7 +32,6 @@ def main(
     gpu: str = "0",
     log_freq: int = 20,
     lr: float = 1e-4,
-    net: str = "set_transformer",
     notes: Optional[str] = None,
     num_steps: int = 50000,
     run_name: str = "trial",
@@ -58,20 +57,15 @@ def main(
         )
     )
 
-    save_dir = os.path.join("results", net, run_name)
-    if net == "set_transformer":
-        console.log("B", B)
-        console.log("K", K)
-        console.log("S", S)
-        console.log("D", D)
+    save_dir = os.path.join("results", run_name)
+    console.log("B", B)
+    console.log("K", K)
+    console.log("S", S)
+    console.log("D", D)
 
-        net = SetTransformer(K, D).cuda()
-        console.log("Input (B, K*S)", B, K * S)
-        console.log("Output (B, S, D)", B, S, D)
-    elif net == "deepset":
-        net = DeepSet(K, S, D).cuda()
-    else:
-        raise ValueError("Invalid net {}".format(net))
+    net = SetTransformer(K, D).cuda()
+    console.log("Input (B, K*S)", B, K * S)
+    console.log("Output (B, S, D)", B, S, D)
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
