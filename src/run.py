@@ -25,9 +25,6 @@ def project_name():
 @command()
 def main(
     B: int = 10,
-    K: int = 4,
-    N_max: int = 600,
-    N_min: int = 300,
     debug: bool = False,
     gpu: str = "0",
     log_freq: int = 20,
@@ -40,12 +37,8 @@ def main(
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
     B = B
-    N_min = N_min
-    N_max = N_max
-    S = K
 
-    K = 2
-    D = 2 * K
+    K = 100
 
     run = (
         None
@@ -60,12 +53,10 @@ def main(
     save_dir = os.path.join("results", run_name)
     console.log("B", B)
     console.log("K", K)
-    console.log("S", S)
-    console.log("D", D)
 
-    net = SetTransformer(K, D).cuda()
-    console.log("Input (B, K*S)", B, K * S)
-    console.log("Output (B, S, D)", B, S, D)
+    net = SetTransformer(K, K).cuda()
+    console.log("Input (B, K*S)", B, f"{K} * S")
+    console.log("Output (B, S, K)", B, "S", K)
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -79,11 +70,11 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        X = torch.randint(0, 2, (B, S)).cuda()
+        X = torch.randint(0, K, (B, K)).cuda()
         Y = net(X)
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
-        loss = ce_loss(Y, X)
+        loss = ce_loss(Y.swapaxes(1, 2), X)
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == X).float()
