@@ -24,21 +24,20 @@ def project_name():
 
 @command()
 def main(
-    B: int = 10,
+    n_batch: int = 10,
     debug: bool = False,
     gpu: str = "0",
     log_freq: int = 20,
     lr: float = 1e-4,
+    n_token: int = 200,
     notes: Optional[str] = None,
     num_steps: int = 50000,
     run_name: str = "trial",
     save_freq: int = 400,
+    seq_len: int = 50,
     seq2seq: str = "gru",
 ) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
-
-    N = 200
-    S = 50
 
     run = (
         None
@@ -51,12 +50,10 @@ def main(
     )
 
     save_dir = os.path.join("results", run_name)
-    console.log("B", B)
-    console.log("K", S)
+    console.log("B", n_batch)
+    console.log("K", seq_len)
 
-    net = SetTransformer(N, seq2seq=seq2seq).cuda()
-    console.log("Input (B, K*S)", B, f"{S} * S")
-    console.log("Output (B, S, K)", B, "S", S)
+    net = SetTransformer(n_token, seq2seq=seq2seq).cuda()
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
@@ -70,13 +67,13 @@ def main(
             optimizer.param_groups[0]["lr"] *= 0.1
         net.train()
         optimizer.zero_grad()
-        St = torch.randint(0, int(10), (B, 2, S))
-        G = torch.randint(0, int(10), (B, 2, 1))
+        St = torch.randint(0, int(10), (n_batch, 2, seq_len))
+        G = torch.randint(0, int(10), (n_batch, 2, 1))
         R = (St - G).sum(1).abs().float()
         Sl = 1 + torch.rand(R.shape, device=R.device)
         R *= Sl
         R = R.round().long()
-        A = torch.randint(0, 4, (B, S))
+        A = torch.randint(0, 4, (n_batch, seq_len))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
         𝚫 = mapping[A].swapaxes(1, 2)
         X = torch.cat([St, A[:, None], R[:, None]], 1).long().cuda()
@@ -89,7 +86,7 @@ def main(
         # console.log("Y", Y.shape)
         Z = X.sum(1)
         loss = ce_loss(Y.swapaxes(1, 2), Z)
-        assert [*Y.shape] == [B, S, N]
+        assert [*Y.shape] == [n_batch, seq_len, n_token]
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == Z).float()
