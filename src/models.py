@@ -110,12 +110,14 @@ class SetTransformer(nn.Module):
 
     def forward(self, X):
         B, T, S = X.shape
-        X = X.reshape(B * T, S).T
+        X = X.swapaxes(2, 1)
+        assert [*X.shape] == [B, S, T]
+        X = X.reshape(B * S, T)
         X = self.embedding(X)
         _, _, D = X.shape
-        assert [*X.shape] == [S, B * T, D]
+        assert [*X.shape] == [S * B, T, D]
         Y = self.seq2seq(X)
-        assert [*Y.shape] == [S, B * T, D]
+        assert [*Y.shape] == [S * B, T, D]
         Y = Y.reshape(S, B, T, D).sum(2)
         assert [*Y.shape] == [S, B, D]
         Y = Y.swapaxes(0, 1)
