@@ -155,7 +155,7 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
         order = torch.randint(0, n_rounds - 1, (n_steps, seq_len))
 
-        order = torch.randint(0, 2 * grid_size, (n_steps, seq_len))
+        order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
         Q = (states + deltas - goals).sum(-1).abs()
         Q_ = 0.99 ** torch.min(Q, order)
         Q_ = convert_to_unique_integers(Q_)
