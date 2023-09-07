@@ -24,6 +24,7 @@ def train(
     grid_size: int,
     max_order: Optional[int],
     min_order: Optional[int],
+    n_bins: int,
     run: Optional[Run],
     run_name: str,
     save_freq: int,
@@ -42,6 +43,7 @@ def train(
         grid_size=grid_size,
         max_order=max_order,
         min_order=min_order,
+        n_bins=n_bins,
         n_steps=n_steps,
         seq_len=seq_len,
     )

@@ -6,6 +6,7 @@ config = dict(
     grid_size=5,
     max_order=None,
     min_order=None,
+    n_bins=10,
     run_name="trial",
     save_freq=400,
     seed=0,

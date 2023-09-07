@@ -1,3 +1,4 @@
+import math
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
@@ -114,22 +115,36 @@ def round_to(tensor, decimals=2):
     return (tensor * 10**decimals).round() / (10**decimals)
 
 
-def convert_to_unique_integers(tensor):
+def quantize_tensor(tensor, n_bins):
     # Flatten tensor
     flat_tensor = tensor.flatten()
 
-    # Get unique values and their inverse indices
-    _, inverse_indices = torch.unique(flat_tensor, return_inverse=True)
+    # Sort the flattened tensor
+    sorted_tensor, _ = torch.sort(flat_tensor)
 
-    # Reshape the inverse_indices tensor to the original tensor's shape
-    int_tensor = inverse_indices.view(tensor.shape)
+    # Determine the thresholds for each bin
+    n_points_per_bin = int(math.ceil(len(sorted_tensor) / n_bins))
+    thresholds = sorted_tensor[::n_points_per_bin].contiguous()
 
-    return int_tensor
+    # Assign each value in the flattened tensor to a bucket
+    # The bucket number is the quantized value
+    quantized_tensor = torch.bucketize(flat_tensor, thresholds)
+
+    # Reshape the quantized tensor to the original tensor's shape
+    quantized_tensor = quantized_tensor.view(tensor.shape)
+
+    return quantized_tensor
 
 
 class RLData(Dataset):
     def __init__(
-        self, grid_size: int, min_order: int, max_order: int, n_steps: int, seq_len: int
+        self,
+        grid_size: int,
+        min_order: int,
+        max_order: int,
+        n_bins: int,
+        n_steps: int,
+        seq_len: int,
     ):
         n_rounds = 2 * grid_size
         goals, R, V = value_iteration(
@@ -166,8 +181,11 @@ class RLData(Dataset):
 
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
-        V1 = convert_to_unique_integers(V1)
-        V2 = convert_to_unique_integers(V2)
+        print("Computing unique values...", end="", flush=True)
+        V1 = quantize_tensor(V1, n_bins)
+        print("✓", end="", flush=True)
+        V2 = quantize_tensor(V2, n_bins)
+        print("✓")
         self.X = (
             torch.cat(
                 [states, actions[..., None], rewards, order[..., None], V1[..., None]],
