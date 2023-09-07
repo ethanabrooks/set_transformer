@@ -82,6 +82,7 @@ class SetTransformer(nn.Module):
     def __init__(
         self,
         n_tokens,
+        dim_output,
         dim_hidden=128,
         ln=False,
         num_inds=32,
@@ -112,7 +113,7 @@ class SetTransformer(nn.Module):
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-        self.dec = nn.Linear(dim_hidden, n_tokens)
+        self.dec = nn.Linear(dim_hidden, dim_output)
 
     def forward(self, X):
         B, S, T = X.shape

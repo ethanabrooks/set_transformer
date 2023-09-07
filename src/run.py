@@ -68,15 +68,19 @@ def main(
     )
 
     save_dir = os.path.join("results", run_name)
-    n_tokens = grid_size**2
-    print("Create net... ", end="", flush=True)
-    net = SetTransformer(n_tokens=n_tokens, seq2seq=seq2seq).cuda()
-    print("✓")
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
     dataset = RLData(grid_size, n_steps, seq_len)
+
+    print("Create net... ", end="", flush=True)
+    n_tokens = dataset.X.max().item() + 1
+    dim_output = dataset.Z.max().item() + 1
+    net = SetTransformer(
+        n_tokens=n_tokens, dim_output=dim_output, seq2seq=seq2seq
+    ).cuda()
+    print("✓")
 
     # Split the dataset into train and test sets
     test_size = int(test_split * len(dataset))
@@ -114,7 +118,7 @@ def main(
         # console.log("X", X.shape)
         # console.log("Y", Y.shape)
         loss = ce_loss(Y.swapaxes(1, 2), Z)
-        assert [*Y.shape] == [n_batch, seq_len, n_tokens]
+        assert [*Y.shape] == [n_batch, seq_len, dim_output]
         # I = torch.arange(B)[..., None]
         # logits_acc = torch.softmax(Y, -1)[I, X, :]
         argmax_acc = (Y.argmax(-1) == Z).float().mean()
