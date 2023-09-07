@@ -169,7 +169,10 @@ class RLData(Dataset):
         V1 = convert_to_unique_integers(V1)
         V2 = convert_to_unique_integers(V2)
         self.X = (
-            torch.cat([states, actions[..., None], rewards, V1[..., None]], -1)
+            torch.cat(
+                [states, actions[..., None], rewards, order[..., None], V1[..., None]],
+                -1,
+            )
             .long()
             .cuda()
         )
