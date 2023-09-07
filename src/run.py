@@ -33,6 +33,7 @@ def main(
     n_steps: int = 200000,
     grid_size: int = 5,
     max_order: Optional[int] = None,
+    min_order: Optional[int] = None,
     notes: Optional[str] = None,
     run_name: str = "trial",
     save_freq: int = 400,
@@ -55,6 +56,8 @@ def main(
                 lr=lr,
                 n_steps=n_steps,
                 grid_size=grid_size,
+                max_order=max_order,
+                min_order=min_order,
                 notes=notes,
                 run_name=run_name,
                 save_freq=save_freq,
@@ -73,7 +76,13 @@ def main(
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
-    dataset = RLData(grid_size, max_order, n_steps, seq_len)
+    dataset = RLData(
+        grid_size=grid_size,
+        max_order=max_order,
+        min_order=min_order,
+        n_steps=n_steps,
+        seq_len=seq_len,
+    )
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1

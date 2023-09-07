@@ -128,7 +128,9 @@ def convert_to_unique_integers(tensor):
 
 
 class RLData(Dataset):
-    def __init__(self, grid_size: int, max_order: int, n_steps: int, seq_len: int):
+    def __init__(
+        self, grid_size: int, min_order: int, max_order: int, n_steps: int, seq_len: int
+    ):
         n_rounds = 2 * grid_size
         goals, R, V = value_iteration(
             grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds
@@ -157,7 +159,9 @@ class RLData(Dataset):
 
         if max_order is None:
             max_order = len(V) - 2
-        order = torch.randint(0, max_order + 1, (n_steps, seq_len))
+        if min_order is None:
+            min_order = 0
+        order = torch.randint(min_order, max_order + 1, (n_steps, seq_len))
         idxs1, idxs2 = get_indices(next_states)
 
         V1 = V[order, idxs1, idxs2]
