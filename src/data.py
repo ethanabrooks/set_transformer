@@ -69,7 +69,8 @@ def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
     A = len(deltas)
     goals = torch.randint(0, grid_size, (n_steps, 2))
     states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
-    Pi = compute_policy_towards_goal(states, goals, grid_size)
+    alpha = torch.ones(4)
+    Pi = torch.distributions.Dirichlet(alpha).sample((B, N))
     assert [*Pi.shape] == [B, N, A]
 
     # Compute next states for each action and state for each batch (goal)
@@ -108,7 +109,7 @@ def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
         V[k + 1] = ER + gamma * EV
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
-    return goals, R, V
+    return Pi, R, V
 
 
 def round_to(tensor, decimals=2):
@@ -147,7 +148,7 @@ class RLData(Dataset):
         seq_len: int,
     ):
         n_rounds = 2 * grid_size
-        goals, R, V = value_iteration(
+        Pi, R, V = value_iteration(
             grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds
         )
 
@@ -166,7 +167,19 @@ class RLData(Dataset):
 
         states = torch.randint(0, grid_size, (n_steps, seq_len, 2))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        actions = torch.randint(0, 4, (n_steps, seq_len))
+        A = len(mapping)
+
+        # Convert 2D states to 1D indices
+        S = states[..., 0] * grid_size + states[..., 1]
+
+        # Gather the corresponding probabilities from Pi
+        probabilities = Pi.gather(1, S[..., None]).expand(-1, -1, A)
+        print("Sampling actions...", end="", flush=True)
+        actions = torch.multinomial(probabilities.view(-1, A), num_samples=1).view(
+            n_steps, seq_len
+        )
+        print("✓")
+
         deltas = mapping[actions]
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
         idxs1, idxs2 = get_indices(states)

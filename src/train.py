@@ -11,9 +11,7 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from data import RLData
 from models import SetTransformer
-from pretty import print_row
-
-console = Console()
+from pretty import print_row, console
 
 
 def train(
