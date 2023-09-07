@@ -129,20 +129,38 @@ def convert_to_unique_integers(tensor):
 
 class RLData(Dataset):
     def __init__(self, grid_size, n_steps, seq_len):
+        n_rounds = 2 * grid_size
+        R, V = value_iteration(grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds)
+
+        def get_indices(states: torch.Tensor):
+            # Step 1: Flatten states
+            states_flattened = states.view(-1, 2)
+
+            # Step 2: Convert states to indices
+            indices = states_flattened[:, 0] * grid_size + states_flattened[:, 1]
+
+            # Step 3: Reshape indices
+            indices_reshaped = indices.view(n_steps, seq_len)
+
+            # Step 4: Use advanced indexing
+            return torch.arange(n_steps)[:, None], indices_reshaped
+
         states = torch.randint(0, grid_size, (n_steps, seq_len, 2))
         goals = torch.randint(0, grid_size, (n_steps, 1, 2)).expand_as(states)
-        actions = torch.randint(0, 4, (n_steps, seq_len))
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+        actions = torch.randint(0, 4, (n_steps, seq_len))
         deltas = mapping[actions]
+        next_states = torch.clamp(states + deltas, 0, grid_size - 1)
+        idxs1, idxs2 = get_indices(next_states)
+        rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
+        order = torch.randint(0, n_rounds - 1, (n_steps, seq_len))
+
         order = torch.randint(0, 2 * grid_size, (n_steps, seq_len))
-        rewards = (states == goals).all(-1).long()
         Q = (states + deltas - goals).sum(-1).abs()
         Q_ = 0.99 ** torch.min(Q, order)
         Q_ = convert_to_unique_integers(Q_)
         self.X = (
-            torch.cat(
-                [states, actions[..., None], rewards[..., None], Q_[..., None]], -1
-            )
+            torch.cat([states, actions[..., None], rewards, Q_[..., None]], -1)
             .long()
             .cuda()
         )
