@@ -155,7 +155,7 @@ class RLData(Dataset):
         idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
-        order = torch.randint(0, 2, (n_steps, seq_len))
+        order = torch.randint(0, 3, (n_steps, seq_len))
         idxs1, idxs2 = get_indices(next_states)
 
         V1 = V[order, idxs1, idxs2]
