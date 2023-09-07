@@ -55,6 +55,7 @@ def get_git_rev():
 def sweep(
     gpus_per_proc: int,
     notes: str = None,
+    num_samples: int = None,
     allow_dirty: bool = False,
 ):
     group = datetime.datetime.now().strftime("-%d-%m-%H:%M:%S")
@@ -88,6 +89,7 @@ def sweep(
 
     tune.Tuner(
         trainable=tune.with_resources(trainable, dict(gpu=gpus_per_proc)),
+        tune_config=None if num_samples is None else dict(num_samples=num_samples),
         param_space=param_space,
     ).fit()
 
