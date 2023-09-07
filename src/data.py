@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -12,7 +13,7 @@ def visualize_values(
     fig, axs = plt.subplots(n_rounds, 1, figsize=(5, 5 * n_rounds))
 
     for k in range(n_rounds):
-        values = V[k, policy_idx].reshape((grid_size, grid_size))
+        values = V[k, policy_idx, :-1].reshape((grid_size, grid_size))
         im = axs[k].imshow(
             values,
             cmap="hot",
@@ -29,39 +30,101 @@ def visualize_values(
     plt.savefig(f"value_iteration{policy_idx}.png")
 
 
+def compute_policy_towards_goal(states, goals, grid_size):
+    # Expand goals and states for broadcasting
+    expanded_goals = goals[:, None, :]
+    expanded_states = states[None, :, :]
+
+    # Calculate the difference between each state and the goals
+    diff = expanded_goals - expanded_states
+
+    # Determine the action indices to move toward the goal for each state
+    positive_x_i, positive_x_j = (diff[..., 0] > 0).nonzero(as_tuple=True)
+    negative_x_i, negative_x_j = (diff[..., 0] < 0).nonzero(as_tuple=True)
+    positive_y_i, positive_y_j = (diff[..., 1] > 0).nonzero(as_tuple=True)
+    negative_y_i, negative_y_j = (diff[..., 1] < 0).nonzero(as_tuple=True)
+    equal_i, equal_j = (diff == 0).all(-1).nonzero(as_tuple=True)
+
+    # Initialize the actions tensor
+    n_states = grid_size**2 + 1
+    absorbing_state_idx = n_states - 1
+    actions = torch.zeros(goals.size(0), n_states, 4)
+
+    actions[positive_x_i, positive_x_j, 1] = 1  # Move down
+    actions[negative_x_i, negative_x_j, 0] = 1  # Move up
+    actions[positive_y_i, positive_y_j, 3] = 1  # Move right
+    actions[negative_y_i, negative_y_j, 2] = 1  # Move left
+    actions[equal_i, equal_j, :] = 1  # Random Movement
+    actions[:, absorbing_state_idx, :] = 1  # Random Movement
+
+    # Normalize using softmax along the action dimension
+    return actions / actions.sum(-1, keepdim=True)
+
+
 def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
-    n_states = grid_size**2
-
-    goals = torch.randint(0, grid_size, (n_steps, 2))
-
-    alpha = torch.ones(4)
-    Pi = torch.distributions.Dirichlet(alpha).sample((n_steps, n_states))
-    states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
     deltas = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+    B = n_steps
+    N = grid_size**2 + 1
+    A = len(deltas)
+    goals = torch.randint(0, grid_size, (n_steps, 2))
+    states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
+    Pi = compute_policy_towards_goal(states, goals, grid_size)
+    assert [*Pi.shape] == [B, N, A]
 
-    # Compute next states for each action and state
-    next_states = states[:, None] + deltas[None]
-
-    # Ensure next states are within the grid boundaries
+    # Compute next states for each action and state for each batch (goal)
+    next_states = states[:, None] + deltas[None, :]
     next_states = torch.clamp(next_states, 0, grid_size - 1)
-    S_ = next_states[:, :, 0] * grid_size + next_states[:, :, 1]
-    R = (goals[:, None] == states[None]).all(-1)
+    S_ = next_states[..., 0] * grid_size + next_states[..., 1]  # Convert to indices
 
-    # Extend dimensions for broadcasting
-    T = torch.zeros(n_steps, n_states, n_states)
-    idx = torch.arange(n_states)[:, None]
-    T[:, idx, S_] = Pi
-    T_ = T.swapaxes(1, 2)
+    # Determine if next_state is the goal for each batch (goal)
+    is_goal = (goals[:, None] == states[None]).all(-1)
+
+    # Modify transition to go to absorbing state if the next state is a goal
+    absorbing_state_idx = N - 1
+    S_ = S_[None].tile(B, 1, 1)
+    S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
+
+    # Insert row for absorbing state
+    padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
+    S_ = F.pad(S_, padding, value=absorbing_state_idx)
+    T = F.one_hot(S_, num_classes=N).float()
+    R = is_goal.float()[..., None].tile(1, 1, A)
+    R = F.pad(R, padding, value=0)  # Insert row for absorbing state
+
+    # Compute the policy conditioned transition function
+    Pi_ = Pi.view(B * N, 1, A)
+    T_ = T.view(B * N, A, N)
+    T_Pi = torch.bmm(Pi_, T_)
+    T_Pi = T_Pi.view(B, N, N)
 
     gamma = 0.99  # Assuming a discount factor
 
     # Initialize V_0
-    V = torch.zeros((n_rounds, n_steps, n_states), dtype=torch.float32)
+    V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float32)
     for k in tqdm(range(n_rounds - 1)):
-        EV = torch.bmm(T_, V[k][..., None]).squeeze(-1)
-        V[k + 1] = R + gamma * EV
+        ER = (Pi * R).sum(-1)
+        EV = (T_Pi * V[k, :, None]).sum(-1)
+        V[k + 1] = ER + gamma * EV
 
-    return goals, V
+    # visualize_values(grid_size, n_rounds, V, policy_idx=0)
+    return R, V
+
+
+def round_to(tensor, decimals=2):
+    return (tensor * 10**decimals).round() / (10**decimals)
+
+
+def convert_to_unique_integers(tensor):
+    # Flatten tensor
+    flat_tensor = tensor.flatten()
+
+    # Get unique values and their inverse indices
+    _, inverse_indices = torch.unique(flat_tensor, return_inverse=True)
+
+    # Reshape the inverse_indices tensor to the original tensor's shape
+    int_tensor = inverse_indices.view(tensor.shape)
+
+    return int_tensor
 
 
 class RLData(Dataset):
