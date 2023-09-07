@@ -154,9 +154,9 @@ class RLData(Dataset):
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
         idxs1, idxs2 = get_indices(next_states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
-        order = torch.randint(0, n_rounds - 1, (n_steps, seq_len))
 
         order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
+        order = torch.ones_like(order)
         Q = (next_states - goals[:, None]).sum(-1).abs()
         Q_ = (Q < order) * 0.99**Q
         Q_ = convert_to_unique_integers(Q_)
