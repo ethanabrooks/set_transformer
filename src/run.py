@@ -30,7 +30,7 @@ def main(
     gpu: str = "0",
     log_freq: int = 20,
     lr: float = 1e-4,
-    n_steps: int = 100000,
+    n_steps: int = 200000,
     grid_size: int = 5,
     notes: Optional[str] = None,
     run_name: str = "trial",
