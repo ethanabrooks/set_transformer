@@ -34,8 +34,8 @@ def log(
     if not allow_dirty:
         check_dirty()
 
-    wandb.init(config=config, name=name, project=get_project_name())
-    train(**config)
+    run = wandb.init(config=config, name=name, project=get_project_name())
+    train(**config, run=run)
 
 
 @tree.command()
