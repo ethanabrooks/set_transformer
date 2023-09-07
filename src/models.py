@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from modules import ISAB
+from modules import ISAB, SAB
 
 
 class PositionalEncoding(nn.Module):
@@ -108,8 +108,8 @@ class SetTransformer(nn.Module):
         self.enc = nn.Sequential(
             ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
             # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
+            SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
+            # ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
