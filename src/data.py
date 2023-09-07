@@ -152,7 +152,7 @@ class RLData(Dataset):
         actions = torch.randint(0, 4, (n_steps, seq_len))
         deltas = mapping[actions]
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
-        idxs1, idxs2 = get_indices(next_states)
+        idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
