@@ -156,18 +156,20 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
-        order = torch.ones_like(order)
-        Q = (next_states - goals[:, None]).sum(-1).abs()
-        Q_ = (Q < order) * 0.99**Q
-        Q_ = convert_to_unique_integers(Q_)
+        order = torch.zeros_like(order)
+        idxs1, idxs2 = get_indices(next_states)
+
+        V1 = V[order, idxs1, idxs2]
+        V2 = V[order + 1, idxs1, idxs2]
+        V1 = convert_to_unique_integers(V1)
+        V2 = convert_to_unique_integers(V2)
         self.X = (
-            torch.cat([states, actions[..., None], rewards, Q_[..., None]], -1)
+            torch.cat([states, actions[..., None], rewards, V1[..., None]], -1)
             .long()
             .cuda()
         )
 
-        self.Z = (Q < order + 1) * 0.99**Q
-        self.Z = convert_to_unique_integers(round_to(self.Z, decimals=2)).cuda()
+        self.Z = V2.cuda()
 
     def __len__(self):
         return len(self.X)
