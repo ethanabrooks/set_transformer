@@ -137,7 +137,8 @@ class RLData(Dataset):
         order = torch.randint(0, 2 * grid_size, (n_steps, seq_len))
         rewards = (states == goals).all(-1).long()
         Q = (states + deltas - goals).sum(-1).abs()
-        Q_ = torch.min(Q, order)
+        Q_ = 0.99 ** torch.min(Q, order)
+        Q_ = convert_to_unique_integers(Q_)
         self.X = (
             torch.cat(
                 [states, actions[..., None], rewards[..., None], Q_[..., None]], -1
@@ -146,7 +147,8 @@ class RLData(Dataset):
             .cuda()
         )
 
-        self.Z = torch.min(Q, order + 1).cuda()
+        self.Z = 0.99 * torch.min(Q, order + 1).cuda()
+        self.Z = convert_to_unique_integers(round_to(self.Z, decimals=2))
 
     def __len__(self):
         return len(self.X)
