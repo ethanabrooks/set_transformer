@@ -107,7 +107,7 @@ def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
         V[k + 1] = ER + gamma * EV
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
-    return R, V
+    return goals, R, V
 
 
 def round_to(tensor, decimals=2):
@@ -130,7 +130,9 @@ def convert_to_unique_integers(tensor):
 class RLData(Dataset):
     def __init__(self, grid_size, n_steps, seq_len):
         n_rounds = 2 * grid_size
-        R, V = value_iteration(grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds)
+        goals, R, V = value_iteration(
+            grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds
+        )
 
         def get_indices(states: torch.Tensor):
             # Step 1: Flatten states
@@ -146,7 +148,6 @@ class RLData(Dataset):
             return torch.arange(n_steps)[:, None], indices_reshaped
 
         states = torch.randint(0, grid_size, (n_steps, seq_len, 2))
-        goals = torch.randint(0, grid_size, (n_steps, 1, 2)).expand_as(states)
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
         actions = torch.randint(0, 4, (n_steps, seq_len))
         deltas = mapping[actions]
@@ -156,7 +157,7 @@ class RLData(Dataset):
         order = torch.randint(0, n_rounds - 1, (n_steps, seq_len))
 
         order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
-        Q = (next_states - goals).sum(-1).abs()
+        Q = (next_states - goals[:, None]).sum(-1).abs()
         Q_ = 0.99 ** torch.min(Q, order)
         Q_ = convert_to_unique_integers(Q_)
         self.X = (
