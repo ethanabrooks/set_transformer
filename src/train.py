@@ -1,13 +1,12 @@
 import os
 from typing import Optional
 
-import tomli
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from dollar_lambda import command
 from rich.console import Console
 from torch.utils.data import DataLoader, random_split
+from wandb.sdk.wandb_run import Run
 
 import wandb
 from data import RLData
@@ -17,60 +16,23 @@ from pretty import print_row
 console = Console()
 
 
-def project_name():
-    with open("pyproject.toml", "rb") as f:
-        pyproject = tomli.load(f)
-    return pyproject["tool"]["poetry"]["name"]
-
-
-@command()
-def main(
-    n_batch: int = 10,
-    debug: bool = False,
-    gpu: str = "0",
-    log_freq: int = 20,
-    lr: float = 1e-4,
-    n_steps: int = 200000,
-    grid_size: int = 5,
-    max_order: Optional[int] = None,
-    min_order: Optional[int] = None,
-    notes: Optional[str] = None,
-    run_name: str = "trial",
-    save_freq: int = 400,
-    seq_len: int = 100,
-    seq2seq: str = "gru",
-    test_split: float = 0.02,
-    test_freq: int = 100,
+def train(
+    n_batch: int,
+    log_freq: int,
+    lr: float,
+    n_steps: int,
+    grid_size: int,
+    max_order: Optional[int],
+    min_order: Optional[int],
+    run: Optional[Run],
+    run_name: str,
+    save_freq: int,
+    seed: int,
+    seq_len: int,
+    seq2seq: str,
+    test_split: float,
+    test_freq: int,
 ) -> None:
-    os.environ["CUDA_VISIBLE_DEVICES"] = gpu
-
-    run = (
-        None
-        if debug
-        else wandb.init(
-            config=dict(
-                n_batch=n_batch,
-                debug=debug,
-                gpu=gpu,
-                log_freq=log_freq,
-                lr=lr,
-                n_steps=n_steps,
-                grid_size=grid_size,
-                max_order=max_order,
-                min_order=min_order,
-                notes=notes,
-                run_name=run_name,
-                save_freq=save_freq,
-                seq_len=seq_len,
-                seq2seq=seq2seq,
-                test_split=test_split,
-                test_freq=test_freq,
-            ),
-            notes=notes,
-            project=project_name(),
-        )
-    )
-
     save_dir = os.path.join("results", run_name)
 
     if not os.path.isdir(save_dir):
@@ -148,7 +110,3 @@ def main(
             )
 
     torch.save({"state_dict": net.state_dict()}, os.path.join(save_dir, "model.tar"))
-
-
-if __name__ == "__main__":
-    main()
