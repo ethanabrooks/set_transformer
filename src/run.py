@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import Optional
 
@@ -70,13 +69,12 @@ def main(
 
     save_dir = os.path.join("results", run_name)
     n_tokens = grid_size**2
+    print("Create net... ", end="", flush=True)
     net = SetTransformer(n_tokens=n_tokens, seq2seq=seq2seq).cuda()
+    print("✓")
 
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-
-    logging.basicConfig(level=logging.INFO)
-    ce_loss = nn.CrossEntropyLoss()
 
     dataset = RLData(grid_size, n_steps, seq_len)
 
@@ -90,6 +88,7 @@ def main(
     test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
+    ce_loss = nn.CrossEntropyLoss()
     for t, (X, Z) in enumerate(train_loader):
         if t % test_freq == 0:
             net.eval()
