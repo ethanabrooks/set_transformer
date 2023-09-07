@@ -156,7 +156,7 @@ class RLData(Dataset):
         order = torch.randint(0, n_rounds - 1, (n_steps, seq_len))
 
         order = torch.randint(0, len(V) - 1, (n_steps, seq_len))
-        Q = (states + deltas - goals).sum(-1).abs()
+        Q = (next_states - goals).sum(-1).abs()
         Q_ = 0.99 ** torch.min(Q, order)
         Q_ = convert_to_unique_integers(Q_)
         self.X = (
