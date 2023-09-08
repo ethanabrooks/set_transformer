@@ -7,6 +7,7 @@ config = dict(
     max_order=None,
     min_order=None,
     n_bins=10,
+    n_policies=1,
     run_name="trial",
     save_freq=400,
     seed=0,

@@ -20,6 +20,7 @@ def train(
     n_batch: int,
     log_freq: int,
     lr: float,
+    n_policies: int,
     n_steps: int,
     grid_size: int,
     max_order: Optional[int],
@@ -58,6 +59,7 @@ def train(
         max_order=max_order,
         min_order=min_order,
         n_bins=n_bins,
+        n_policies=n_policies,
         n_steps=n_steps,
         seq_len=seq_len,
     )

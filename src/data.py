@@ -62,7 +62,7 @@ def compute_policy_towards_goal(states, goals, grid_size):
     return actions / actions.sum(-1, keepdim=True)
 
 
-def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
+def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
     deltas = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
     B = n_steps
     N = grid_size**2 + 1
@@ -72,8 +72,8 @@ def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
     alpha = torch.ones(4)
     Pi = (
         torch.distributions.Dirichlet(alpha)
-        .sample((2, N))
-        .tile(math.ceil(B / 2), 1, 1)[:B]
+        .sample((n_policies, N))
+        .tile(math.ceil(B / n_policies), 1, 1)[:B]
     )
     assert [*Pi.shape] == [B, N, A]
 
@@ -148,12 +148,16 @@ class RLData(Dataset):
         min_order: int,
         max_order: int,
         n_bins: int,
+        n_policies: int,
         n_steps: int,
         seq_len: int,
     ):
         n_rounds = 2 * grid_size
         Pi, R, V = value_iteration(
-            grid_size=grid_size, n_steps=n_steps, n_rounds=n_rounds
+            grid_size=grid_size,
+            n_policies=n_policies,
+            n_rounds=n_rounds,
+            n_steps=n_steps,
         )
 
         def get_indices(states: torch.Tensor):
