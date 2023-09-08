@@ -1,5 +1,6 @@
 config = dict(
     grid_size=5,
+    include_v1=True,
     max_order=None,
     min_order=None,
     n_bins=10,

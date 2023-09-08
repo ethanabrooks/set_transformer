@@ -145,6 +145,7 @@ class RLData(Dataset):
     def __init__(
         self,
         grid_size: int,
+        include_v1: bool,
         min_order: int,
         max_order: int,
         n_bins: int,
@@ -216,7 +217,7 @@ class RLData(Dataset):
                     actions[..., None],
                     rewards,
                     order[..., None],
-                    V1[..., None],
+                    *([V1[..., None]] if include_v1 else []),
                 ],
                 -1,
             )
