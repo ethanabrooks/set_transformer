@@ -105,12 +105,11 @@ class SetTransformer(nn.Module):
         else:
             raise ValueError(f"Unknown seq2seq {seq2seq}")
 
-        self.enc = nn.Sequential(
-            ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
-            # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            # ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
-        )
+        factory_kwargs = {"device": None, "dtype": None}
+        encoder_layer = nn.TransformerEncoderLayer(d_model=dim_hidden, nhead=8)
+        encoder_norm = nn.LayerNorm(d_model=dim_hidden, eps=1e-5, **factory_kwargs)
+        self.encoder = nn.TransformerEncoder(encoder_layer, 2, encoder_norm)
+        self.enc = nn.TransformerEncoderLayer(d_model=dim_hidden, nhead=8)
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
         self.dec = nn.Linear(dim_hidden, dim_output)
