@@ -160,6 +160,12 @@ class RLData(Dataset):
             n_rounds=n_rounds,
             n_steps=n_steps,
         )
+        mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+        A = len(mapping)
+        all_states = torch.tensor(
+            [[i, j] for i in range(grid_size) for j in range(grid_size)]
+        )
+        seq_len = A * len(all_states)
 
         def get_indices(states: torch.Tensor):
             # Step 1: Flatten states
@@ -174,9 +180,7 @@ class RLData(Dataset):
             # Step 4: Use advanced indexing
             return torch.arange(n_steps)[:, None], indices_reshaped
 
-        states = torch.randint(0, grid_size, (n_steps, seq_len, 2))
-        mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        A = len(mapping)
+        states = all_states[None].tile(n_steps, A, 1, 1).reshape(n_steps, -1, 2)
 
         # Convert 2D states to 1D indices
         S = states[..., 0] * grid_size + states[..., 1]
@@ -184,8 +188,11 @@ class RLData(Dataset):
         # Gather the corresponding probabilities from Pi
         probabilities = Pi.gather(1, S[..., None]).expand(-1, -1, A)
         print("Sampling actions...", end="", flush=True)
-        actions = torch.multinomial(probabilities.view(-1, A), num_samples=1).view(
-            n_steps, seq_len
+        actions = (
+            torch.arange(A)[:, None]
+            .expand(-1, len(all_states))
+            .reshape(-1)
+            .expand(n_steps, -1)
         )
         print("✓")
 
