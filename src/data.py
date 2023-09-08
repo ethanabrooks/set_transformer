@@ -70,7 +70,11 @@ def value_iteration(grid_size: int, n_rounds: int, n_steps: int):
     goals = torch.randint(0, grid_size, (n_steps, 2))
     states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
     alpha = torch.ones(4)
-    Pi = torch.distributions.Dirichlet(alpha).sample((1, N)).tile(B, 1, 1)
+    Pi = (
+        torch.distributions.Dirichlet(alpha)
+        .sample((2, N))
+        .tile(math.ceil(B / 2), 1, 1)[:B]
+    )
     assert [*Pi.shape] == [B, N, A]
 
     # Compute next states for each action and state for each batch (goal)
