@@ -206,10 +206,18 @@ class RLData(Dataset):
         V1 = quantize_tensor(V1, n_bins)
         print("✓", end="", flush=True)
         V2 = quantize_tensor(V2, n_bins)
+        probabilities = quantize_tensor(probabilities, n_bins)
         print("✓")
         self.X = (
             torch.cat(
-                [states, actions[..., None], rewards, order[..., None], V1[..., None]],
+                [
+                    states,
+                    probabilities,
+                    actions[..., None],
+                    rewards,
+                    order[..., None],
+                    V1[..., None],
+                ],
                 -1,
             )
             .long()
