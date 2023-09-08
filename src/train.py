@@ -6,26 +6,20 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from rich.console import Console
 from torch.utils.data import DataLoader, random_split
 from wandb.sdk.wandb_run import Run
 
 import wandb
 from data import RLData
 from models import SetTransformer
-from pretty import print_row, console
+from pretty import print_row
 
 
 def train(
-    n_batch: int,
     log_freq: int,
     lr: float,
-    n_policies: int,
+    n_batch: int,
     n_steps: int,
-    grid_size: int,
-    max_order: Optional[int],
-    min_order: Optional[int],
-    n_bins: int,
     run: Optional[Run],
     run_name: str,
     save_freq: int,
@@ -34,6 +28,7 @@ def train(
     seq2seq: str,
     test_split: float,
     test_freq: int,
+    **data_args,
 ) -> None:
     save_dir = os.path.join("results", run_name)
 
@@ -54,15 +49,7 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(
-        grid_size=grid_size,
-        max_order=max_order,
-        min_order=min_order,
-        n_bins=n_bins,
-        n_policies=n_policies,
-        n_steps=n_steps,
-        seq_len=seq_len,
-    )
+    dataset = RLData(**data_args, n_steps=n_steps, seq_len=seq_len)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
