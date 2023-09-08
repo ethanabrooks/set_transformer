@@ -54,11 +54,13 @@ def get_git_rev():
 @tree.subcommand()
 def sweep(
     gpus_per_proc: int,
+    group: str = None,
     notes: str = None,
     num_samples: int = None,
     allow_dirty: bool = False,
 ):
-    group = datetime.datetime.now().strftime("-%d-%m-%H:%M:%S")
+    if group is None:
+        group = datetime.datetime.now().strftime("-%d-%m-%H:%M:%S")
     commit = get_git_rev()
     project_name = get_project_name()
     if not allow_dirty:
