@@ -16,22 +16,20 @@ from pretty import print_row
 
 
 def train(
+    data_args: dict,
     log_freq: int,
     lr: float,
+    model_args: dict,
     n_batch: int,
     n_epochs: int,
-    n_isab: int,
-    n_sab: int,
     n_steps: int,
     run: Optional[Run],
     run_name: str,
     save_freq: int,
     seed: int,
     seq_len: int,
-    seq2seq: str,
     test_split: float,
     test_freq: int,
-    **data_args,
 ) -> None:
     save_dir = os.path.join("results", run_name)
 
@@ -57,13 +55,7 @@ def train(
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
     dim_output = dataset.Z.max().item() + 1
-    net = SetTransformer(
-        n_sab=n_sab,
-        n_isab=n_isab,
-        n_tokens=n_tokens,
-        dim_output=dim_output,
-        seq2seq=seq2seq,
-    ).cuda()
+    net = SetTransformer(**model_args, dim_output=dim_output, n_tokens=n_tokens).cuda()
     print("✓")
 
     # Split the dataset into train and test sets
