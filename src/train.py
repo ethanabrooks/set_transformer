@@ -1,3 +1,5 @@
+from collections import Counter
+from dataclasses import asdict, dataclass
 import os
 import random
 from typing import Optional
@@ -13,6 +15,35 @@ import wandb
 from data import RLData
 from models import SetTransformer
 from pretty import print_row
+
+
+@dataclass
+class Metrics:
+    loss: float
+    accuracy: float
+
+    def items_dict(self):
+        d = dict(loss=self.loss, accuracy=self.accuracy)
+        return {k: v.detach().cpu().item() for k, v in d.items()}
+
+
+def get_metrics(loss_fn, outputs, targets):
+    loss = loss_fn(outputs.swapaxes(1, 2), targets)
+    accuracy = (outputs.argmax(-1) == targets).float().mean()
+    return Metrics(loss=loss, accuracy=accuracy)
+
+
+def evaluate(net: nn.Module, test_loader: DataLoader):
+    net.eval()
+    counter = Counter()
+    loss_fn = nn.CrossEntropyLoss()
+    with torch.no_grad():
+        for X, Z in test_loader:
+            Y = net(X)
+            metrics = get_metrics(loss_fn, Y, Z)
+            counter.update(metrics.items_dict())
+    log = {k: v / len(test_loader) for k, v in counter.items()}
+    return log
 
 
 def train(
@@ -62,6 +93,7 @@ def train(
     test_size = int(test_split * len(dataset))
     train_size = len(dataset) - test_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    counter = Counter()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     ce_loss = nn.CrossEntropyLoss()
@@ -70,22 +102,12 @@ def train(
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
         for t, (X, Z) in enumerate(train_loader):
+            step = e * len(train_loader) + t
             if t % test_freq == 0:
-                net.eval()
-                loss = 0
-                argmax_acc = 0
-                with torch.no_grad():
-                    for X, Z in test_loader:
-                        Y = net(X)
-                        loss += ce_loss(Y.swapaxes(1, 2), Z)
-                        argmax_acc += (Y.argmax(-1) == Z).float().mean()
-                log = dict(loss=loss, argmax_acc=argmax_acc)
-                log = {
-                    f"test/{k}": (v / len(test_loader)).item() for k, v in log.items()
-                }
+                log = evaluate(net=net, test_loader=test_loader)
                 print_row(log, show_header=True)
                 if run is not None:
-                    wandb.log(log, step=e * len(train_loader) + t)
+                    wandb.log(log, step=step)
 
             if t == int(0.5 * n_steps):
                 optimizer.param_groups[0]["lr"] *= 0.1
@@ -93,22 +115,17 @@ def train(
             optimizer.zero_grad()
 
             Y = net(X)
-            # console.log("X", X.shape)
-            # console.log("Y", Y.shape)
-            loss = ce_loss(Y.swapaxes(1, 2), Z)
             assert [*Y.shape] == [n_batch, seq_len, dim_output]
-            # I = torch.arange(B)[..., None]
-            # logits_acc = torch.softmax(Y, -1)[I, X, :]
-            argmax_acc = (Y.argmax(-1) == Z).float().mean()
-            loss.backward()
+            metrics = get_metrics(ce_loss, Y, Z)
+            metrics.loss.backward()
             optimizer.step()
+            counter.update(metrics.items_dict())
             if t % log_freq == 0:
-                log = dict(loss=loss, argmax_acc=argmax_acc)
-                log = {f"train/{k}": (v).item() for k, v in log.items()}
-
+                log = {f"train/{k}": v / log_freq for k, v in counter.items()}
+                counter = Counter()
                 print_row(log, show_header=(t % test_freq == 0))
                 if run is not None:
-                    wandb.log(log, step=e * len(train_loader) + t)
+                    wandb.log(log, step=step)
 
             if t % save_freq == 0:
                 torch.save(
