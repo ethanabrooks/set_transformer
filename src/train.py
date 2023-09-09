@@ -62,6 +62,10 @@ def train(
     test_split: float,
     test_freq: int,
 ) -> None:
+    if n_isab + n_sab > 5:
+        exit(0)
+    if n_isab + n_sab < 3:
+        exit(0)
     save_dir = os.path.join("results", run_name)
 
     if not os.path.isdir(save_dir):
