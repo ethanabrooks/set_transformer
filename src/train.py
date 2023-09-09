@@ -20,6 +20,8 @@ def train(
     lr: float,
     n_batch: int,
     n_epochs: int,
+    n_isab: int,
+    n_sab: int,
     n_steps: int,
     run: Optional[Run],
     run_name: str,
@@ -56,7 +58,11 @@ def train(
     n_tokens = dataset.X.max().item() + 1
     dim_output = dataset.Z.max().item() + 1
     net = SetTransformer(
-        n_tokens=n_tokens, dim_output=dim_output, seq2seq=seq2seq
+        n_sab=n_sab,
+        n_isab=n_isab,
+        n_tokens=n_tokens,
+        dim_output=dim_output,
+        seq2seq=seq2seq,
     ).cuda()
     print("✓")
 

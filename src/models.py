@@ -83,6 +83,8 @@ class SetTransformer(nn.Module):
         self,
         n_tokens,
         dim_output,
+        n_isab,
+        n_sab,
         dim_hidden=128,
         ln=False,
         num_inds=32,
@@ -106,10 +108,11 @@ class SetTransformer(nn.Module):
             raise ValueError(f"Unknown seq2seq {seq2seq}")
 
         self.enc = nn.Sequential(
-            ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
-            # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-            ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln),
-            SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
+            *[
+                ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln)
+                for _ in range(n_isab)
+            ],
+            *[SAB(dim_hidden, dim_hidden, num_heads, ln=ln) for _ in range(n_sab)],
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
