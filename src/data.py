@@ -86,7 +86,6 @@ class RLData(Dataset):
                     probabilities,
                     actions[..., None],
                     rewards,
-                    order[..., None],
                     *([V1[..., None]] if include_v1 else []),
                 ],
                 -1,
