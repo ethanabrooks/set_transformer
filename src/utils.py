@@ -4,42 +4,6 @@ from tqdm import tqdm
 import torch.nn.functional as F
 
 
-def compute_policy_towards_goal(states, goals, grid_size):
-    # Expand goals and states for broadcasting
-    expanded_goals = goals[:, None, :]
-    expanded_states = states[None, :, :]
-
-    # Calculate the difference between each state and the goals
-    diff = expanded_goals - expanded_states
-
-    # Determine the action indices to move toward the goal for each state
-    positive_x_i, positive_x_j = (diff[..., 0] > 0).nonzero(as_tuple=True)
-    negative_x_i, negative_x_j = (diff[..., 0] < 0).nonzero(as_tuple=True)
-    positive_y_i, positive_y_j = (diff[..., 1] > 0).nonzero(as_tuple=True)
-    negative_y_i, negative_y_j = (diff[..., 1] < 0).nonzero(as_tuple=True)
-    equal_i, equal_j = (diff == 0).all(-1).nonzero(as_tuple=True)
-
-    # Initialize the actions tensor
-    n_states = grid_size**2 + 1
-    absorbing_state_idx = n_states - 1
-    actions = torch.zeros(goals.size(0), n_states, 4)
-
-    # Assign deterministic actions with vertical priority
-    actions[positive_x_i, positive_x_j, 1] = 1  # Move down
-    actions[negative_x_i, negative_x_j, 0] = 1  # Move up
-    # Only assign horizontal actions if no vertical action has been assigned
-    actions[positive_y_i, positive_y_j, 3] = (
-        actions[positive_y_i, positive_y_j].sum(-1) == 0
-    ).float()  # Move right
-    actions[negative_y_i, negative_y_j, 2] = (
-        actions[negative_y_i, negative_y_j].sum(-1) == 0
-    ).float()  # Move left
-    actions[:, absorbing_state_idx, 0] = 1  # Arbitrary action, since it doesn't matter
-    actions[equal_i, equal_j, 0] = 1  # Arbitrary action, since it doesn't matter
-
-    return actions
-
-
 def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
     deltas = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
     B = n_steps
@@ -47,7 +11,12 @@ def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int
     A = len(deltas)
     goals = torch.randint(0, grid_size, (1, 2)).tile(B, 1)
     states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
-    Pi = compute_policy_towards_goal(states, goals, grid_size)
+    alpha = torch.ones(4)
+    Pi = (
+        torch.distributions.Dirichlet(alpha)
+        .sample((n_policies, N))
+        .tile(math.ceil(B / n_policies), 1, 1)[:B]
+    )
     assert [*Pi.shape] == [B, N, A]
 
     # Compute next states for each action and state for each batch (goal)
