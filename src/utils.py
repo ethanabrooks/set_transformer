@@ -9,7 +9,7 @@ def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int
     B = n_steps
     N = grid_size**2 + 1
     A = len(deltas)
-    goals = torch.randint(0, grid_size, (1, 2)).tile(B, 1)
+    goals = torch.randint(0, grid_size, (n_steps, 2))
     states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
     alpha = torch.ones(4)
     Pi = (
