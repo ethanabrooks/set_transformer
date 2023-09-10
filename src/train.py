@@ -115,7 +115,7 @@ def train(
             optimizer.zero_grad()
 
             Y = net(X)
-            assert [*Y.shape] == [n_batch, seq_len, dim_output]
+
             metrics = get_metrics(ce_loss, Y, Z)
             metrics.loss.backward()
             optimizer.step()
