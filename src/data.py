@@ -1,65 +1,9 @@
 import math
-import matplotlib.pyplot as plt
+
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from tqdm import tqdm
-
-
-def visualize_values(
-    grid_size: int, n_rounds: int, V: torch.Tensor, policy_idx: int = 0
-):
-    global_min = V[:, policy_idx].min().item()
-    global_max = V[:, policy_idx].max().item()
-    fig, axs = plt.subplots(n_rounds, 1, figsize=(5, 5 * n_rounds))
-
-    for k in range(n_rounds):
-        values = V[k, policy_idx, :-1].reshape((grid_size, grid_size))
-        im = axs[k].imshow(
-            values,
-            cmap="hot",
-            interpolation="nearest",
-            vmin=global_min,
-            vmax=global_max,
-        )
-        axs[k].set_title(f"Value function at iteration {k}")
-
-        # Add colorbar to each subplot
-        fig.colorbar(im, ax=axs[k], fraction=0.046, pad=0.04)
-
-    plt.tight_layout()
-    plt.savefig(f"value_iteration{policy_idx}.png")
-
-
-def compute_policy_towards_goal(states, goals, grid_size):
-    # Expand goals and states for broadcasting
-    expanded_goals = goals[:, None, :]
-    expanded_states = states[None, :, :]
-
-    # Calculate the difference between each state and the goals
-    diff = expanded_goals - expanded_states
-
-    # Determine the action indices to move toward the goal for each state
-    positive_x_i, positive_x_j = (diff[..., 0] > 0).nonzero(as_tuple=True)
-    negative_x_i, negative_x_j = (diff[..., 0] < 0).nonzero(as_tuple=True)
-    positive_y_i, positive_y_j = (diff[..., 1] > 0).nonzero(as_tuple=True)
-    negative_y_i, negative_y_j = (diff[..., 1] < 0).nonzero(as_tuple=True)
-    equal_i, equal_j = (diff == 0).all(-1).nonzero(as_tuple=True)
-
-    # Initialize the actions tensor
-    n_states = grid_size**2 + 1
-    absorbing_state_idx = n_states - 1
-    actions = torch.zeros(goals.size(0), n_states, 4)
-
-    actions[positive_x_i, positive_x_j, 1] = 1  # Move down
-    actions[negative_x_i, negative_x_j, 0] = 1  # Move up
-    actions[positive_y_i, positive_y_j, 3] = 1  # Move right
-    actions[negative_y_i, negative_y_j, 2] = 1  # Move left
-    actions[equal_i, equal_j, :] = 1  # Random Movement
-    actions[:, absorbing_state_idx, :] = 1  # Random Movement
-
-    # Normalize using softmax along the action dimension
-    return actions / actions.sum(-1, keepdim=True)
 
 
 def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
@@ -114,10 +58,6 @@ def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
     return Pi, R, V
-
-
-def round_to(tensor, decimals=2):
-    return (tensor * 10**decimals).round() / (10**decimals)
 
 
 def quantize_tensor(tensor, n_bins):

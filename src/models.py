@@ -21,7 +21,7 @@ class PositionalEncoding(nn.Module):
         pe[:, 0, 1::2] = torch.cos(position * div_term)
         self.register_buffer("pe", pe)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tensor:  # dead: disable
         """
         Arguments:
             x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
@@ -31,7 +31,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TransformerEncoderLayer(nn.TransformerEncoderLayer):
-    def _ff_block(self, x: Tensor) -> Tensor:
+    def _ff_block(self, x: Tensor) -> Tensor:  # dead: disable
         return x
 
 
@@ -52,7 +52,7 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
         self.d_model = d_model
 
-    def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:
+    def forward(self, src: Tensor, src_mask: Tensor = None) -> Tensor:  # dead: disable
         """
         Arguments:
             src: Tensor, shape ``[batch_size, seq_len, d_model]``
@@ -73,7 +73,7 @@ class GRU(nn.Module):
         super().__init__()
         self.gru = nn.GRU(dim_hidden, dim_hidden, batch_first=True)
 
-    def forward(self, x):
+    def forward(self, x):  # dead: disable
         h, _ = self.gru(x)
         return h
 
@@ -118,7 +118,7 @@ class SetTransformer(nn.Module):
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
         self.dec = nn.Linear(dim_hidden, dim_output)
 
-    def forward(self, X):
+    def forward(self, X):  # dead: disable
         B, S, T = X.shape
         X = X.reshape(B * S, T)
         X = self.embedding(X)
