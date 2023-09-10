@@ -104,6 +104,11 @@ def quantize_tensor(tensor, n_bins):
     # The bucket number is the quantized value
     quantized_tensor = torch.bucketize(flat_tensor, thresholds)
 
+    # Make the quantized values contiguous
+    unique_bins = torch.unique(quantized_tensor)
+    for i, bin in enumerate(unique_bins):
+        quantized_tensor[quantized_tensor == bin] = i
+
     # Reshape the quantized tensor to the original tensor's shape
     quantized_tensor = quantized_tensor.view(tensor.shape)
 
