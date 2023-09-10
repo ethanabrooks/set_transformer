@@ -5,7 +5,7 @@ config = dict(
         max_order=None,
         min_order=None,
         n_bins=10,
-        n_policies=1,
+        n_policies=8,
     ),
     model_args=dict(
         n_isab=1,
