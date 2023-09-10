@@ -62,9 +62,11 @@ def train(
     test_split: float,
     test_freq: int,
 ) -> None:
-    if n_isab + n_sab > 5:
+    n_isab = model_args["n_isab"]
+    n_sab = model_args["n_sab"]
+    if n_isab + n_sab > 7:
         exit(0)
-    if n_isab + n_sab < 3:
+    if n_isab + n_sab < 4:
         exit(0)
     save_dir = os.path.join("results", run_name)
 
