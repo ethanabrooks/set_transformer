@@ -1,6 +1,6 @@
 config = dict(
     data_args=dict(
-        grid_size=5,
+        grid_size=3,
         include_v1=True,
         max_order=None,
         min_order=None,
