@@ -39,7 +39,7 @@ def evaluate(net: nn.Module, test_loader: DataLoader):
     loss_fn = nn.CrossEntropyLoss()
     with torch.no_grad():
         for X, Z in test_loader:
-            Y = net(X)
+            Y = net.forward(X)
             metrics = get_metrics(loss_fn, Y, Z)
             counter.update(metrics.items_dict())
     log = {k: v / len(test_loader) for k, v in counter.items()}
@@ -120,7 +120,7 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            Y = net(X)
+            Y = net.forward(X)
 
             metrics = get_metrics(ce_loss, Y, Z)
             metrics.loss.backward()

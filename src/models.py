@@ -8,7 +8,7 @@ class GRU(nn.Module):
         super().__init__()
         self.gru = nn.GRU(dim_hidden, dim_hidden, batch_first=True)
 
-    def forward(self, x):  # dead: disable
+    def forward(self, x):
         h, _ = self.gru(x)
         return h
 
@@ -42,7 +42,7 @@ class SetTransformer(nn.Module):
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
         self.dec = nn.Linear(dim_hidden, dim_output)
 
-    def forward(self, X):  # dead: disable
+    def forward(self, X):
         B, S, T = X.shape
         X = X.reshape(B * S, T)
         X = self.embedding(X)

@@ -91,7 +91,7 @@ def log(
 
 
 @tree.command(parsers=parsers)
-def no_log(config: str):  # dead: disable
+def no_log(config: str):
     config = get_config(config)
     return train(**config, run=None)
 
@@ -105,7 +105,7 @@ def get_git_rev():
 
 
 @tree.subcommand(parsers=parsers)
-def sweep(  # dead: disable
+def sweep(
     config: str,
     gpus_per_proc: int,
     group: str = None,
