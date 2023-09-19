@@ -1,0 +1,16 @@
+data_args:
+  include_v1: true
+  max_order: null
+  min_order: null
+  n_bins: 10
+  n_policies: 128
+log_freq: 20
+n_batch: 50
+n_epochs: 50
+n_steps: 50000
+run_name: "trial"
+save_freq: 400
+seed: 0
+seq_len: 100
+test_freq: 100
+test_split: 0.02
