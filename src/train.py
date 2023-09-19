@@ -50,6 +50,8 @@ def train(
     data_args: dict,
     log_freq: int,
     lr: float,
+    min_layers: Optional[int],
+    max_layers: Optional[int],
     model_args: dict,
     n_batch: int,
     n_epochs: int,
@@ -62,12 +64,15 @@ def train(
     test_split: float,
     test_freq: int,
 ) -> None:
-    n_isab = model_args["n_isab"]
-    n_sab = model_args["n_sab"]
-    if n_isab + n_sab > 7:
-        exit(0)
-    if n_isab + n_sab < 4:
-        exit(0)
+    def check_layers(n_isab: int, n_sab: int, **_):  # dead: disable
+        del _
+        n_layers = n_sab + n_isab
+        if n_layers < (min_layers or 1):
+            exit(0)
+        if max_layers is not None and n_layers > max_layers:
+            exit(0)
+
+    check_layers(**model_args)
     save_dir = os.path.join("results", run_name)
 
     if not os.path.isdir(save_dir):
