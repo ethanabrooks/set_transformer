@@ -13,6 +13,8 @@ def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: i
     goals = torch.randint(0, grid_size, (n_steps, 2))
     states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
     alpha = torch.ones(4)
+    if n_policies is None:
+        n_policies = B
     Pi = (
         torch.distributions.Dirichlet(alpha)
         .sample((n_policies, N))
