@@ -1,4 +1,7 @@
 import datetime
+import resource
+import signal
+import sys
 import time
 import urllib
 from pathlib import Path
@@ -92,7 +95,21 @@ def log(
 
 
 @tree.command(parsers=parsers)
-def no_log(config: str):
+def no_log(config: str, memory_limit: int = None):  # dead: disable
+    def signal_handler(*_):
+        print("Resource limit reached, terminating program.")
+        sys.exit(1)
+
+    # set resource limits
+    if memory_limit is not None:
+        # convert memory to bytes
+        memory_bytes = memory_limit * (1024**2)
+
+        # set memory limit
+        resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+
+    # set signal handler for when resource limit is reached
+    signal.signal(signal.SIGXCPU, signal_handler)
     config = get_config(config)
     return train(**config, run=None)
 
