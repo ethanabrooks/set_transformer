@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-from utils import quantize_tensor, value_iteration
+from utils import policy_evaluation, quantize_tensor
 
 
 class RLData(Dataset):
@@ -17,7 +17,7 @@ class RLData(Dataset):
         seq_len: int,
     ):
         n_rounds = 2 * grid_size
-        Pi, R, V = value_iteration(
+        Pi, R, V = policy_evaluation(
             grid_size=grid_size,
             n_policies=n_policies,
             n_rounds=n_rounds,

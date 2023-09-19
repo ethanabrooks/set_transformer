@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 
-def value_iteration(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
+def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
     deltas = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
     B = n_steps
     N = grid_size**2 + 1
