@@ -10,7 +10,7 @@ max_layers: 10
 min_layers: 1
 n_batch: 50
 n_epochs: 50
-n_steps: 50000
+n_steps: 100_000
 run_name: "trial"
 save_freq: 400
 seed: 0
