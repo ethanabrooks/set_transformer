@@ -11,7 +11,8 @@ class RLData(Dataset):
         include_v1: bool,
         min_order: int,
         max_order: int,
-        n_bins: int,
+        n_input_bins: int,
+        n_output_bins: int,
         n_policies: int,
         n_steps: int,
     ):
@@ -73,10 +74,10 @@ class RLData(Dataset):
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
         print("Computing unique values...", end="", flush=True)
-        V1 = round_tensor(V1, n_bins)
+        V1 = round_tensor(V1, n_input_bins)
         print("✓", end="", flush=True)
-        V2 = round_tensor(V2, n_bins)
-        probabilities = round_tensor(probabilities, n_bins)
+        V2 = round_tensor(V2, n_output_bins)
+        probabilities = round_tensor(probabilities, n_input_bins)
         print("✓")
         self.X = (
             torch.cat(
