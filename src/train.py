@@ -42,8 +42,7 @@ def evaluate(net: nn.Module, test_loader: DataLoader):
             Y = net.forward(X)
             metrics = get_metrics(loss_fn, Y, Z)
             counter.update(metrics.items_dict())
-    log = {k: v / len(test_loader) for k, v in counter.items()}
-    return log
+    return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
 
 def train(
