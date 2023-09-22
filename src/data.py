@@ -85,6 +85,7 @@ class RLData(Dataset):
                     states,
                     probabilities,
                     actions[..., None],
+                    next_states,
                     rewards,
                     *([V1[..., None]] if include_v1 else []),
                 ],
