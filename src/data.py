@@ -14,7 +14,6 @@ class RLData(Dataset):
         n_bins: int,
         n_policies: int,
         n_steps: int,
-        seq_len: int,
     ):
         n_rounds = 2 * grid_size
         Pi, R, V = policy_evaluation(
