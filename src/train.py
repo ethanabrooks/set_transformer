@@ -60,7 +60,6 @@ def train(
     run_name: str,
     save_freq: int,
     seed: int,
-    seq_len: int,
     test_split: float,
     test_freq: int,
 ) -> None:
@@ -92,7 +91,7 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(**data_args, n_steps=n_steps, seq_len=seq_len)
+    dataset = RLData(**data_args, n_steps=n_steps)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
