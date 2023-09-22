@@ -2,7 +2,8 @@ data_args:
   include_v1: true
   max_order: null
   min_order: null
-  n_bins: 10
+  n_input_bins: 1000
+  n_output_bins: 10
   n_policies: 128
 log_freq: 20
 max_layers: 10
