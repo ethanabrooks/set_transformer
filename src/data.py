@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-from utils import policy_evaluation, quantize_tensor
+from utils import policy_evaluation, round_tensor
 
 
 class RLData(Dataset):
@@ -73,10 +73,10 @@ class RLData(Dataset):
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
         print("Computing unique values...", end="", flush=True)
-        V1 = quantize_tensor(V1, n_bins)
+        V1 = round_tensor(V1, n_bins)
         print("✓", end="", flush=True)
-        V2 = quantize_tensor(V2, n_bins)
-        probabilities = quantize_tensor(probabilities, n_bins)
+        V2 = round_tensor(V2, n_bins)
+        probabilities = round_tensor(probabilities, n_bins)
         print("✓")
         self.X = (
             torch.cat(

@@ -85,3 +85,21 @@ def quantize_tensor(tensor, n_bins):
     quantized_tensor = quantized_tensor.view(tensor.shape)
 
     return quantized_tensor
+
+
+def round_tensor(tensor, round_to):
+    discretized = (tensor * round_to).round().long()
+
+    # Make the quantized values contiguous
+    unique_bins = torch.unique(discretized)
+    for i, bin in enumerate(unique_bins):
+        discretized[discretized == bin] = i
+
+    # Reshape the quantized tensor to the original tensor's shape
+    discretized = discretized.view(tensor.shape)
+
+    return discretized
+
+
+if __name__ == "__main__":
+    quantize_tensor  # whitelist
