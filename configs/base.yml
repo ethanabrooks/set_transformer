@@ -4,7 +4,7 @@ data_args:
   min_order: null
   n_input_bins: 1000
   n_output_bins: 10
-  n_policies: 128
+  n_policies: 1024
 log_freq: 20
 max_layers: 10
 min_layers: 1
