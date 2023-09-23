@@ -5,7 +5,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 
-def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
+def policy_evaluation(
+    grid_size: int, n_bins: int, n_policies: int, n_rounds: int, n_steps: int
+):
     deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
     B = n_steps
     N = grid_size + 1
@@ -44,6 +46,7 @@ def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: i
 
     # Compute the policy conditioned transition function
     Pi_ = Pi.view(B * N, 1, A)
+    Pi = round_tensor(Pi, n_bins) / n_bins
     T_ = T.view(B * N, A, N)
     T_Pi = torch.bmm(Pi_, T_)
     T_Pi = T_Pi.view(B, N, N)
@@ -55,7 +58,8 @@ def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: i
     for k in tqdm(range(n_rounds - 1)):
         ER = (Pi * R).sum(-1)
         EV = (T_Pi * V[k, :, None]).sum(-1)
-        V[k + 1] = ER + gamma * EV
+        Vk1 = ER + gamma * EV
+        V[k + 1] = round_tensor(Vk1, n_bins) / n_bins
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
     return Pi, R, V, goals

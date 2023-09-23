@@ -19,6 +19,7 @@ class RLData(Dataset):
         n_rounds = 2 * grid_size
         Pi, R, V, goals = policy_evaluation(
             grid_size=grid_size,
+            n_bins=n_input_bins,
             n_policies=n_policies,
             n_rounds=n_rounds,
             n_steps=n_steps,
