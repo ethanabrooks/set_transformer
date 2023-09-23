@@ -95,7 +95,9 @@ def log(
 
 
 @tree.command(parsers=parsers)
-def no_log(config: str, memory_limit: int = None):  # dead: disable
+def no_log(
+    config: str, load_path: str = None, memory_limit: int = None
+):  # dead: disable
     def signal_handler(*_):
         print("Resource limit reached, terminating program.")
         sys.exit(1)
@@ -110,7 +112,12 @@ def no_log(config: str, memory_limit: int = None):  # dead: disable
 
     # set signal handler for when resource limit is reached
     signal.signal(signal.SIGXCPU, signal_handler)
+
     config = get_config(config)
+    if load_path is not None:
+        config = wandb.Api().run(load_path).config
+        del config["config"]
+    config.update(load_path=load_path)
     return train(**config, run=None)
 
 

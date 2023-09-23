@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from collections import Counter
 from dataclasses import dataclass
 from typing import Optional
@@ -15,6 +16,19 @@ import wandb
 from data import RLData
 from models import SetTransformer
 from pretty import print_row
+
+MODEL_FNAME = "model.tar"
+
+
+def load(
+    load_path: Optional[str],
+    net: SetTransformer,
+    run: Optional[Run],
+):
+    root = run.dir if run is not None else f"/tmp/wandb{time.time()}"
+    wandb.restore(MODEL_FNAME, run_path=load_path, root=root)
+    state = torch.load(os.path.join(root, MODEL_FNAME))
+    net.load_state_dict(state, strict=True)
 
 
 @dataclass
@@ -47,6 +61,7 @@ def evaluate(net: nn.Module, test_loader: DataLoader):
 
 def train(
     data_args: dict,
+    load_path: str,
     log_freq: int,
     lr: float,
     min_layers: Optional[int],
@@ -56,7 +71,6 @@ def train(
     n_epochs: int,
     n_steps: int,
     run: Optional[Run],
-    run_name: str,
     save_freq: int,
     seed: int,
     test_split: float,
@@ -71,10 +85,6 @@ def train(
             exit(0)
 
     check_layers(**model_args)
-    save_dir = os.path.join("results", run_name)
-
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
 
     # Set the seed for PyTorch
     torch.manual_seed(seed)
@@ -95,7 +105,10 @@ def train(
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
     dim_output = dataset.Z.max().item() + 1
-    net = SetTransformer(**model_args, dim_output=dim_output, n_tokens=n_tokens).cuda()
+    net = SetTransformer(**model_args, dim_output=dim_output, n_tokens=n_tokens)
+    if load_path is not None:
+        load(load_path, net, run)
+    net = net.cuda()
     print("✓")
 
     # Split the dataset into train and test sets
@@ -103,6 +116,7 @@ def train(
     train_size = len(dataset) - test_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     counter = Counter()
+    save_count = 0
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     ce_loss = nn.CrossEntropyLoss()
@@ -131,15 +145,22 @@ def train(
             counter.update(metrics.items_dict())
             if t % log_freq == 0:
                 log = {f"train/{k}": v / log_freq for k, v in counter.items()}
+                log.update(save_count=save_count)
                 counter = Counter()
                 print_row(log, show_header=(t % test_freq == 0))
                 if run is not None:
                     wandb.log(log, step=step)
 
+                    # save
             if t % save_freq == 0:
-                torch.save(
-                    {"state_dict": net.state_dict()},
-                    os.path.join(save_dir, "model.tar"),
-                )
+                save(run, net)
+                save_count += 1
 
-    torch.save({"state_dict": net.state_dict()}, os.path.join(save_dir, "model.tar"))
+    save(run, net)
+
+
+def save(run: Run, net: SetTransformer):
+    if run is not None:
+        savepath = os.path.join(run.dir, MODEL_FNAME)
+        torch.save(net.state_dict(), savepath)
+        wandb.save(savepath)
