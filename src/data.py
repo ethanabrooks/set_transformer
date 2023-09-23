@@ -62,7 +62,7 @@ class RLData(Dataset):
             min_order = 0
 
         order = torch.randint(min_order, max_order + 1, (n_steps, 1)).tile(1, seq_len)
-        idxs1, idxs2 = get_indices(next_states)
+        idxs1, idxs2 = get_indices(states)
 
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]

@@ -38,7 +38,7 @@ class Metrics:
     within1accuracy: float
 
 
-def get_metrics(loss_fn, outputs, targets):
+def get_metrics(loss_fn, outputs, targets) -> tuple[torch.Tensor, Metrics]:
     loss = loss_fn(outputs.swapaxes(1, 2), targets)
     accuracy = (outputs.argmax(-1) == targets).float().mean().item()
     within1accuracy = ((outputs.argmax(-1) - targets).abs() <= 1).float().mean().item()
