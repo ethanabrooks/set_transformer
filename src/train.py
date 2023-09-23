@@ -76,7 +76,14 @@ def train(
     seed: int,
     test_split: float,
     test_freq: int,
+    commit: str = None,
+    config: str = None,
+    config_name: str = None,
 ) -> None:
+    del commit
+    del config
+    del config_name
+
     def check_layers(n_isab: int, n_sab: int, **_):  # dead: disable
         del _
         n_layers = n_sab + n_isab
