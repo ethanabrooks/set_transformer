@@ -2,7 +2,7 @@ import os
 import random
 import time
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 import numpy as np
@@ -35,16 +35,18 @@ def load(
 class Metrics:
     loss: float
     accuracy: float
+    within1accuracy: float
 
     def items_dict(self):
-        d = dict(loss=self.loss, accuracy=self.accuracy)
+        d = asdict(self)
         return {k: v.detach().cpu().item() for k, v in d.items()}
 
 
 def get_metrics(loss_fn, outputs, targets):
     loss = loss_fn(outputs.swapaxes(1, 2), targets)
     accuracy = (outputs.argmax(-1) == targets).float().mean()
-    return Metrics(loss=loss, accuracy=accuracy)
+    within1accuracy = ((outputs.argmax(-1) - targets).abs() <= 1).float().mean()
+    return Metrics(loss=loss, accuracy=accuracy, within1accuracy=within1accuracy)
 
 
 def evaluate(net: nn.Module, test_loader: DataLoader):
