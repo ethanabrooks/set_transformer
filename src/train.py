@@ -37,16 +37,15 @@ class Metrics:
     accuracy: float
     within1accuracy: float
 
-    def items_dict(self):
-        d = asdict(self)
-        return {k: v.detach().cpu().item() for k, v in d.items()}
-
 
 def get_metrics(loss_fn, outputs, targets):
     loss = loss_fn(outputs.swapaxes(1, 2), targets)
-    accuracy = (outputs.argmax(-1) == targets).float().mean()
-    within1accuracy = ((outputs.argmax(-1) - targets).abs() <= 1).float().mean()
-    return Metrics(loss=loss, accuracy=accuracy, within1accuracy=within1accuracy)
+    accuracy = (outputs.argmax(-1) == targets).float().mean().item()
+    within1accuracy = ((outputs.argmax(-1) - targets).abs() <= 1).float().mean().item()
+    metrics = Metrics(
+        loss=loss.item(), accuracy=accuracy, within1accuracy=within1accuracy
+    )
+    return loss, metrics
 
 
 def evaluate(net: nn.Module, test_loader: DataLoader):
@@ -56,8 +55,8 @@ def evaluate(net: nn.Module, test_loader: DataLoader):
     with torch.no_grad():
         for X, Z in test_loader:
             Y = net.forward(X)
-            metrics = get_metrics(loss_fn, Y, Z)
-            counter.update(metrics.items_dict())
+            _, metrics = get_metrics(loss_fn, Y, Z)
+            counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
 
@@ -141,11 +140,11 @@ def train(
 
             Y = net.forward(X)
 
-            metrics = get_metrics(ce_loss, Y, Z)
+            loss, metrics = get_metrics(ce_loss, Y, Z)
 
-            metrics.loss.backward()
+            loss.backward()
             optimizer.step()
-            counter.update(metrics.items_dict())
+            counter.update(asdict(metrics))
             if t % log_freq == 0:
                 log = {f"train/{k}": v / log_freq for k, v in counter.items()}
                 log.update(save_count=save_count)
