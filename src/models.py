@@ -23,7 +23,7 @@ class SetTransformer(nn.Module):
         dim_hidden=128,
         ln=False,
         num_inds=32,
-        num_heads=4,
+        num_heads=8,
     ):
         super(SetTransformer, self).__init__()
         self.embedding = nn.Embedding(n_tokens, dim_hidden)
