@@ -40,13 +40,12 @@ class RLData(Dataset):
             n_steps=n_steps,
         )
 
+        seq_len = A * len(all_states)
+
         states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
 
-        # In the 1D case, states are already the indices
-        S = states
-
         # Gather the corresponding probabilities from Pi
-        probabilities = Pi.gather(1, S[..., None]).expand(-1, -1, A)
+        probabilities = Pi[torch.arange(n_steps)[:, None], states]
 
         print("Sampling actions...", end="", flush=True)
         actions = (
