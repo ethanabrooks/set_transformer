@@ -2,7 +2,7 @@ data_args:
   include_v1: true
   max_order: null
   min_order: null
-  n_input_bins: 1000
+  n_input_bins: 100
   n_output_bins: 10
   n_policies: null
 load_path: null
