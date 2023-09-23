@@ -23,11 +23,9 @@ class RLData(Dataset):
             n_rounds=n_rounds,
             n_steps=n_steps,
         )
-        mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+        mapping = torch.tensor([-1, 1])
         A = len(mapping)  # number of actions
-        all_states = torch.tensor(
-            [[i, j] for i in range(grid_size) for j in range(grid_size)]
-        )
+        all_states = torch.arange(grid_size)
         seq_len = A * len(all_states)
 
         def get_indices(states: torch.Tensor):
@@ -41,10 +39,6 @@ class RLData(Dataset):
             n_rounds=n_rounds,
             n_steps=n_steps,
         )
-
-        A = 2  # number of actions in 1D (left or right)
-        all_states = torch.arange(grid_size)
-        seq_len = A * len(all_states)
 
         states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
 
@@ -63,7 +57,7 @@ class RLData(Dataset):
         )
         print("✓")
 
-        deltas = torch.tensor([-1, 1])[actions]
+        deltas = mapping[actions]
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
 
         idxs1, idxs2 = get_indices(states)
