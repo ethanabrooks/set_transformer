@@ -58,7 +58,7 @@ def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: i
         V[k + 1] = ER + gamma * EV
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
-    return Pi, R, V
+    return Pi, R, V, goals
 
 
 def quantize_tensor(tensor, n_bins):

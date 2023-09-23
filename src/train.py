@@ -140,6 +140,7 @@ def train(
             Y = net.forward(X)
 
             metrics = get_metrics(ce_loss, Y, Z)
+
             metrics.loss.backward()
             optimizer.step()
             counter.update(metrics.items_dict())

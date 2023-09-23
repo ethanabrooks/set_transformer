@@ -17,7 +17,7 @@ class RLData(Dataset):
         n_steps: int,
     ):
         n_rounds = 2 * grid_size
-        Pi, R, V = policy_evaluation(
+        Pi, R, V, goals = policy_evaluation(
             grid_size=grid_size,
             n_policies=n_policies,
             n_rounds=n_rounds,
@@ -26,20 +26,6 @@ class RLData(Dataset):
         mapping = torch.tensor([-1, 1])
         A = len(mapping)  # number of actions
         all_states = torch.arange(grid_size + 1)
-        seq_len = A * len(all_states)
-
-        def get_indices(states: torch.Tensor):
-            # In 1D, the state itself is the index
-            return torch.arange(n_steps)[:, None], states
-
-        n_rounds = 2 * grid_size
-        Pi, R, V = policy_evaluation(
-            grid_size=grid_size,
-            n_policies=n_policies,
-            n_rounds=n_rounds,
-            n_steps=n_steps,
-        )
-
         seq_len = A * len(all_states)
 
         states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
@@ -58,6 +44,14 @@ class RLData(Dataset):
 
         deltas = mapping[actions]
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
+        is_goal_state = states == goals[:, None]
+        is_term_state = states == grid_size
+        next_states[is_goal_state] = grid_size
+        next_states[is_term_state] = grid_size
+
+        def get_indices(states: torch.Tensor):
+            # In 1D, the state itself is the index
+            return torch.arange(n_steps)[:, None], states
 
         idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
