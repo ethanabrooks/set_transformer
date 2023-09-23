@@ -115,7 +115,6 @@ def no_log(
     config = get_config(config)
     if load_path is not None:
         config = wandb.Api().run(load_path).config
-        del config["config"]
     config.update(load_path=load_path)
     return train(**config, run=None)
 
