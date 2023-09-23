@@ -6,13 +6,13 @@ from tqdm import tqdm
 
 
 def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: int):
-    deltas = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
+    deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
     B = n_steps
-    N = grid_size**2 + 1
+    N = grid_size + 1
     A = len(deltas)
-    goals = torch.randint(0, grid_size, (n_steps, 2))
-    states = torch.tensor([[i, j] for i in range(grid_size) for j in range(grid_size)])
-    alpha = torch.ones(4)
+    goals = torch.randint(0, grid_size, (n_steps,))
+    states = torch.arange(grid_size)
+    alpha = torch.ones(A)
     if n_policies is None:
         n_policies = B
     Pi = (
@@ -22,13 +22,13 @@ def policy_evaluation(grid_size: int, n_policies: int, n_rounds: int, n_steps: i
     )
     assert [*Pi.shape] == [B, N, A]
 
-    # Compute next states for each action and state for each batch (goal)
+    # Compute next states for each action for each batch (goal)
     next_states = states[:, None] + deltas[None, :]
     next_states = torch.clamp(next_states, 0, grid_size - 1)
-    S_ = next_states[..., 0] * grid_size + next_states[..., 1]  # Convert to indices
+    S_ = next_states
 
     # Determine if next_state is the goal for each batch (goal)
-    is_goal = (goals[:, None] == states[None]).all(-1)
+    is_goal = goals[:, None] == states[None]
 
     # Modify transition to go to absorbing state if the next state is a goal
     absorbing_state_idx = N - 1
