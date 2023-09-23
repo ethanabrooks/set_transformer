@@ -25,7 +25,7 @@ class RLData(Dataset):
         )
         mapping = torch.tensor([-1, 1])
         A = len(mapping)  # number of actions
-        all_states = torch.arange(grid_size)
+        all_states = torch.arange(grid_size + 1)
         seq_len = A * len(all_states)
 
         def get_indices(states: torch.Tensor):
