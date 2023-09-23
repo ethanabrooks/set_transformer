@@ -24,32 +24,36 @@ class RLData(Dataset):
             n_steps=n_steps,
         )
         mapping = torch.tensor([[-1, 0], [1, 0], [0, -1], [0, 1]])
-        A = len(mapping)
+        A = len(mapping)  # number of actions
         all_states = torch.tensor(
             [[i, j] for i in range(grid_size) for j in range(grid_size)]
         )
         seq_len = A * len(all_states)
 
         def get_indices(states: torch.Tensor):
-            # Step 1: Flatten states
-            states_flattened = states.view(-1, 2)
+            # In 1D, the state itself is the index
+            return torch.arange(n_steps)[:, None], states
 
-            # Step 2: Convert states to indices
-            indices = states_flattened[:, 0] * grid_size + states_flattened[:, 1]
+        n_rounds = 2 * grid_size
+        Pi, R, V = policy_evaluation(
+            grid_size=grid_size,
+            n_policies=n_policies,
+            n_rounds=n_rounds,
+            n_steps=n_steps,
+        )
 
-            # Step 3: Reshape indices
-            indices_reshaped = indices.view(n_steps, seq_len)
+        A = 2  # number of actions in 1D (left or right)
+        all_states = torch.arange(grid_size)
+        seq_len = A * len(all_states)
 
-            # Step 4: Use advanced indexing
-            return torch.arange(n_steps)[:, None], indices_reshaped
+        states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
 
-        states = all_states[None].tile(n_steps, A, 1, 1).reshape(n_steps, -1, 2)
-
-        # Convert 2D states to 1D indices
-        S = states[..., 0] * grid_size + states[..., 1]
+        # In the 1D case, states are already the indices
+        S = states
 
         # Gather the corresponding probabilities from Pi
         probabilities = Pi.gather(1, S[..., None]).expand(-1, -1, A)
+
         print("Sampling actions...", end="", flush=True)
         actions = (
             torch.arange(A)[:, None]
@@ -59,8 +63,9 @@ class RLData(Dataset):
         )
         print("✓")
 
-        deltas = mapping[actions]
+        deltas = torch.tensor([-1, 1])[actions]
         next_states = torch.clamp(states + deltas, 0, grid_size - 1)
+
         idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
@@ -68,24 +73,27 @@ class RLData(Dataset):
             max_order = len(V) - 2
         if min_order is None:
             min_order = 0
+
         order = torch.randint(min_order, max_order + 1, (n_steps, 1)).tile(1, seq_len)
         idxs1, idxs2 = get_indices(next_states)
 
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
+
         print("Computing unique values...", end="", flush=True)
         V1 = round_tensor(V1, n_input_bins)
         print("✓", end="", flush=True)
         V2 = round_tensor(V2, n_output_bins)
         probabilities = round_tensor(probabilities, n_input_bins)
         print("✓")
+
         self.X = (
             torch.cat(
                 [
-                    states,
+                    states[..., None],
                     probabilities,
                     actions[..., None],
-                    next_states,
+                    next_states[..., None],
                     rewards,
                     *([V1[..., None]] if include_v1 else []),
                 ],
