@@ -145,8 +145,6 @@ def train(
                 if run is not None:
                     wandb.log(log, step=step)
 
-            if t == int(0.5 * n_steps):
-                optimizer.param_groups[0]["lr"] *= 0.1
             net.train()
             optimizer.zero_grad()
 
