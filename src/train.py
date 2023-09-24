@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import time
@@ -65,8 +66,20 @@ def evaluate(net: nn.Module, test_loader: DataLoader):
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
 
+def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
+    if step < warmup_steps:
+        # linear warmup
+        lr_mult = float(step) / float(max(1, warmup_steps))
+    else:
+        # cosine learning rate decay
+        progress = float(step - warmup_steps) / float(max(1, final_step - warmup_steps))
+        lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
+    return lr * lr_mult
+
+
 def train(
     data_args: dict,
+    decay_args: dict,
     load_path: str,
     log_freq: int,
     lr: float,
@@ -129,6 +142,7 @@ def train(
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     counter = Counter()
     save_count = 0
+    n_tokens = 0
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     ce_loss = nn.CrossEntropyLoss()
@@ -151,12 +165,17 @@ def train(
 
             loss, metrics = get_metrics(ce_loss, Y, Z)
 
+            n_tokens += X.numel()
+            decayed_lr = decay_lr(lr, step=step, **decay_args)
+            for param_group in optimizer.param_groups:
+                param_group.update(lr=decayed_lr)
+
             loss.backward()
             optimizer.step()
             counter.update(asdict(metrics))
             if t % log_freq == 0:
                 log = {f"train/{k}": v / log_freq for k, v in counter.items()}
-                log.update(save_count=save_count, epoch=e)
+                log.update(save_count=save_count, lr=decayed_lr)
                 counter = Counter()
                 print_row(log, show_header=(t % test_freq == 0))
                 if run is not None:
