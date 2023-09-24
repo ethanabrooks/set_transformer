@@ -61,7 +61,7 @@ class RLData(Dataset):
             ER = (Pi * R).sum(-1)
             EV = (T_Pi * V[k, :, None]).sum(-1)
             Vk1 = ER + gamma * EV
-            V[k + 1] = Vk1
+            V[k + 1] = round_tensor(Vk1, n_v1_bins).float() / n_v1_bins
 
         states = all_states.repeat_interleave(A)
         states = states[None].tile(n_policies, 1)
