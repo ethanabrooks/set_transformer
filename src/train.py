@@ -75,7 +75,6 @@ def train(
     model_args: dict,
     n_batch: int,
     n_epochs: int,
-    n_steps: int,
     run: Optional[Run],
     save_freq: int,
     seed: int,
@@ -113,7 +112,7 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(**data_args, n_steps=n_steps)
+    dataset = RLData(**data_args)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
