@@ -14,16 +14,15 @@ class RLData(Dataset):
         grid_size: int,
         n_input_bins: int,
         n_output_bins: int,
-        n_steps: int,
+        n_policies: int,
     ):
         n_rounds = 2 * grid_size
-        n_policies = n_steps
 
         deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
-        B = n_steps
+        B = n_policies
         N = grid_size + 1
         A = len(deltas)
-        goals = torch.randint(0, grid_size, (n_steps,))
+        goals = torch.randint(0, grid_size, (n_policies,))
         all_states = torch.arange(grid_size + 1)  # +1 for absorbing state
         alpha = torch.ones(A)
         if n_policies is None:
@@ -60,7 +59,7 @@ class RLData(Dataset):
         gamma = 1  # discount factor
 
         # Initialize V_0
-        V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float)
+        V = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
 
         for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
@@ -69,20 +68,20 @@ class RLData(Dataset):
             V[k + 1] = Vk1
 
         # Gather probabilities from Pi that correspond to states
-        states = all_states[..., None].tile(n_steps, 1, A).reshape(n_steps, -1)
-        probabilities = Pi[torch.arange(n_steps)[:, None], states]
+        states = all_states[..., None].tile(n_policies, 1, A).reshape(n_policies, -1)
+        probabilities = Pi[torch.arange(n_policies)[:, None], states]
 
         # action indices corresponding to states, next_states
         actions = (
             torch.arange(A)[None]
             .expand(len(all_states), -1)
             .reshape(-1)
-            .expand(n_steps, -1)
+            .expand(n_policies, -1)
         )
 
         def get_indices(states: torch.Tensor):
             # In 1D, the state itself is the index
-            return torch.arange(n_steps)[:, None], states
+            return torch.arange(n_policies)[:, None], states
 
         # rewards corresponding to states (reward is not action dependent)
         idxs1, idxs2 = get_indices(states)
@@ -93,7 +92,9 @@ class RLData(Dataset):
 
         # sample order -- number of steps of policy evaluation
         seq_len = A * len(all_states)
-        order = torch.randint(min_order, max_order + 1, (n_steps, 1)).tile(1, seq_len)
+        order = torch.randint(min_order, max_order + 1, (n_policies, 1)).tile(
+            1, seq_len
+        )
 
         idxs1, idxs2 = get_indices(states)
         V1 = V[order, idxs1, idxs2]
