@@ -1,5 +1,3 @@
-import math
-
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
@@ -37,23 +35,17 @@ class RLData(Dataset):
         # absorbing state transitions to itself
         next_states[:, grid_size] = grid_size
 
-        T = F.one_hot(next_states, num_classes=N).float()  # transition matrix
+        T: torch.Tensor = F.one_hot(next_states, num_classes=N)  # transition matrix
         R = is_goal.float()[..., None].tile(1, 1, A)  # reward function
 
         alpha = torch.ones(A)
-        if n_policies is None:
-            n_policies = P
-        Pi = (
-            torch.distributions.Dirichlet(alpha)  # random policies
-            .sample((n_policies, N))
-            .tile(math.ceil(P / n_policies), 1, 1)[:P]
-        )
+        Pi = torch.distributions.Dirichlet(alpha).sample((P, N))  # random policies
         assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_input_bins).float()
         Pi_ = Pi.view(P * N, 1, A)
-        T_ = T.view(P * N, A, N)
+        T_ = T.float().view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
         T_Pi = T_Pi.view(P, N, N)
 
