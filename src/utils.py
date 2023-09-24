@@ -40,12 +40,12 @@ def policy_evaluation(
     # Insert row for absorbing state
     padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
     S_ = F.pad(S_, padding, value=absorbing_state_idx)
-    T = F.one_hot(S_, num_classes=N).long()
-    R = is_goal.long()[..., None].tile(1, 1, A)
+    T = F.one_hot(S_, num_classes=N).float()
+    R = is_goal.float()[..., None].tile(1, 1, A)
     R = F.pad(R, padding, value=0)  # Insert row for absorbing state
 
     # Compute the policy conditioned transition function
-    Pi = round_tensor(Pi, n_bins).long()
+    Pi = round_tensor(Pi, n_bins).float()
     Pi_ = Pi.view(B * N, 1, A)
     T_ = T.view(B * N, A, N)
     T_Pi = torch.bmm(Pi_, T_)
@@ -54,7 +54,7 @@ def policy_evaluation(
     gamma = 1  # Assuming a discount factor
 
     # Initialize V_0
-    V = torch.zeros((n_rounds, n_steps, N), dtype=torch.long)
+    V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float)
     for k in tqdm(range(n_rounds - 1)):
         ER = (Pi * R).sum(-1)
         EV = (T_Pi * V[k, :, None]).sum(-1)
