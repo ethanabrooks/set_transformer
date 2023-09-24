@@ -19,9 +19,9 @@ class RLData(Dataset):
         n_rounds = 2 * grid_size
 
         deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
+        A = len(deltas)
         B = n_policies
         N = grid_size + 1
-        A = len(deltas)
         goals = torch.randint(0, grid_size, (n_policies,))
         all_states = torch.arange(grid_size + 1)  # +1 for absorbing state
 
