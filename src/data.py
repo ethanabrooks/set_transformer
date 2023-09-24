@@ -12,6 +12,7 @@ class RLData(Dataset):
         grid_size: int,
         n_pi_bins: int,
         n_policies: int,
+        order_delta: int,
     ):
         n_rounds = 2 * grid_size
 
@@ -89,7 +90,8 @@ class RLData(Dataset):
         order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
 
         _V1 = V[order, idxs1, idxs2]
-        _V2 = V[order + 1, idxs1, idxs2]
+        order2 = torch.clamp(order + order_delta, 0, len(V) - 1)
+        _V2 = V[order2, idxs1, idxs2]
 
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
