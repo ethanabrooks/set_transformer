@@ -24,15 +24,6 @@ class RLData(Dataset):
         A = len(deltas)
         goals = torch.randint(0, grid_size, (n_policies,))
         all_states = torch.arange(grid_size + 1)  # +1 for absorbing state
-        alpha = torch.ones(A)
-        if n_policies is None:
-            n_policies = B
-        Pi = (
-            torch.distributions.Dirichlet(alpha)  # random policies
-            .sample((n_policies, N))
-            .tile(math.ceil(B / n_policies), 1, 1)[:B]
-        )
-        assert [*Pi.shape] == [B, N, A]
 
         # get next states for product of states and actions
         next_states = all_states[..., None] + deltas[None]
@@ -48,6 +39,16 @@ class RLData(Dataset):
 
         T = F.one_hot(next_states, num_classes=N).float()  # transition matrix
         R = is_goal.float()[..., None].tile(1, 1, A)  # reward function
+
+        alpha = torch.ones(A)
+        if n_policies is None:
+            n_policies = B
+        Pi = (
+            torch.distributions.Dirichlet(alpha)  # random policies
+            .sample((n_policies, N))
+            .tile(math.ceil(B / n_policies), 1, 1)[:B]
+        )
+        assert [*Pi.shape] == [B, N, A]
 
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_input_bins).float()
