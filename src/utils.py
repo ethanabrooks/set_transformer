@@ -51,7 +51,7 @@ def policy_evaluation(
     T_Pi = torch.bmm(Pi_, T_)
     T_Pi = T_Pi.view(B, N, N)
 
-    gamma = 0.99  # Assuming a discount factor
+    gamma = 1.0  # Assuming a discount factor
 
     # Initialize V_0
     V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float32)
