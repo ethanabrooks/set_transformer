@@ -38,9 +38,8 @@ class RLData(Dataset):
         )
         assert [*Pi.shape] == [B, N, A]
 
-        next_states = torch.clamp(
-            all_states[..., None] + deltas[None], 0, grid_size - 1
-        )
+        next_states = all_states[..., None] + deltas[None]
+        next_states = torch.clamp(next_states, 0, grid_size - 1)
         next_states = next_states[None].tile(B, 1, 1)
         is_goal = all_states == goals[:, None]
         next_states[is_goal] = grid_size
@@ -66,21 +65,19 @@ class RLData(Dataset):
             Vk1 = ER + gamma * EV
             V[k + 1] = Vk1
 
-        states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
+        states = all_states[..., None].tile(n_steps, 1, A).reshape(n_steps, -1)
 
         # Gather the corresponding probabilities from Pi
         probabilities = Pi[torch.arange(n_steps)[:, None], states]
 
         print("Sampling actions...", end="", flush=True)
         actions = (
-            torch.arange(A)[:, None]
-            .expand(-1, len(all_states))
+            torch.arange(A)[None]
+            .expand(len(all_states), -1)
             .reshape(-1)
             .expand(n_steps, -1)
         )
         print("✓")
-
-        next_states = next_states.swapaxes(1, 2).reshape(B, N * A)
 
         def get_indices(states: torch.Tensor):
             # In 1D, the state itself is the index
@@ -114,7 +111,7 @@ class RLData(Dataset):
                     states[..., None],
                     probabilities,
                     actions[..., None],
-                    next_states[..., None],
+                    next_states.view(B, N * A, 1),
                     rewards,
                     *([V1[..., None]] if include_v1 else []),
                 ],
