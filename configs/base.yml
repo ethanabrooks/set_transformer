@@ -3,6 +3,9 @@ data_args:
   n_policies: 100_000
   n_v1_bins: 10_000
   n_v2_bins: 10_000
+decay_args:
+  final_step: 200_000
+  warmup_steps: 4000
 load_path: null
 log_freq: 20
 max_layers: 10
