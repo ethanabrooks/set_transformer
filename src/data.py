@@ -46,7 +46,7 @@ class RLData(Dataset):
         assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
-        Pi = round_tensor(Pi, n_pi_bins).float()
+        Pi = round_tensor(Pi, n_pi_bins).float() / n_pi_bins
         Pi_ = Pi.view(P * N, 1, A)
         T_ = T.float().view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)

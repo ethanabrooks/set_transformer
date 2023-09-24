@@ -1,7 +1,7 @@
 data_args:
   grid_size: 4
   n_pi_bins: 5
-  n_v1_bins: 5
+  n_v1_bins: 300
   n_v2_bins: 10_000
 lr: 0.001
 model_args:
