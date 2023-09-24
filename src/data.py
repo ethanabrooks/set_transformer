@@ -10,8 +10,9 @@ class RLData(Dataset):
     def __init__(
         self,
         grid_size: int,
-        n_input_bins: int,
-        n_output_bins: int,
+        n_pi_bins: int,
+        n_v1_bins: int,
+        n_v2_bins: int,
         n_policies: int,
     ):
         n_rounds = 2 * grid_size
@@ -45,7 +46,7 @@ class RLData(Dataset):
         assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
-        Pi = round_tensor(Pi, n_input_bins).float()
+        Pi = round_tensor(Pi, n_pi_bins).float()
         Pi_ = Pi.view(P * N, 1, A)
         T_ = T.float().view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
@@ -81,9 +82,9 @@ class RLData(Dataset):
         V2 = V[order + 1, idxs1, idxs2]
 
         # discretize continuous values
-        action_probs = round_tensor(action_probs, n_input_bins, contiguous=True)
-        V1 = round_tensor(V1, n_input_bins, contiguous=True)
-        V2 = round_tensor(V2, n_output_bins, contiguous=True)
+        action_probs = round_tensor(action_probs, n_pi_bins, contiguous=True)
+        V1 = round_tensor(V1, n_v1_bins, contiguous=True)
+        V2 = round_tensor(V2, n_v2_bins, contiguous=True)
 
         self.X = (
             torch.cat(
