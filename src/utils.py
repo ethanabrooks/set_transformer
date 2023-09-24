@@ -45,8 +45,8 @@ def policy_evaluation(
     R = F.pad(R, padding, value=0)  # Insert row for absorbing state
 
     # Compute the policy conditioned transition function
-    Pi_ = Pi.view(B * N, 1, A)
     Pi = round_tensor(Pi, n_bins) / n_bins
+    Pi_ = Pi.view(B * N, 1, A)
     T_ = T.view(B * N, A, N)
     T_Pi = torch.bmm(Pi_, T_)
     T_Pi = T_Pi.view(B, N, N)
