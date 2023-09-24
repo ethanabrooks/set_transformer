@@ -1,7 +1,4 @@
 data_args:
-  include_v1: true
-  max_order: null
-  min_order: null
   n_input_bins: 20
   n_output_bins: 10_000
   n_policies: null
