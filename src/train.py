@@ -42,9 +42,14 @@ class Metrics:
 
 def get_metrics(loss_fn, outputs, targets) -> tuple[torch.Tensor, Metrics]:
     loss = loss_fn(outputs.swapaxes(1, 2), targets)
-    accuracy = (outputs.argmax(-1) == targets).float().mean().item()
-    within1accuracy = ((outputs.argmax(-1) - targets).abs() <= 1).float().mean().item()
-    within2accuracy = ((outputs.argmax(-1) - targets).abs() <= 2).float().mean().item()
+    mask = targets != 0
+    accuracy = (outputs.argmax(-1) == targets)[mask].float().mean().item()
+    within1accuracy = (
+        ((outputs.argmax(-1) - targets)[mask].abs() <= 1).float().mean().item()
+    )
+    within2accuracy = (
+        ((outputs.argmax(-1) - targets)[mask].abs() <= 2).float().mean().item()
+    )
     metrics = Metrics(
         loss=loss.item(),
         accuracy=accuracy,
