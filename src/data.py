@@ -27,7 +27,7 @@ class RLData(Dataset):
         N = grid_size + 1
         A = len(deltas)
         goals = torch.randint(0, grid_size, (n_steps,))
-        all_states = torch.arange(grid_size)
+        all_states = torch.arange(grid_size + 1)
         alpha = torch.ones(A)
         if n_policies is None:
             n_policies = B
@@ -38,7 +38,6 @@ class RLData(Dataset):
         )
         assert [*Pi.shape] == [B, N, A]
 
-        all_states = torch.cat([all_states, torch.tensor([grid_size])])
         next_states = torch.clamp(
             all_states[..., None] + deltas[None], 0, grid_size - 1
         )
