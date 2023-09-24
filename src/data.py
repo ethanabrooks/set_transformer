@@ -1,7 +1,11 @@
-import torch
-from torch.utils.data import Dataset
+import math
 
-from discretization import policy_evaluation, round_tensor
+import torch
+import torch.nn.functional as F
+from torch.utils.data import Dataset
+from tqdm import tqdm
+
+from discretization import round_tensor
 
 
 class RLData(Dataset):
@@ -17,13 +21,60 @@ class RLData(Dataset):
         n_steps: int,
     ):
         n_rounds = 2 * grid_size
-        Pi, R, V, goals = policy_evaluation(
-            grid_size=grid_size,
-            n_bins=n_input_bins,
-            n_policies=n_policies,
-            n_rounds=n_rounds,
-            n_steps=n_steps,
+
+        deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
+        B = n_steps
+        N = grid_size + 1
+        A = len(deltas)
+        goals = torch.randint(0, grid_size, (n_steps,))
+        states = torch.arange(grid_size)
+        alpha = torch.ones(A)
+        if n_policies is None:
+            n_policies = B
+        Pi = (
+            torch.distributions.Dirichlet(alpha)
+            .sample((n_policies, N))
+            .tile(math.ceil(B / n_policies), 1, 1)[:B]
         )
+        assert [*Pi.shape] == [B, N, A]
+
+        # Compute next states for each action for each batch (goal)
+        next_states = states[:, None] + deltas[None, :]
+        next_states = torch.clamp(next_states, 0, grid_size - 1)
+        S_ = next_states
+
+        # Determine if next_state is the goal for each batch (goal)
+        is_goal = goals[:, None] == states[None]
+
+        # Modify transition to go to absorbing state if the next state is a goal
+        absorbing_state_idx = N - 1
+        S_ = S_[None].tile(B, 1, 1)
+        S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
+
+        # Insert row for absorbing state
+        padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
+        S_ = F.pad(S_, padding, value=absorbing_state_idx)
+        T = F.one_hot(S_, num_classes=N).float()
+        R = is_goal.float()[..., None].tile(1, 1, A)
+        R = F.pad(R, padding, value=0)  # Insert row for absorbing state
+
+        # Compute the policy conditioned transition function
+        Pi = round_tensor(Pi, n_input_bins).float()
+        Pi_ = Pi.view(B * N, 1, A)
+        T_ = T.view(B * N, A, N)
+        T_Pi = torch.bmm(Pi_, T_)
+        T_Pi = T_Pi.view(B, N, N)
+
+        gamma = 1  # Assuming a discount factor
+
+        # Initialize V_0
+        V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float)
+        for k in tqdm(range(n_rounds - 1)):
+            ER = (Pi * R).sum(-1)
+            EV = (T_Pi * V[k, :, None]).sum(-1)
+            Vk1 = ER + gamma * EV
+            V[k + 1] = Vk1
+
         _mapping = torch.tensor([-1, 1])
         _A = len(_mapping)  # number of actions
         _all_states = torch.arange(grid_size + 1)
