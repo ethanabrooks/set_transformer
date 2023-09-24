@@ -38,22 +38,17 @@ class RLData(Dataset):
         )
         assert [*Pi.shape] == [B, N, A]
 
-        # Determine if next_state is the goal for each batch (goal)
-        is_goal = goals[:, None] == all_states[None]
-
         all_states = torch.cat([all_states, torch.tensor([grid_size])])
         next_states = torch.clamp(
             all_states[..., None] + deltas[None], 0, grid_size - 1
         )
         next_states = next_states[None].tile(B, 1, 1)
-        is_goal_state = all_states == goals[:, None]
-        next_states[is_goal_state] = grid_size
+        is_goal = all_states == goals[:, None]
+        next_states[is_goal] = grid_size
         next_states[:, grid_size] = grid_size
 
         T = F.one_hot(next_states, num_classes=N).float()
         R = is_goal.float()[..., None].tile(1, 1, A)
-        padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
-        R = F.pad(R, padding, value=0)  # Insert row for absorbing state
 
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_input_bins).float()
