@@ -70,7 +70,7 @@ def check_dirty():
     assert not Repo(".").is_dirty()
 
 
-parsers = dict(config=option("config", default="3x3"))
+parsers = dict(config=option("config", default="4"))
 
 
 @tree.subcommand(parsers=dict(name=argument("name"), **parsers))
