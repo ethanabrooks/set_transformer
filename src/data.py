@@ -14,10 +14,10 @@ class RLData(Dataset):
         grid_size: int,
         n_input_bins: int,
         n_output_bins: int,
-        n_policies: int,
         n_steps: int,
     ):
         n_rounds = 2 * grid_size
+        n_policies = n_steps
 
         deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
         B = n_steps
