@@ -12,9 +12,6 @@ class RLData(Dataset):
     def __init__(
         self,
         grid_size: int,
-        include_v1: bool,
-        min_order: int,
-        max_order: int,
         n_input_bins: int,
         n_output_bins: int,
         n_policies: int,
@@ -91,10 +88,8 @@ class RLData(Dataset):
         idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
-        if max_order is None:
-            max_order = len(V) - 2
-        if min_order is None:
-            min_order = 0
+        max_order = len(V) - 2
+        min_order = 0
 
         # sample order -- number of steps of policy evaluation
         seq_len = A * len(all_states)
@@ -117,7 +112,7 @@ class RLData(Dataset):
                     actions[..., None],
                     next_states.view(B, N * A, 1),
                     rewards,
-                    *([V1[..., None]] if include_v1 else []),
+                    V1[..., None],
                 ],
                 -1,
             )
