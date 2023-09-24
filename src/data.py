@@ -71,7 +71,7 @@ class RLData(Dataset):
         idxs2 = states
 
         # Gather probabilities from Pi that correspond to states
-        probabilities = Pi[idxs1, idxs2]
+        action_probs = Pi[idxs1, idxs2]
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
@@ -81,15 +81,15 @@ class RLData(Dataset):
         V2 = V[order + 1, idxs1, idxs2]
 
         # discretize continuous values
+        action_probs = round_tensor(action_probs, n_input_bins, contiguous=True)
         V1 = round_tensor(V1, n_input_bins, contiguous=True)
         V2 = round_tensor(V2, n_output_bins, contiguous=True)
-        probabilities = round_tensor(probabilities, n_input_bins, contiguous=True)
 
         self.X = (
             torch.cat(
                 [
                     states[..., None],
-                    probabilities,
+                    action_probs,
                     actions[..., None],
                     next_states.view(P, N * A, 1),
                     rewards,
