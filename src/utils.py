@@ -40,26 +40,26 @@ def policy_evaluation(
     # Insert row for absorbing state
     padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
     S_ = F.pad(S_, padding, value=absorbing_state_idx)
-    T = F.one_hot(S_, num_classes=N).float()
-    R = is_goal.float()[..., None].tile(1, 1, A)
+    T = F.one_hot(S_, num_classes=N).long()
+    R = is_goal.long()[..., None].tile(1, 1, A)
     R = F.pad(R, padding, value=0)  # Insert row for absorbing state
 
     # Compute the policy conditioned transition function
-    Pi = round_tensor(Pi, n_bins) / n_bins
+    Pi = round_tensor(Pi, n_bins).long()
     Pi_ = Pi.view(B * N, 1, A)
     T_ = T.view(B * N, A, N)
     T_Pi = torch.bmm(Pi_, T_)
     T_Pi = T_Pi.view(B, N, N)
 
-    gamma = 1.0  # Assuming a discount factor
+    gamma = 1  # Assuming a discount factor
 
     # Initialize V_0
-    V = torch.zeros((n_rounds, n_steps, N), dtype=torch.float32)
+    V = torch.zeros((n_rounds, n_steps, N), dtype=torch.long)
     for k in tqdm(range(n_rounds - 1)):
         ER = (Pi * R).sum(-1)
         EV = (T_Pi * V[k, :, None]).sum(-1)
         Vk1 = ER + gamma * EV
-        V[k + 1] = round_tensor(Vk1, n_bins) / n_bins
+        V[k + 1] = Vk1
 
     # visualize_values(grid_size, n_rounds, V, policy_idx=0)
     return Pi, R, V, goals
