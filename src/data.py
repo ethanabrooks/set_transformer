@@ -68,9 +68,13 @@ class RLData(Dataset):
             Vk1 = ER + gamma * EV
             V[k + 1] = Vk1
 
-        # Gather probabilities from Pi that correspond to states
         states = all_states[..., None].tile(n_policies, 1, A).reshape(n_policies, -1)
-        probabilities = Pi[torch.arange(n_policies)[:, None], states]
+
+        idxs1 = torch.arange(n_policies)[:, None]
+        idxs2 = states
+
+        # Gather probabilities from Pi that correspond to states
+        probabilities = Pi[idxs1, idxs2]
 
         # action indices corresponding to states, next_states
         actions = (
@@ -80,24 +84,12 @@ class RLData(Dataset):
             .expand(n_policies, -1)
         )
 
-        def get_indices(states: torch.Tensor):
-            # In 1D, the state itself is the index
-            return torch.arange(n_policies)[:, None], states
-
-        # rewards corresponding to states (reward is not action dependent)
-        idxs1, idxs2 = get_indices(states)
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
-
-        max_order = len(V) - 2
-        min_order = 0
 
         # sample order -- number of steps of policy evaluation
         seq_len = A * len(all_states)
-        order = torch.randint(min_order, max_order + 1, (n_policies, 1)).tile(
-            1, seq_len
-        )
+        order = torch.randint(0, len(V) - 1, (n_policies, 1)).tile(1, seq_len)
 
-        idxs1, idxs2 = get_indices(states)
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
 
