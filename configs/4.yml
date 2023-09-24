@@ -1,0 +1,6 @@
+data_args:
+  grid_size: 4
+lr: 0.001
+model_args:
+  n_isab: 0
+  n_sab: 1
