@@ -1,6 +1,7 @@
 import math
 
 import torch
+from tqdm import tqdm
 
 
 def quantize_tensor(tensor, n_bins):
@@ -35,7 +36,7 @@ def round_tensor(tensor: torch.Tensor, round_to: int, contiguous: bool = False):
     if contiguous:
         # Make the quantized values contiguous
         unique_bins = torch.unique(discretized)
-        for i, bin in enumerate(unique_bins):
+        for i, bin in enumerate(tqdm(unique_bins, desc="Contiguous")):
             discretized[discretized == bin] = i
 
     # Reshape the quantized tensor to the original tensor's shape
