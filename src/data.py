@@ -20,7 +20,7 @@ class RLData(Dataset):
 
         deltas = torch.tensor([-1, 1])  # 1D deltas (left and right)
         A = len(deltas)
-        B = n_policies
+        P = n_policies
         N = grid_size + 1
         goals = torch.randint(0, grid_size, (n_policies,))
         all_states = torch.arange(grid_size + 1)  # +1 for absorbing state
@@ -29,8 +29,8 @@ class RLData(Dataset):
         next_states = all_states[..., None] + deltas[None]
         assert [*next_states.shape] == [N, A]
         next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
-        next_states = next_states[None].tile(B, 1, 1)
-        assert [*next_states.shape] == [B, N, A]
+        next_states = next_states[None].tile(P, 1, 1)
+        assert [*next_states.shape] == [P, N, A]
         is_goal = all_states == goals[:, None]
         # transition to absorbing state instead of goal
         next_states[is_goal] = grid_size
@@ -42,20 +42,20 @@ class RLData(Dataset):
 
         alpha = torch.ones(A)
         if n_policies is None:
-            n_policies = B
+            n_policies = P
         Pi = (
             torch.distributions.Dirichlet(alpha)  # random policies
             .sample((n_policies, N))
-            .tile(math.ceil(B / n_policies), 1, 1)[:B]
+            .tile(math.ceil(P / n_policies), 1, 1)[:P]
         )
-        assert [*Pi.shape] == [B, N, A]
+        assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_input_bins).float()
-        Pi_ = Pi.view(B * N, 1, A)
-        T_ = T.view(B * N, A, N)
+        Pi_ = Pi.view(P * N, 1, A)
+        T_ = T.view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
-        T_Pi = T_Pi.view(B, N, N)
+        T_Pi = T_Pi.view(P, N, N)
 
         gamma = 1  # discount factor
 
@@ -112,7 +112,7 @@ class RLData(Dataset):
                     states[..., None],
                     probabilities,
                     actions[..., None],
-                    next_states.view(B, N * A, 1),
+                    next_states.view(P, N * A, 1),
                     rewards,
                     V1[..., None],
                 ],
