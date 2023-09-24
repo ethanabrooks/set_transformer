@@ -20,13 +20,15 @@ class RLData(Dataset):
         A = len(deltas)
         P = n_policies
         N = grid_size + 1
-        goals = torch.randint(0, grid_size, (n_policies,))
         all_states = torch.arange(grid_size + 1)  # +1 for absorbing state
 
         # get next states for product of states and actions
         next_states = all_states[..., None] + deltas[None]
         assert [*next_states.shape] == [N, A]
         next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
+
+        # send to absorbing state if goal is reached
+        goals = torch.randint(0, grid_size, (n_policies,))  # random goal per policy
         next_states = next_states[None].tile(P, 1, 1)
         assert [*next_states.shape] == [P, N, A]
         is_goal = all_states == goals[:, None]
@@ -60,27 +62,20 @@ class RLData(Dataset):
             Vk1 = ER + gamma * EV
             V[k + 1] = Vk1
 
-        states = all_states[..., None].tile(n_policies, 1, A).reshape(n_policies, -1)
+        states = all_states.repeat_interleave(A)
+        states = states[None].tile(n_policies, 1)
+        actions = torch.arange(A).repeat(N)
+        actions = actions[None].tile(n_policies, 1)
 
         idxs1 = torch.arange(n_policies)[:, None]
         idxs2 = states
 
         # Gather probabilities from Pi that correspond to states
         probabilities = Pi[idxs1, idxs2]
-
-        # action indices corresponding to states, next_states
-        actions = (
-            torch.arange(A)[None]
-            .expand(len(all_states), -1)
-            .reshape(-1)
-            .expand(n_policies, -1)
-        )
-
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        seq_len = A * len(all_states)
-        order = torch.randint(0, len(V) - 1, (n_policies, 1)).tile(1, seq_len)
+        order = torch.randint(0, len(V) - 1, (n_policies, 1)).tile(1, A * N)
 
         V1 = V[order, idxs1, idxs2]
         V2 = V[order + 1, idxs1, idxs2]
