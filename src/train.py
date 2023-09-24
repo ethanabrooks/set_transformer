@@ -156,7 +156,7 @@ def train(
             counter.update(asdict(metrics))
             if t % log_freq == 0:
                 log = {f"train/{k}": v / log_freq for k, v in counter.items()}
-                log.update(save_count=save_count)
+                log.update(save_count=save_count, epoch=e)
                 counter = Counter()
                 print_row(log, show_header=(t % test_freq == 0))
                 if run is not None:
