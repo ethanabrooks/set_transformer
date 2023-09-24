@@ -41,21 +41,23 @@ class RLData(Dataset):
         # Compute next states for each action for each batch (goal)
         next_states = all_states[:, None] + deltas[None, :]
         next_states = torch.clamp(next_states, 0, grid_size - 1)
-        S_ = next_states
 
         # Determine if next_state is the goal for each batch (goal)
         is_goal = goals[:, None] == all_states[None]
 
-        # Modify transition to go to absorbing state if the next state is a goal
-        absorbing_state_idx = N - 1
-        S_ = S_[None].tile(B, 1, 1)
-        S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
+        _all_states = torch.cat([all_states, torch.tensor([grid_size])])
+        _next_states = torch.clamp(
+            _all_states[..., None] + deltas[None], 0, grid_size - 1
+        )
+        _next_states = _next_states[None].tile(B, 1, 1)
+        _is_goal_state = _all_states == goals[:, None]
+        _next_states[_is_goal_state] = grid_size
+        _next_states[:, grid_size] = grid_size
+        S_ = _next_states
 
-        # Insert row for absorbing state
-        padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
-        S_ = F.pad(S_, padding, value=absorbing_state_idx)
         T = F.one_hot(S_, num_classes=N).float()
         R = is_goal.float()[..., None].tile(1, 1, A)
+        padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
         R = F.pad(R, padding, value=0)  # Insert row for absorbing state
 
         # Compute the policy conditioned transition function
@@ -91,12 +93,7 @@ class RLData(Dataset):
         )
         print("✓")
 
-        _deltas = deltas[actions]
-        _next_states = torch.clamp(states + _deltas, 0, grid_size - 1)
-        _is_goal_state = states == goals[:, None]
-        _is_term_state = states == grid_size
-        _next_states[_is_goal_state] = grid_size
-        _next_states[_is_term_state] = grid_size
+        _next_states = S_.swapaxes(1, 2).reshape(B, N * A)
 
         def get_indices(states: torch.Tensor):
             # In 1D, the state itself is the index
