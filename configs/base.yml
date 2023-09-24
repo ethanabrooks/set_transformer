@@ -1,7 +1,6 @@
 data_args:
   n_input_bins: 20
   n_output_bins: 10_000
-  n_policies: null
 load_path: null
 log_freq: 20
 max_layers: 10
