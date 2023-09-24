@@ -9,7 +9,7 @@ max_layers: 10
 min_layers: 1
 n_batch: 50
 n_epochs: 500
-save_freq: 400
+save_freq: 40000
 seed: 0
 test_freq: 100
 test_split: 0.02
