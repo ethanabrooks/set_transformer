@@ -75,9 +75,9 @@ class RLData(Dataset):
             Vk1 = ER + gamma * EV
             V[k + 1] = Vk1
 
-        _all_states = torch.arange(grid_size + 1)
+        all_states = torch.cat([all_states, torch.tensor([grid_size])])
 
-        states = _all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
+        states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
 
         # Gather the corresponding probabilities from Pi
         probabilities = Pi[torch.arange(n_steps)[:, None], states]
@@ -85,7 +85,7 @@ class RLData(Dataset):
         print("Sampling actions...", end="", flush=True)
         actions = (
             torch.arange(A)[:, None]
-            .expand(-1, len(_all_states))
+            .expand(-1, len(all_states))
             .reshape(-1)
             .expand(n_steps, -1)
         )
@@ -110,7 +110,7 @@ class RLData(Dataset):
         if min_order is None:
             min_order = 0
 
-        seq_len = A * len(_all_states)
+        seq_len = A * len(all_states)
         order = torch.randint(min_order, max_order + 1, (n_steps, 1)).tile(1, seq_len)
         idxs1, idxs2 = get_indices(states)
 
