@@ -69,10 +69,10 @@ class RLData(Dataset):
         V2 = V[order + 1, idxs1, idxs2]
 
         print("Computing unique values...", end="", flush=True)
-        V1 = round_tensor(V1, n_input_bins)
+        V1 = round_tensor(V1, n_input_bins, contiguous=True)
         print("✓", end="", flush=True)
-        V2 = round_tensor(V2, n_output_bins)
-        probabilities = round_tensor(probabilities, n_input_bins)
+        V2 = round_tensor(V2, n_output_bins, contiguous=True)
+        probabilities = round_tensor(probabilities, n_input_bins, contiguous=True)
         print("✓")
 
         self.X = (
