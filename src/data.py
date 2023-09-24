@@ -38,24 +38,19 @@ class RLData(Dataset):
         )
         assert [*Pi.shape] == [B, N, A]
 
-        # Compute next states for each action for each batch (goal)
-        next_states = all_states[:, None] + deltas[None, :]
-        next_states = torch.clamp(next_states, 0, grid_size - 1)
-
         # Determine if next_state is the goal for each batch (goal)
         is_goal = goals[:, None] == all_states[None]
 
-        _all_states = torch.cat([all_states, torch.tensor([grid_size])])
-        _next_states = torch.clamp(
-            _all_states[..., None] + deltas[None], 0, grid_size - 1
+        all_states = torch.cat([all_states, torch.tensor([grid_size])])
+        next_states = torch.clamp(
+            all_states[..., None] + deltas[None], 0, grid_size - 1
         )
-        _next_states = _next_states[None].tile(B, 1, 1)
-        _is_goal_state = _all_states == goals[:, None]
-        _next_states[_is_goal_state] = grid_size
-        _next_states[:, grid_size] = grid_size
-        S_ = _next_states
+        next_states = next_states[None].tile(B, 1, 1)
+        is_goal_state = all_states == goals[:, None]
+        next_states[is_goal_state] = grid_size
+        next_states[:, grid_size] = grid_size
 
-        T = F.one_hot(S_, num_classes=N).float()
+        T = F.one_hot(next_states, num_classes=N).float()
         R = is_goal.float()[..., None].tile(1, 1, A)
         padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
         R = F.pad(R, padding, value=0)  # Insert row for absorbing state
@@ -77,8 +72,6 @@ class RLData(Dataset):
             Vk1 = ER + gamma * EV
             V[k + 1] = Vk1
 
-        all_states = torch.cat([all_states, torch.tensor([grid_size])])
-
         states = all_states[None].tile(n_steps, A, 1).reshape(n_steps, -1)
 
         # Gather the corresponding probabilities from Pi
@@ -93,7 +86,7 @@ class RLData(Dataset):
         )
         print("✓")
 
-        _next_states = S_.swapaxes(1, 2).reshape(B, N * A)
+        next_states = next_states.swapaxes(1, 2).reshape(B, N * A)
 
         def get_indices(states: torch.Tensor):
             # In 1D, the state itself is the index
@@ -127,7 +120,7 @@ class RLData(Dataset):
                     states[..., None],
                     probabilities,
                     actions[..., None],
-                    _next_states[..., None],
+                    next_states[..., None],
                     rewards,
                     *([V1[..., None]] if include_v1 else []),
                 ],
