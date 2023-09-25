@@ -30,20 +30,20 @@ def quantize_tensor(tensor, n_bins):
     return quantized_tensor
 
 
-def round_tensor(tensor: torch.Tensor, round_to: int, contiguous: bool = False):
-    discretized = (tensor * round_to).round().long()
+def contiguous_integers(tensor: torch.Tensor):
+    discretized = torch.empty(tensor.shape, dtype=torch.long)
+    unique_bins = torch.unique(tensor)
 
-    if contiguous:
-        # Make the quantized values contiguous
-        unique_bins = torch.unique(discretized)
-        for i, bin in enumerate(tqdm(unique_bins, desc="Contiguous")):
-            discretized[discretized == bin] = i
+    # Make the quantized values contiguous
+    for i, bin in enumerate(tqdm(unique_bins, desc="Contiguous")):
+        discretized[tensor == bin] = i
 
-    # Reshape the quantized tensor to the original tensor's shape
-    discretized = discretized.view(tensor.shape)
-
-    return discretized
+    return discretized, unique_bins
 
 
-if __name__ == "__main__":
-    quantize_tensor  # whitelist
+def round_tensor(tensor: torch.Tensor, round_to: int):
+    return (tensor * round_to).round().long()
+
+
+# whitelist
+quantize_tensor
