@@ -11,8 +11,6 @@ class RLData(Dataset):
         self,
         grid_size: int,
         n_pi_bins: int,
-        n_v1_bins: int,
-        n_v2_bins: int,
         n_policies: int,
     ):
         n_rounds = 2 * grid_size
@@ -89,8 +87,8 @@ class RLData(Dataset):
         # sample order -- number of steps of policy evaluation
         order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
 
-        _V1 = round_tensor(V[order, idxs1, idxs2], n_v1_bins) / n_v1_bins
-        _V2 = round_tensor(V[order + 1, idxs1, idxs2], n_v2_bins) / n_v2_bins
+        _V1 = V[order, idxs1, idxs2]
+        _V2 = V[order + 1, idxs1, idxs2]
 
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
