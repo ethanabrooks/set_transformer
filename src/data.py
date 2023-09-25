@@ -53,6 +53,7 @@ class RLData(Dataset):
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
+        Pi = Pi / Pi.sum(-1, keepdim=True)
         Pi_ = Pi.view(P * N, 1, A)
         T_ = T.float().view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
