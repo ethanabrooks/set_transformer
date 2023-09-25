@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from discretization import round_tensor
+from discretization import contiguous_integers, round_tensor
 
 
 class RLData(Dataset):
@@ -53,7 +53,8 @@ class RLData(Dataset):
         assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
-        Pi = round_tensor(Pi, n_pi_bins).float()
+        Pi = round_tensor(Pi, n_pi_bins)
+        Pi = Pi.float()
         Pi_ = Pi.view(P * N, 1, A)
         T_ = T.float().view(P * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
@@ -82,35 +83,33 @@ class RLData(Dataset):
         idxs2 = states
 
         # Gather probabilities from Pi that correspond to states
-        action_probs = Pi[idxs1, idxs2]
+        _action_probs = Pi[idxs1, idxs2]
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
         order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
 
-        V1 = V[order, idxs1, idxs2]
-        V2 = V[order + 1, idxs1, idxs2]
+        _V1 = round_tensor(V[order, idxs1, idxs2], n_v1_bins)
+        _V2 = round_tensor(V[order + 1, idxs1, idxs2], n_v2_bins)
 
         # discretize continuous values
-        action_probs = round_tensor(action_probs, n_pi_bins, contiguous=True)
-        V1 = round_tensor(V1, n_v1_bins, contiguous=True)
-        V2 = round_tensor(V2, n_v2_bins, contiguous=True)
+        action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
+        assert torch.equal(_action_probs, self.decode_action_probs[action_probs])
+        V1, self.decode_V1 = contiguous_integers(_V1)
+        assert torch.equal(_V1, self.decode_V1[V1])
+        V2, self.decode_V2 = contiguous_integers(_V2)
+        assert torch.equal(_V2, self.decode_V2[V2])
 
-        self.X = (
-            torch.cat(
-                [
-                    states[..., None],
-                    action_probs,
-                    actions[..., None],
-                    next_states[..., None],
-                    rewards,
-                    V1[..., None],
-                ],
-                -1,
-            )
-            .long()
-            .cuda()
-        )
+        X = [
+            states[..., None],
+            action_probs,
+            actions[..., None],
+            next_states[..., None],
+            rewards,
+            V1[..., None],
+        ]
+        self.shapes = [x.shape for x in X]
+        self.X = torch.cat(X, -1).long().cuda()
 
         self.Z = V2.cuda()
 
@@ -119,3 +118,20 @@ class RLData(Dataset):
 
     def __getitem__(self, idx):
         return self.X[idx], self.Z[idx]
+
+    def decode_inputs(self, X: torch.Tensor):
+        dims = [shape[-1] for shape in self.shapes]
+        states, action_probs, actions, next_states, rewards, V1 = torch.split(
+            X, dims, dim=-1
+        )
+        action_probs = self.decode_action_probs[action_probs]
+        V1 = self.decode_V1[V1]
+        return states, action_probs, actions, next_states, rewards, V1
+
+    def decode_outputs(self, V2: torch.Tensor):
+        return self.decode_V2[V2]
+
+
+# whitelist
+RLData.decode_inputs
+RLData.decode_outputs
