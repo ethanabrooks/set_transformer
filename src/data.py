@@ -53,7 +53,7 @@ class RLData(Dataset):
         assert [*Pi.shape] == [P, N, A]
 
         # Compute the policy conditioned transition function
-        Pi = round_tensor(Pi, n_pi_bins)
+        Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
         Pi_ = Pi.view(P * N, 1, A)
         T_ = T.float().view(P * N, A, N)
@@ -89,8 +89,8 @@ class RLData(Dataset):
         # sample order -- number of steps of policy evaluation
         order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
 
-        _V1 = round_tensor(V[order, idxs1, idxs2], n_v1_bins)
-        _V2 = round_tensor(V[order + 1, idxs1, idxs2], n_v2_bins)
+        _V1 = round_tensor(V[order, idxs1, idxs2], n_v1_bins) / n_v1_bins
+        _V2 = round_tensor(V[order + 1, idxs1, idxs2], n_v2_bins) / n_v2_bins
 
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
@@ -126,7 +126,7 @@ class RLData(Dataset):
         )
         action_probs = self.decode_action_probs[action_probs]
         V1 = self.decode_V1[V1]
-        return states, action_probs, actions, next_states, rewards, V1
+        return torch.cat([states, actions, next_states, rewards, V1], dim=-1)
 
     def decode_outputs(self, V2: torch.Tensor):
         return self.decode_V2[V2]

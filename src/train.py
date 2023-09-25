@@ -167,6 +167,13 @@ def train(
             optimizer.zero_grad()
 
             Y = net.forward(X)
+            # wrong = Y.argmax(-1) != Z
+            # if wrong.any():
+            #     idx = wrong.nonzero()
+            #     _X = dataset.decode_inputs(X.cpu())
+            #     _Z = dataset.decode_outputs(Z.cpu())
+            #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
+            #     breakpoint()
 
             loss, metrics = get_metrics(ce_loss, Y, Z)
 
