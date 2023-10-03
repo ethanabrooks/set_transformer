@@ -1,6 +1,9 @@
 data_args:
   grid_size: 3
   n_pi_bins: 2
+decay_args:
+  final_step: 2_000_000
+  warmup_steps: 40_000
 lr: 0.001
 model_args:
   n_isab: 0
