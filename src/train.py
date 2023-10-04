@@ -78,6 +78,7 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
     else:
         # cosine learning rate decay
         progress = float(step - warmup_steps) / float(max(1, final_step - warmup_steps))
+        progress = np.clip(progress, 0.0, 1.0)
         lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
     return lr * lr_mult
 
