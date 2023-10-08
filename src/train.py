@@ -9,6 +9,7 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from wandb.sdk.wandb_run import Run
@@ -40,8 +41,8 @@ class Metrics:
     within2accuracy: float
 
 
-def get_metrics(loss_fn, outputs, targets) -> tuple[torch.Tensor, Metrics]:
-    loss = loss_fn(outputs.swapaxes(1, 2), targets)
+def get_metrics(outputs, targets) -> tuple[torch.Tensor, Metrics]:
+    loss = F.cross_entropy(outputs.swapaxes(1, 2), targets)
     mask = targets != 0
     accuracy = (outputs.argmax(-1) == targets)[mask].float().mean().item()
     within1accuracy = (
@@ -62,11 +63,10 @@ def get_metrics(loss_fn, outputs, targets) -> tuple[torch.Tensor, Metrics]:
 def evaluate(net: nn.Module, test_loader: DataLoader):
     net.eval()
     counter = Counter()
-    loss_fn = nn.CrossEntropyLoss()
     with torch.no_grad():
         for X, Z in test_loader:
             Y = net.forward(X)
-            _, metrics = get_metrics(loss_fn, Y, Z)
+            _, metrics = get_metrics(Y, Z)
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
@@ -151,7 +151,6 @@ def train(
     n_tokens = 0
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    ce_loss = nn.CrossEntropyLoss()
     for e in range(n_epochs):
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
@@ -176,7 +175,7 @@ def train(
             #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
             #     breakpoint()
 
-            loss, metrics = get_metrics(ce_loss, Y, Z)
+            loss, metrics = get_metrics(Y, Z)
 
             n_tokens += X.numel()
             decayed_lr = decay_lr(lr, step=step, **decay_args)
