@@ -123,15 +123,16 @@ class RLData(Dataset):
             next_states[..., None],
             rewards,
         ]
-        self.X = torch.cat(continuous + discrete, -1).long().cuda()
+        self.continuous = torch.cat(continuous, -1).long().cuda()
+        self.discrete = torch.cat(discrete, -1).long().cuda()
 
         self.Z = V2.cuda()
 
     def __len__(self):
-        return len(self.X)
+        return len(self.discrete)
 
     def __getitem__(self, idx):
-        return self.X[idx], self.Z[idx]
+        return self.continuous[idx], self.discrete[idx], self.Z[idx]
 
     @property
     def decode_outputs(self):
