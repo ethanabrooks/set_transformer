@@ -122,9 +122,14 @@ def train(
 
     print("Create net... ", end="", flush=True)
     n_tokens = torch.cat([dataset.continuous, dataset.discrete], -1).max().item() + 1
-    dim_output = dataset.Z.max().item() + 1
+    dim_output = dataset.targets.max().item() + 1
     net = SetTransformer(
-        **model_args, n_output=dim_output, n_tokens=n_tokens, loss_type=loss_type
+        continuous_min=dataset.min,
+        continuous_max=dataset.max,
+        **model_args,
+        n_output=dim_output,
+        n_tokens=n_tokens,
+        loss_type=loss_type,
     )
     if load_path is not None:
         load(load_path, net, run)

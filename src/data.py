@@ -126,13 +126,23 @@ class RLData(Dataset):
         self.continuous = torch.cat(continuous, -1).long().cuda()
         self.discrete = torch.cat(discrete, -1).long().cuda()
 
-        self.Z = V2.cuda()
+        self.targets = V2.cuda()
+
+    @property
+    def max(self):
+        _, _, d = self.continuous.shape
+        return self.continuous.view(-1, d).max(0).values
+
+    @property
+    def min(self):
+        _, _, d = self.continuous.shape
+        return self.continuous.view(-1, d).min(0).values
 
     def __len__(self):
         return len(self.discrete)
 
     def __getitem__(self, idx):
-        return self.continuous[idx], self.discrete[idx], self.Z[idx]
+        return self.continuous[idx], self.discrete[idx], self.targets[idx]
 
     @property
     def decode_outputs(self):
