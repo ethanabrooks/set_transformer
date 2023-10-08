@@ -35,8 +35,9 @@ def load(
 
 @dataclass
 class Metrics:
-    loss: float
     accuracy: float
+    loss: float
+    pair_wise_accuracy: float
     within1accuracy: float
     within2accuracy: float
 
@@ -51,9 +52,21 @@ def get_metrics(outputs, targets) -> tuple[torch.Tensor, Metrics]:
     within2accuracy = (
         ((outputs.argmax(-1) - targets)[mask].abs() <= 2).float().mean().item()
     )
+    # Compute pairwise differences for outputs and targets
+    outputs = outputs.argmax(-1)
+    diff_outputs = outputs[:, 1:] - outputs[:, :-1]
+    diff_targets = targets[:, 1:] - targets[:, :-1]
+
+    # Compute signs of differences
+    sign_outputs = torch.sign(diff_outputs)
+    sign_targets = torch.sign(diff_targets)
+
+    # Count where signs match
+    pair_wise_accuracy = (sign_outputs == sign_targets).float().mean().item()
     metrics = Metrics(
         loss=loss.item(),
         accuracy=accuracy,
+        pair_wise_accuracy=pair_wise_accuracy,
         within1accuracy=within1accuracy,
         within2accuracy=within2accuracy,
     )
