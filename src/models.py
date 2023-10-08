@@ -45,10 +45,13 @@ class SetTransformer(nn.Module):
             n_output = 1
         self.dec = nn.Linear(n_hidden, n_output)
 
-    def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
-        B, S, T = inputs.shape
-        X = inputs.reshape(B * S, T)
-        X: torch.Tensor = self.embedding(X)
+    def forward(
+        self, continuous: torch.Tensor, discrete: torch.Tensor, targets: torch.Tensor
+    ):
+        X = torch.cat([continuous, discrete], dim=-1)
+        B, S, T = X.shape
+        X = X.reshape(B * S, T)
+        X = self.embedding(X)
         _, _, D = X.shape
         assert [*X.shape] == [B * S, T, D]
         Y: torch.Tensor = self.seq2seq(X)
