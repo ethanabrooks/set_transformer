@@ -1,6 +1,3 @@
-from dataclasses import astuple, dataclass
-from typing import Generic, TypeVar
-
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
@@ -8,18 +5,6 @@ from tqdm import tqdm
 
 from discretization import contiguous_integers, round_tensor
 from metrics import LossType
-
-T = TypeVar("T")
-
-
-@dataclass
-class Transition(Generic[T]):
-    states: T
-    action_probs: T
-    actions: T
-    next_states: T
-    rewards: T
-    v1: T  # noqa: Vulture
 
 
 class RLData(Dataset):
@@ -128,18 +113,17 @@ class RLData(Dataset):
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
-        X = Transition[torch.Tensor](
-            states=states[..., None],
-            action_probs=action_probs,
-            actions=actions[..., None],
-            next_states=next_states[..., None],
-            rewards=rewards,
-            v1=V1[..., None],
-        )
-        shapes = [x.shape for x in astuple(X)]
-        dims = [dim for *_, dim in shapes]
-        self.dims = Transition[int](*dims)
-        self.X = torch.cat(astuple(X), -1).long().cuda()
+        continuous = [
+            action_probs,
+            V1[..., None],
+        ]
+        discrete = [
+            states[..., None],
+            actions[..., None],
+            next_states[..., None],
+            rewards,
+        ]
+        self.X = torch.cat(continuous + discrete, -1).long().cuda()
 
         self.Z = V2.cuda()
 
