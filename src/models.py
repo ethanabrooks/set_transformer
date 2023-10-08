@@ -19,6 +19,8 @@ class GRU(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(
         self,
+        continuous_max: torch.Tensor,
+        continuous_min: torch.Tensor,
         isab_args: dict,
         loss_type: LossType,
         n_isab: int,
@@ -29,6 +31,8 @@ class SetTransformer(nn.Module):
         sab_args: dict,
     ):
         super(SetTransformer, self).__init__()
+        self.continuous_max = continuous_max
+        self.continuous_min = continuous_min
         self.embedding = nn.Embedding(n_tokens, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
@@ -48,10 +52,13 @@ class SetTransformer(nn.Module):
     def forward(
         self, continuous: torch.Tensor, discrete: torch.Tensor, targets: torch.Tensor
     ):
-        X = torch.cat([continuous, discrete], dim=-1)
-        B, S, T = X.shape
-        X = X.reshape(B * S, T)
-        X = self.embedding(X)
+        discrete = self.embedding(discrete)
+        _, _, _, D = discrete.shape
+        continuous = (continuous - self.continuous_min) / self.continuous_max
+        continuous = continuous[..., None].tile(1, 1, 1, D)
+        X = torch.cat([continuous, discrete], dim=-2)
+        B, S, T, D = X.shape
+        X = X.reshape(B * S, T, D)
         _, _, D = X.shape
         assert [*X.shape] == [B * S, T, D]
         Y: torch.Tensor = self.seq2seq(X)
