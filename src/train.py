@@ -42,8 +42,8 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for X, Z in test_loader:
-            Y, loss = net.forward(X, Z)
+        for continuous, discrete, Z in test_loader:
+            Y, loss = net.forward(continuous, discrete, Z)
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
@@ -121,7 +121,7 @@ def train(
     dataset = RLData(**data_args, loss_type=loss_type)
 
     print("Create net... ", end="", flush=True)
-    n_tokens = dataset.X.max().item() + 1
+    n_tokens = torch.cat([dataset.continuous, dataset.discrete], -1).max().item() + 1
     dim_output = dataset.Z.max().item() + 1
     net = SetTransformer(
         **model_args, n_output=dim_output, n_tokens=n_tokens, loss_type=loss_type
@@ -143,7 +143,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        for t, (X, Z) in enumerate(train_loader):
+        for t, (continuous, discrete, Z) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_freq == 0:
                 log = evaluate(
@@ -159,8 +159,7 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            loss: torch.Tensor
-            Y, loss = net.forward(X, Z)
+            Y, loss = net.forward(continuous, discrete, Z)
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
             #     idx = wrong.nonzero()
