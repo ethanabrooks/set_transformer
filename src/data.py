@@ -115,7 +115,7 @@ class RLData(Dataset):
 
         continuous = [
             action_probs,
-            V1[..., None],
+            _V1[..., None],
         ]
         discrete = [
             states[..., None],
