@@ -42,7 +42,9 @@ class Metrics:
     within2accuracy: float
 
 
-def get_metrics(outputs, targets) -> tuple[torch.Tensor, Metrics]:
+def get_metrics(
+    outputs: torch.Tensor, targets: torch.Tensor
+) -> tuple[torch.Tensor, Metrics]:
     loss = F.cross_entropy(outputs.swapaxes(1, 2), targets)
     mask = targets != 0
     accuracy = (outputs.argmax(-1) == targets)[mask].float().mean().item()
