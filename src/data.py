@@ -65,13 +65,15 @@ class RLData(Dataset):
         gamma = 1  # discount factor
 
         # Initialize V_0
-        V = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
+        V1 = torch.zeros((n_rounds - 1, n_policies, N), dtype=torch.float)
+        V2 = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
 
         for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
-            EV = (T_Pi * V[k, :, None]).sum(-1)
+            V1[k] = V2[k]
+            EV = (T_Pi * V1[k, :, None]).sum(-1)
             Vk1 = ER + gamma * EV
-            V[k + 1] = Vk1
+            V2[k + 1] = Vk1
 
         states = torch.arange(N).repeat_interleave(A)
         states = states[None].tile(n_policies, 1)
@@ -89,11 +91,11 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
+        order = torch.randint(0, len(V1) - 1, (P, 1)).tile(1, A * N)
 
-        _V1 = V[order, idxs1, idxs2]
-        order2 = torch.clamp(order + order_delta, 0, len(V) - 1)
-        _V2 = V[order2, idxs1, idxs2]
+        _V1 = V1[order, idxs1, idxs2]
+        order2 = torch.clamp(order + order_delta, 0, len(V2) - 1)
+        _V2 = V2[order2, idxs1, idxs2]
 
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
