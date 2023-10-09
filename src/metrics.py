@@ -26,15 +26,22 @@ def get_metrics(
         outputs = outputs.squeeze(-1)
         loss = F.mse_loss(outputs, targets.float())
         outputs = (100 * outputs).round() / 100
+        unit = 0.01
     elif loss_type == LossType.CROSS_ENTROPY:
         loss = F.cross_entropy(outputs.swapaxes(1, 2), targets)
         outputs = outputs.argmax(-1)
+        unit = 1
     else:
         raise ValueError(f"Unknown loss type: {loss_type}")
     mask = targets != 0
-    accuracy = (outputs == targets)[mask].float().mean().item()
-    within1accuracy = ((outputs - targets)[mask].abs() <= 1).float().mean().item()
-    within2accuracy = ((outputs - targets)[mask].abs() <= 2).float().mean().item()
+
+    def process_accuracy(accuracy: torch.Tensor) -> torch.Tensor:
+        return accuracy[mask].float().mean().item()
+
+    accuracy = process_accuracy(outputs == targets)
+    within1accuracy = process_accuracy((outputs - targets).abs() <= 1 * unit)
+    within2accuracy = process_accuracy((outputs - targets).abs() <= 2 * unit)
+
     # Compute pairwise differences for outputs and targets
     diff_outputs = outputs[:, 1:] - outputs[:, :-1]
     diff_targets = targets[:, 1:] - targets[:, :-1]
