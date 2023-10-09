@@ -7,6 +7,7 @@ decay_args:
   warmup_steps: 4000
 load_path: null
 log_freq: 20
+loss: "cross_entropy"
 max_layers: 10
 min_layers: 1
 n_batch: 50

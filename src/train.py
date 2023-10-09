@@ -3,19 +3,19 @@ import os
 import random
 import time
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from wandb.sdk.wandb_run import Run
 
 import wandb
 from data import RLData
+from metrics import LossType, get_metrics
 from models import SetTransformer
 from pretty import print_row
 
@@ -33,55 +33,13 @@ def load(
     net.load_state_dict(state, strict=True)
 
 
-@dataclass
-class Metrics:
-    accuracy: float
-    loss: float
-    pair_wise_accuracy: float
-    within1accuracy: float
-    within2accuracy: float
-
-
-def get_metrics(
-    outputs: torch.Tensor, targets: torch.Tensor
-) -> tuple[torch.Tensor, Metrics]:
-    loss = F.cross_entropy(outputs.swapaxes(1, 2), targets)
-    mask = targets != 0
-    accuracy = (outputs.argmax(-1) == targets)[mask].float().mean().item()
-    within1accuracy = (
-        ((outputs.argmax(-1) - targets)[mask].abs() <= 1).float().mean().item()
-    )
-    within2accuracy = (
-        ((outputs.argmax(-1) - targets)[mask].abs() <= 2).float().mean().item()
-    )
-    # Compute pairwise differences for outputs and targets
-    outputs = outputs.argmax(-1)
-    diff_outputs = outputs[:, 1:] - outputs[:, :-1]
-    diff_targets = targets[:, 1:] - targets[:, :-1]
-
-    # Compute signs of differences
-    sign_outputs = torch.sign(diff_outputs)
-    sign_targets = torch.sign(diff_targets)
-
-    # Count where signs match
-    pair_wise_accuracy = (sign_outputs == sign_targets).float().mean().item()
-    metrics = Metrics(
-        loss=loss.item(),
-        accuracy=accuracy,
-        pair_wise_accuracy=pair_wise_accuracy,
-        within1accuracy=within1accuracy,
-        within2accuracy=within2accuracy,
-    )
-    return loss, metrics
-
-
-def evaluate(net: nn.Module, test_loader: DataLoader):
+def evaluate(net: nn.Module, test_loader: DataLoader, loss_type: LossType):
     net.eval()
     counter = Counter()
     with torch.no_grad():
         for X, Z in test_loader:
             Y = net.forward(X)
-            _, metrics = get_metrics(Y, Z)
+            _, metrics = get_metrics(Y, Z, loss_type)
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
@@ -103,6 +61,7 @@ def train(
     decay_args: dict,
     load_path: str,
     log_freq: int,
+    loss: str,
     lr: float,
     min_layers: Optional[int],
     max_layers: Optional[int],
@@ -146,12 +105,16 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(**data_args)
+    loss_type = LossType[loss.upper()]
+
+    dataset = RLData(**data_args, loss_type=loss_type)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.X.max().item() + 1
     dim_output = dataset.Z.max().item() + 1
-    net = SetTransformer(**model_args, dim_output=dim_output, n_tokens=n_tokens)
+    net = SetTransformer(
+        **model_args, dim_output=dim_output, n_tokens=n_tokens, loss_type=loss_type
+    )
     if load_path is not None:
         load(load_path, net, run)
     net = net.cuda()
@@ -173,7 +136,7 @@ def train(
         for t, (X, Z) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_freq == 0:
-                log = evaluate(net=net, test_loader=test_loader)
+                log = evaluate(net=net, test_loader=test_loader, loss_type=loss_type)
                 print_row(log, show_header=True)
                 if run is not None:
                     wandb.log(log, step=step)
@@ -190,7 +153,7 @@ def train(
             #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
             #     breakpoint()
 
-            loss, metrics = get_metrics(Y, Z)
+            loss, metrics = get_metrics(Y, Z, loss_type)
 
             n_tokens += X.numel()
             decayed_lr = decay_lr(lr, step=step, **decay_args)
