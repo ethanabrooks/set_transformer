@@ -4,12 +4,14 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from discretization import contiguous_integers, round_tensor
+from metrics import LossType
 
 
 class RLData(Dataset):
     def __init__(
         self,
         grid_size: int,
+        loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
         order_delta: int,
@@ -98,8 +100,13 @@ class RLData(Dataset):
         assert torch.equal(_action_probs, self.decode_action_probs[action_probs])
         V1, self.decode_V1 = contiguous_integers(_V1)
         assert torch.equal(_V1, self.decode_V1[V1])
-        V2, self.decode_V2 = contiguous_integers(_V2)
-        assert torch.equal(_V2, self.decode_V2[V2])
+        if loss_type == LossType.MSE:
+            V2 = _V2
+        elif loss_type == LossType.CROSS_ENTROPY:
+            V2, self.decode_V2 = contiguous_integers(_V2)
+            assert torch.equal(_V2, self.decode_V2[V2])
+        else:
+            raise ValueError(f"Unknown loss type: {loss_type}")
 
         X = [
             states[..., None],

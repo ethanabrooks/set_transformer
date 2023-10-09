@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+from metrics import LossType
 from modules import ISAB, SAB
 
 
@@ -18,6 +19,7 @@ class SetTransformer(nn.Module):
         self,
         n_tokens,
         dim_output,
+        loss_type: LossType,
         n_isab,
         n_sab,
         dim_hidden=128,
@@ -40,6 +42,8 @@ class SetTransformer(nn.Module):
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
+        if loss_type == LossType.MSE:
+            dim_output = 1
         self.dec = nn.Linear(dim_hidden, dim_output)
 
     def forward(self, X):
