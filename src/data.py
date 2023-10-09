@@ -100,13 +100,15 @@ class RLData(Dataset):
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
         assert torch.equal(_action_probs, self.decode_action_probs[action_probs])
-        V1, self.decode_V1 = contiguous_integers(_V1)
-        assert torch.equal(_V1, self.decode_V1[V1])
+        # V1, self.decode_V1 = contiguous_integers(_V1)
         if loss_type == LossType.MSE:
+            V1, self.decode_V = contiguous_integers(_V1)
             V2 = _V2
         elif loss_type == LossType.CROSS_ENTROPY:
-            V2, self.decode_V2 = contiguous_integers(_V2)
-            assert torch.equal(_V2, self.decode_V2[V2])
+            _V = torch.stack([_V1, _V2])
+            V, self.decode_V = contiguous_integers(_V)
+            assert torch.equal(_V, self.decode_V[V])
+            V1, V2 = V
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
@@ -135,11 +137,11 @@ class RLData(Dataset):
             X, dims, dim=-1
         )
         action_probs = self.decode_action_probs[action_probs]
-        V1 = self.decode_V1[V1]
+        V1 = self.decode_V[V1]
         return torch.cat([states, actions, next_states, rewards, V1], dim=-1)
 
     def decode_outputs(self, V2: torch.Tensor):
-        return self.decode_V2[V2]
+        return self.decode_V[V2]
 
 
 # whitelist
