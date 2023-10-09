@@ -14,6 +14,7 @@ class RLData(Dataset):
         loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
+        n_v1_bins: int,
         order_delta: int,
     ):
         n_rounds = 2 * grid_size
@@ -70,7 +71,7 @@ class RLData(Dataset):
 
         for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
-            V1[k] = V2[k]
+            V1[k] = round_tensor(V2[k], n_v1_bins) / n_v1_bins
             EV = (T_Pi * V1[k, :, None]).sum(-1)
             Vk1 = ER + gamma * EV
             V2[k + 1] = Vk1
