@@ -36,21 +36,21 @@ class MAB(nn.Module):
 
 
 class SAB(nn.Module):
-    def __init__(self, dim_in, dim_out, num_heads, ln=False):
+    def __init__(self, dim_in, dim_out, n_heads, ln=False):
         super(SAB, self).__init__()
-        self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
+        self.mab = MAB(dim_in, dim_in, dim_out, n_heads, ln=ln)
 
     def forward(self, X):
         return self.mab(X, X)
 
 
 class ISAB(nn.Module):
-    def __init__(self, dim_in, dim_out, num_heads, num_inds, ln=False):
+    def __init__(self, dim_in, dim_out, n_heads, n_inds, ln=False):
         super(ISAB, self).__init__()
-        self.I = nn.Parameter(torch.Tensor(1, num_inds, dim_out))
+        self.I = nn.Parameter(torch.Tensor(1, n_inds, dim_out))
         nn.init.xavier_uniform_(self.I)
-        self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
-        self.mab1 = MAB(dim_in, dim_out, dim_out, num_heads, ln=ln)
+        self.mab0 = MAB(dim_out, dim_in, dim_out, n_heads, ln=ln)
+        self.mab1 = MAB(dim_in, dim_out, dim_out, n_heads, ln=ln)
 
     def forward(self, X):
         H = self.mab0(self.I.repeat(X.size(0), 1, 1), X)
