@@ -7,6 +7,11 @@ from discretization import contiguous_integers, round_tensor
 from metrics import LossType
 
 
+def scale_by_unique(x: torch.Tensor):
+    unique: torch.Tensor = x.unique()
+    return x * unique.numel()
+
+
 class RLData(Dataset):
     def __init__(
         self,
@@ -98,11 +103,10 @@ class RLData(Dataset):
         order2 = torch.clamp(order + order_delta, 0, len(V2) - 1)
         _V2 = V2[order2, idxs1, idxs2]
 
-        # discretize continuous values
-        action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
-        assert torch.equal(_action_probs, self.decode_action_probs[action_probs])
-        unique: torch.Tensor = _V2.unique()
-        V1 = unique.numel() * _V1  # without this, sinusoidal encoding does not work.
+        # scale continuous values (needed by sinusoidal encoding)
+        action_probs = scale_by_unique(_action_probs)
+        V1 = scale_by_unique(_V1)
+
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
             V2 = _V2
@@ -114,7 +118,7 @@ class RLData(Dataset):
 
         continuous = [
             action_probs,
-            V2.max() * V1[..., None],
+            V1[..., None],
         ]
         discrete = [
             states[..., None],
