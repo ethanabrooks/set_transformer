@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from metrics import LossType
 from modules import ISAB, SAB
@@ -30,9 +32,10 @@ class SetTransformer(nn.Module):
         self.embedding = nn.Embedding(n_tokens, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
+        self.loss_type = loss_type
         self.seq2seq = GRU(n_hidden)
 
-        self.enc = nn.Sequential(
+        self.network = nn.Sequential(
             *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
             *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
         )
@@ -42,16 +45,24 @@ class SetTransformer(nn.Module):
             n_output = 1
         self.dec = nn.Linear(n_hidden, n_output)
 
-    def forward(self, X):
-        B, S, T = X.shape
-        X = X.reshape(B * S, T)
-        X = self.embedding(X)
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor):
+        B, S, T = inputs.shape
+        X = inputs.reshape(B * S, T)
+        X: torch.Tensor = self.embedding(X)
         _, _, D = X.shape
         assert [*X.shape] == [B * S, T, D]
-        Y = self.seq2seq(X)
+        Y: torch.Tensor = self.seq2seq(X)
         assert [*Y.shape] == [B * S, T, D]
         Y = Y.reshape(B, S, T, D).sum(2)
         assert [*Y.shape] == [B, S, D]
-        Y = self.enc(Y)
-        assert [*Y.shape] == [B, S, D]
-        return self.dec(Y)
+        Z: torch.Tensor = self.network(Y)
+        assert [*Z.shape] == [B, S, D]
+        outputs: torch.Tensor = self.dec(Z)
+
+        if self.loss_type == LossType.MSE:
+            loss: torch.Tensor = F.mse_loss(outputs.squeeze(-1), targets.float())
+        elif self.loss_type == LossType.CROSS_ENTROPY:
+            loss: torch.Tensor = F.cross_entropy(outputs.swapaxes(1, 2), targets)
+        else:
+            raise ValueError(f"Unknown loss type: {self.loss_type}")
+        return outputs, loss
