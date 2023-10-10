@@ -27,7 +27,7 @@ def get_metrics(
 ) -> Metrics:
     if loss_type == LossType.MSE:
         outputs = outputs.squeeze(-1)
-        outputs = (100 * outputs).round() / 100
+        outputs = (50 * outputs).round() / 50
     elif loss_type == LossType.CROSS_ENTROPY:
         outputs = outputs.argmax(-1)
         decode_outputs = decode_outputs.cuda()
