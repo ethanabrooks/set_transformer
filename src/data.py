@@ -101,15 +101,14 @@ class RLData(Dataset):
         # discretize continuous values
         action_probs, self.decode_action_probs = contiguous_integers(_action_probs)
         assert torch.equal(_action_probs, self.decode_action_probs[action_probs])
-        # V1, self.decode_V1 = contiguous_integers(_V1)
+        unique: torch.Tensor = _V2.unique()
+        V1 = unique.numel() * _V1  # without this, sinusoidal encoding does not work.
+        self.loss_type = loss_type
         if loss_type == LossType.MSE:
-            V1, self.decode_V = contiguous_integers(_V1)
             V2 = _V2
         elif loss_type == LossType.CROSS_ENTROPY:
-            _V = torch.stack([_V1, _V2])
-            V, self.decode_V = contiguous_integers(_V)
-            assert torch.equal(_V, self.decode_V[V])
-            V1, V2 = V
+            V2, self.decode_V = contiguous_integers(_V2)
+            assert torch.equal(_V2, self.decode_V[V2])
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
@@ -146,4 +145,7 @@ class RLData(Dataset):
 
     @property
     def decode_outputs(self):
-        return self.decode_V
+        if self.loss_type == LossType.MSE:
+            return None
+        else:
+            return self.decode_V
