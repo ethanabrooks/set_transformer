@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 import torch
-import torch.nn.functional as F
 
 
 @dataclass
@@ -20,15 +19,16 @@ class LossType(Enum):
 
 
 def get_metrics(
-    outputs: torch.Tensor, targets: torch.Tensor, loss_type: LossType
+    outputs: torch.Tensor,
+    targets: torch.Tensor,
+    loss: torch.Tensor,
+    loss_type: LossType,
 ) -> tuple[torch.Tensor, Metrics]:
     if loss_type == LossType.MSE:
         outputs = outputs.squeeze(-1)
-        loss = F.mse_loss(outputs, targets.float())
         outputs = (100 * outputs).round() / 100
         unit = 0.01
     elif loss_type == LossType.CROSS_ENTROPY:
-        loss = F.cross_entropy(outputs.swapaxes(1, 2), targets)
         outputs = outputs.argmax(-1)
         unit = 1
     else:
@@ -59,4 +59,4 @@ def get_metrics(
         within1accuracy=within1accuracy,
         within2accuracy=within2accuracy,
     )
-    return loss, metrics
+    return metrics

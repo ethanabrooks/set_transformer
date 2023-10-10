@@ -38,8 +38,8 @@ def evaluate(net: nn.Module, test_loader: DataLoader, loss_type: LossType):
     counter = Counter()
     with torch.no_grad():
         for X, Z in test_loader:
-            Y = net.forward(X)
-            _, metrics = get_metrics(Y, Z, loss_type)
+            Y, loss = net.forward(X, Z)
+            metrics = get_metrics(Y, Z, loss, loss_type)
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
@@ -143,7 +143,8 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            Y = net.forward(X)
+            loss: torch.Tensor
+            Y, loss = net.forward(X, Z)
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
             #     idx = wrong.nonzero()
@@ -152,7 +153,7 @@ def train(
             #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
             #     breakpoint()
 
-            loss, metrics = get_metrics(Y, Z, loss_type)
+            metrics = get_metrics(Y, Z, loss, loss_type)
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             for param_group in optimizer.param_groups:
