@@ -126,7 +126,6 @@ def train(
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     counter = Counter()
     save_count = 0
-    n_tokens = 0
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
@@ -155,7 +154,6 @@ def train(
 
             loss, metrics = get_metrics(Y, Z, loss_type)
 
-            n_tokens += X.numel()
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             for param_group in optimizer.param_groups:
                 param_group.update(lr=decayed_lr)
