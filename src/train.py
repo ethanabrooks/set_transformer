@@ -113,7 +113,7 @@ def train(
     n_tokens = dataset.X.max().item() + 1
     dim_output = dataset.Z.max().item() + 1
     net = SetTransformer(
-        **model_args, dim_output=dim_output, n_tokens=n_tokens, loss_type=loss_type
+        **model_args, n_output=dim_output, n_tokens=n_tokens, loss_type=loss_type
     )
     if load_path is not None:
         load(load_path, net, run)

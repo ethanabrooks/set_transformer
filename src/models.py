@@ -17,34 +17,30 @@ class GRU(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        n_tokens,
-        dim_output,
+        isab_args: dict,
         loss_type: LossType,
-        n_isab,
-        n_sab,
-        dim_hidden=128,
-        ln=False,
-        num_inds=32,
-        num_heads=8,
+        n_isab: int,
+        n_hidden: int,
+        n_output: int,
+        n_sab: int,
+        n_tokens: int,
+        sab_args: dict,
     ):
         super(SetTransformer, self).__init__()
-        self.embedding = nn.Embedding(n_tokens, dim_hidden)
+        self.embedding = nn.Embedding(n_tokens, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.seq2seq = GRU(dim_hidden)
+        self.seq2seq = GRU(n_hidden)
 
         self.enc = nn.Sequential(
-            *[
-                ISAB(dim_hidden, dim_hidden, num_heads, num_inds, ln=ln)
-                for _ in range(n_isab)
-            ],
-            *[SAB(dim_hidden, dim_hidden, num_heads, ln=ln) for _ in range(n_sab)],
+            *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
+            *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
         if loss_type == LossType.MSE:
-            dim_output = 1
-        self.dec = nn.Linear(dim_hidden, dim_output)
+            n_output = 1
+        self.dec = nn.Linear(n_hidden, n_output)
 
     def forward(self, X):
         B, S, T = X.shape
