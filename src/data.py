@@ -1,3 +1,6 @@
+from dataclasses import astuple, dataclass, replace
+from typing import Generic, TypeVar
+
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
@@ -5,6 +8,18 @@ from tqdm import tqdm
 
 from discretization import contiguous_integers, round_tensor
 from metrics import LossType
+
+T = TypeVar("T")
+
+
+@dataclass
+class Transition(Generic[T]):
+    states: T
+    action_probs: T
+    actions: T
+    next_states: T
+    rewards: T
+    v1: T
 
 
 class RLData(Dataset):
@@ -113,16 +128,18 @@ class RLData(Dataset):
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
-        X = [
-            states[..., None],
-            action_probs,
-            actions[..., None],
-            next_states[..., None],
-            rewards,
-            V1[..., None],
-        ]
-        self.shapes = [x.shape for x in X]
-        self.X = torch.cat(X, -1).long().cuda()
+        X = Transition[torch.Tensor](
+            states=states[..., None],
+            action_probs=action_probs,
+            actions=actions[..., None],
+            next_states=next_states[..., None],
+            rewards=rewards,
+            v1=V1[..., None],
+        )
+        shapes = [x.shape for x in astuple(X)]
+        dims = [dim for *_, dim in shapes]
+        self.dims = Transition[int](*dims)
+        self.X = torch.cat(astuple(X), -1).long().cuda()
 
         self.Z = V2.cuda()
 
@@ -133,13 +150,12 @@ class RLData(Dataset):
         return self.X[idx], self.Z[idx]
 
     def decode_inputs(self, X: torch.Tensor):
-        dims = [shape[-1] for shape in self.shapes]
-        states, action_probs, actions, next_states, rewards, V1 = torch.split(
-            X, dims, dim=-1
-        )
-        action_probs = self.decode_action_probs[action_probs]
-        V1 = self.decode_V[V1]
-        return torch.cat([states, actions, next_states, rewards, V1], dim=-1)
+        transition = torch.split(X, astuple(self.dims), dim=-1)
+        transition = Transition[torch.Tensor](*transition)
+        action_probs = self.decode_action_probs[transition.action_probs]
+        v1 = self.decode_V[transition.v1]
+        transition = replace(transition, action_probs=action_probs, v1=v1)
+        return torch.cat(astuple(transition), dim=-1)
 
     def decode_outputs(self, V2: torch.Tensor):
         return self.decode_V[V2]
