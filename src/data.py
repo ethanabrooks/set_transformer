@@ -1,4 +1,4 @@
-from dataclasses import astuple, dataclass, replace
+from dataclasses import astuple, dataclass
 from typing import Generic, TypeVar
 
 import torch
@@ -19,7 +19,7 @@ class Transition(Generic[T]):
     actions: T
     next_states: T
     rewards: T
-    v1: T
+    v1: T  # noqa: Vulture
 
 
 class RLData(Dataset):
@@ -149,18 +149,6 @@ class RLData(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.Z[idx]
 
-    def decode_inputs(self, X: torch.Tensor):
-        transition = torch.split(X, astuple(self.dims), dim=-1)
-        transition = Transition[torch.Tensor](*transition)
-        action_probs = self.decode_action_probs[transition.action_probs]
-        v1 = self.decode_V[transition.v1]
-        transition = replace(transition, action_probs=action_probs, v1=v1)
-        return torch.cat(astuple(transition), dim=-1)
-
-    def decode_outputs(self, V2: torch.Tensor):
-        return self.decode_V[V2]
-
-
-# whitelist
-RLData.decode_inputs
-RLData.decode_outputs
+    @property
+    def decode_outputs(self):
+        return self.decode_V
