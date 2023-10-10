@@ -8,9 +8,9 @@ import torch
 class Metrics:
     accuracy: float
     loss: float
+    mae: float
     pair_wise_accuracy: float
-    within1accuracy: float
-    within2accuracy: float
+    rmse: float
 
 
 class LossType(Enum):
@@ -19,28 +19,25 @@ class LossType(Enum):
 
 
 def get_metrics(
-    outputs: torch.Tensor,
-    targets: torch.Tensor,
+    decode_outputs: torch.Tensor,
     loss: torch.Tensor,
     loss_type: LossType,
+    outputs: torch.Tensor,
+    targets: torch.Tensor,
 ) -> Metrics:
     if loss_type == LossType.MSE:
         outputs = outputs.squeeze(-1)
         outputs = (100 * outputs).round() / 100
-        unit = 0.01
     elif loss_type == LossType.CROSS_ENTROPY:
         outputs = outputs.argmax(-1)
-        unit = 1
+        decode_outputs = decode_outputs.cuda()
+        outputs = decode_outputs[outputs]
+        targets = decode_outputs[targets]
     else:
         raise ValueError(f"Unknown loss type: {loss_type}")
     mask = targets != 0
 
-    def process_accuracy(accuracy: torch.Tensor) -> torch.Tensor:
-        return accuracy[mask].float().mean().item()
-
-    accuracy = process_accuracy(outputs == targets)
-    within1accuracy = process_accuracy((outputs - targets).abs() <= 1 * unit)
-    within2accuracy = process_accuracy((outputs - targets).abs() <= 2 * unit)
+    accuracy = (outputs == targets)[mask].float().mean().item()
 
     # Compute pairwise differences for outputs and targets
     diff_outputs = outputs[:, 1:] - outputs[:, :-1]
@@ -52,11 +49,15 @@ def get_metrics(
 
     # Count where signs match
     pair_wise_accuracy = (sign_outputs == sign_targets).float().mean().item()
+
+    mae = torch.abs(outputs - targets)[mask].float().mean().item()
+    rmse = (outputs - targets).square().float().mean(-1).sqrt().mean().item()
+
     metrics = Metrics(
         loss=loss.item(),
         accuracy=accuracy,
+        mae=mae,
         pair_wise_accuracy=pair_wise_accuracy,
-        within1accuracy=within1accuracy,
-        within2accuracy=within2accuracy,
+        rmse=rmse,
     )
     return metrics

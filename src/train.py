@@ -33,13 +33,24 @@ def load(
     net.load_state_dict(state, strict=True)
 
 
-def evaluate(net: nn.Module, test_loader: DataLoader, loss_type: LossType):
+def evaluate(
+    decode_outputs: torch.Tensor,
+    loss_type: LossType,
+    net: nn.Module,
+    test_loader: DataLoader,
+):
     net.eval()
     counter = Counter()
     with torch.no_grad():
         for X, Z in test_loader:
             Y, loss = net.forward(X, Z)
-            metrics = get_metrics(Y, Z, loss, loss_type)
+            metrics = get_metrics(
+                decode_outputs=decode_outputs,
+                loss=loss,
+                loss_type=loss_type,
+                outputs=Y,
+                targets=Z,
+            )
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
 
@@ -135,7 +146,12 @@ def train(
         for t, (X, Z) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_freq == 0:
-                log = evaluate(net=net, test_loader=test_loader, loss_type=loss_type)
+                log = evaluate(
+                    decode_outputs=dataset.decode_outputs,
+                    loss_type=loss_type,
+                    net=net,
+                    test_loader=test_loader,
+                )
                 print_row(log, show_header=True)
                 if run is not None:
                     wandb.log(log, step=step)
@@ -153,7 +169,13 @@ def train(
             #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
             #     breakpoint()
 
-            metrics = get_metrics(Y, Z, loss, loss_type)
+            metrics = get_metrics(
+                decode_outputs=dataset.decode_outputs,
+                loss=loss,
+                loss_type=loss_type,
+                outputs=Y,
+                targets=Z,
+            )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             for param_group in optimizer.param_groups:
