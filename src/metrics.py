@@ -27,7 +27,6 @@ def get_metrics(
 ) -> Metrics:
     if loss_type == LossType.MSE:
         outputs = outputs.squeeze(-1)
-        outputs = (50 * outputs).round() / 50
     elif loss_type == LossType.CROSS_ENTROPY:
         outputs = outputs.argmax(-1)
         decode_outputs = decode_outputs.cuda()
@@ -37,6 +36,10 @@ def get_metrics(
         raise ValueError(f"Unknown loss type: {loss_type}")
     mask = targets != 0
 
+    mae = torch.abs(outputs - targets)[mask].float().mean().item()
+    rmse = (outputs - targets).square().float().mean(-1).sqrt().mean().item()
+
+    outputs = (50 * outputs).round() / 50
     accuracy = (outputs == targets)[mask].float().mean().item()
 
     # Compute pairwise differences for outputs and targets
@@ -49,9 +52,6 @@ def get_metrics(
 
     # Count where signs match
     pair_wise_accuracy = (sign_outputs == sign_targets).float().mean().item()
-
-    mae = torch.abs(outputs - targets)[mask].float().mean().item()
-    rmse = (outputs - targets).square().float().mean(-1).sqrt().mean().item()
 
     metrics = Metrics(
         loss=loss.item(),
