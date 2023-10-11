@@ -121,7 +121,7 @@ def train(
     dataset = RLData(**data_args, loss_type=loss_type)
 
     print("Create net... ", end="", flush=True)
-    n_tokens = torch.cat([dataset.continuous, dataset.discrete], -1).max().item() + 1
+    n_tokens = dataset.discrete.max().item() + 1
     dim_output = dataset.targets.max().item() + 1
     net = SetTransformer(
         **model_args,
