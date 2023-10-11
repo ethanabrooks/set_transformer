@@ -130,16 +130,6 @@ class RLData(Dataset):
 
         self.targets = V2.cuda()
 
-    @property
-    def max(self):
-        _, _, d = self.continuous.shape
-        return self.continuous.view(-1, d).max(0).values
-
-    @property
-    def min(self):
-        _, _, d = self.continuous.shape
-        return self.continuous.view(-1, d).min(0).values
-
     def __len__(self):
         return len(self.discrete)
 

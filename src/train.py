@@ -124,8 +124,6 @@ def train(
     n_tokens = torch.cat([dataset.continuous, dataset.discrete], -1).max().item() + 1
     dim_output = dataset.targets.max().item() + 1
     net = SetTransformer(
-        continuous_min=dataset.min,
-        continuous_max=dataset.max,
         **model_args,
         n_output=dim_output,
         n_tokens=n_tokens,
