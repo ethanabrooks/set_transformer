@@ -18,7 +18,7 @@ model_args:
     log_term: 10000.0
     scale_term: 1000
   sab_args:
-    ln: false
+    ln: true
     n_heads: 8
 n_batch: 50
 n_epochs: 50000
