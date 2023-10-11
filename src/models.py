@@ -65,7 +65,7 @@ class SetTransformer(nn.Module):
         )
         div_term = div_term.to(continuous.device)
 
-        pos = continuous * div_term
+        pos = 1000 * continuous * div_term
         encoding = torch.zeros(*continuous.shape[:-1], self.n_hidden).to(
             continuous.device
         )

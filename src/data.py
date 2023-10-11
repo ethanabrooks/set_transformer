@@ -7,11 +7,6 @@ from discretization import contiguous_integers, round_tensor
 from metrics import LossType
 
 
-def scale_by_unique(x: torch.Tensor):
-    unique: torch.Tensor = x.unique()
-    return x * unique.numel()
-
-
 class RLData(Dataset):
     def __init__(
         self,
@@ -92,7 +87,7 @@ class RLData(Dataset):
         idxs2 = states
 
         # Gather probabilities from Pi that correspond to states
-        _action_probs = Pi[idxs1, idxs2]
+        action_probs = Pi[idxs1, idxs2]
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
@@ -101,10 +96,6 @@ class RLData(Dataset):
         _V1 = V1[order, idxs1, idxs2]
         order2 = torch.clamp(order + order_delta, 0, len(V2) - 1)
         _V2 = V2[order2, idxs1, idxs2]
-
-        # scale continuous values (needed by sinusoidal encoding)
-        action_probs = scale_by_unique(_action_probs)
-        V1 = scale_by_unique(_V1)
 
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
@@ -117,7 +108,7 @@ class RLData(Dataset):
 
         continuous = [
             action_probs,
-            V1[..., None],
+            _V1[..., None],
         ]
         discrete = [
             states[..., None],
