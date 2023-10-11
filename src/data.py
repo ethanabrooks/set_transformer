@@ -93,21 +93,23 @@ class RLData(Dataset):
         # sample order -- number of steps of policy evaluation
         order = torch.randint(0, len(V1) - 1, (P, 1)).tile(1, A * N)
 
-        _V1 = V1[order, idxs1, idxs2]
+        self.V2 = V2
+        v1 = V1[order, idxs1, idxs2]
         order2 = torch.clamp(order + order_delta, 0, len(V2) - 1)
-        _V2 = V2[order2, idxs1, idxs2]
+        v2 = V2[order2, idxs1, idxs2]
+        V_inf = V2[-1, idxs1, idxs2]
 
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
-            V2 = _V2
+            pass
         elif loss_type == LossType.CROSS_ENTROPY:
-            V2, self.decode_V = contiguous_integers(_V2)
-            assert torch.equal(_V2, self.decode_V[V2])
+            V2, self.decode_V = contiguous_integers(V2)
+            assert torch.equal(V2, self.decode_V[V2])
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
         self.action_probs = torch.Tensor(action_probs).cuda()
-        self.v1 = torch.Tensor(_V1).cuda()
+        self.v1 = torch.Tensor(v1).cuda()
         discrete = [
             states[..., None],
             actions[..., None],
@@ -116,7 +118,8 @@ class RLData(Dataset):
         ]
         self.discrete = torch.cat(discrete, -1).long().cuda()
 
-        self.targets = V2.cuda()
+        self.v2 = v2.cuda()
+        self.v_inf = torch.Tensor(V_inf).cuda()
 
     def __len__(self):
         return len(self.discrete)
@@ -126,7 +129,8 @@ class RLData(Dataset):
             self.v1[idx],
             self.action_probs[idx],
             self.discrete[idx],
-            self.targets[idx],
+            self.v2[idx],
+            self.v_inf[idx],
         )
 
     @property
