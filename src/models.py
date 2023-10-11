@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,6 +18,46 @@ class GRU(nn.Module):
         return h
 
 
+class PositionalEncoding(nn.Module):
+    def __init__(
+        self,
+        log_term: float,
+        n_hidden: int,
+        scale_term: float,
+    ):
+        super().__init__()
+        self.n_hidden = n_hidden
+        div_term = scale_term * torch.exp(
+            torch.arange(0, self.n_hidden, 2)
+            * -(torch.log(torch.tensor(log_term)) / self.n_hidden)
+        )
+        self.register_buffer("div_term", div_term)
+
+    @lru_cache()
+    def encoding(self, shape: torch.Size, device: torch.device):
+        return torch.zeros(*shape[:-1], self.n_hidden).to(device)
+
+    def forward(self, x: torch.Tensor):
+        """
+        Encode continuous values using sinusoidal functions.
+
+        Args:
+        - continuous (torch.Tensor): A tensor of shape (batch_size, sequence_length) containing the continuous values.
+        - d_model (int): Dimension of the encoding. Typically the model's hidden dimension.
+
+        Returns:
+        - torch.Tensor: The sinusoidal encoding of shape (batch_size, sequence_length, d_model).
+        """
+        # Expand dimensions for broadcasting
+        x = x.unsqueeze(-1)
+        pos = x * self.div_term
+        encoding = self.encoding(x.shape, x.device)
+        encoding[..., 0::2] = torch.sin(pos)
+        encoding[..., 1::2] = torch.cos(pos)
+
+        return encoding
+
+
 class SetTransformer(nn.Module):
     def __init__(
         self,
@@ -26,6 +68,7 @@ class SetTransformer(nn.Module):
         n_output: int,
         n_sab: int,
         n_tokens: int,
+        positional_encoding_args: dict,
         sab_args: dict,
     ):
         super(SetTransformer, self).__init__()
@@ -34,6 +77,9 @@ class SetTransformer(nn.Module):
         self.embedding.weight.data.uniform_(-initrange, initrange)
         self.loss_type = loss_type
         self.n_hidden = n_hidden
+        self.positional_encoding = PositionalEncoding(
+            n_hidden=n_hidden, **positional_encoding_args
+        )
         self.seq2seq = GRU(n_hidden)
 
         self.network = nn.Sequential(
@@ -46,40 +92,12 @@ class SetTransformer(nn.Module):
             n_output = 1
         self.dec = nn.Linear(n_hidden, n_output)
 
-    def sinusoidal_encoding(self, continuous: torch.Tensor):
-        """
-        Encode continuous values using sinusoidal functions.
-
-        Args:
-        - continuous (torch.Tensor): A tensor of shape (batch_size, sequence_length) containing the continuous values.
-        - d_model (int): Dimension of the encoding. Typically the model's hidden dimension.
-
-        Returns:
-        - torch.Tensor: The sinusoidal encoding of shape (batch_size, sequence_length, d_model).
-        """
-        # Expand dimensions for broadcasting
-        continuous = continuous.unsqueeze(-1)
-        div_term = torch.exp(
-            torch.arange(0, self.n_hidden, 2)
-            * -(torch.log(torch.tensor(10000.0)) / self.n_hidden)
-        )
-        div_term = div_term.to(continuous.device)
-
-        pos = 1000 * continuous * div_term
-        encoding = torch.zeros(*continuous.shape[:-1], self.n_hidden).to(
-            continuous.device
-        )
-        encoding[..., 0::2] = torch.sin(pos)
-        encoding[..., 1::2] = torch.cos(pos)
-
-        return encoding
-
     def forward(
         self, continuous: torch.Tensor, discrete: torch.Tensor, targets: torch.Tensor
     ):
         discrete = self.embedding(discrete)
         _, _, _, D = discrete.shape
-        continuous = self.sinusoidal_encoding(continuous)
+        continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
         X = X.reshape(B * S, T, D)
