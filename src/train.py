@@ -42,16 +42,16 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for v1, action_probs, discrete, targets in test_loader:
+        for v1, action_probs, discrete, v2, v_inf in test_loader:
             outputs, loss = net.forward(
-                v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+                v1=v1, action_probs=action_probs, discrete=discrete, targets=v2
             )
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=targets,
+                targets=v2,
             )
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
@@ -124,7 +124,7 @@ def train(
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.discrete.max().item() + 1
-    dim_output = dataset.targets.max().item() + 1
+    dim_output = dataset.v2.max().item() + 1
     net = SetTransformer(
         **model_args,
         n_output=dim_output,
@@ -148,7 +148,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        for t, (v1, action_probs, discrete, targets) in enumerate(train_loader):
+        for t, (v1, action_probs, discrete, v2, v_inf) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_interval == 0:
                 log = evaluate(
@@ -165,7 +165,7 @@ def train(
             optimizer.zero_grad()
 
             outputs, loss = net.forward(
-                v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+                v1=v1, action_probs=action_probs, discrete=discrete, targets=v2
             )
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
@@ -180,7 +180,7 @@ def train(
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=targets,
+                targets=v2,
             )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
