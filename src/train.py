@@ -45,10 +45,12 @@ def evaluate(
     with torch.no_grad():
         for v1, action_probs, discrete, targets, v_inf in test_loader:
             for _ in range(iterations):
+                outputs: torch.Tensor
+                loss: torch.Tensor
                 outputs, loss = net.forward(
                     v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
                 )
-                v1 = outputs
+                v1 = outputs.squeeze(-1)
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
@@ -57,7 +59,7 @@ def evaluate(
                 targets=targets if iterations == 1 else v_inf,
             )
             counter.update(asdict(metrics))
-    return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
+    return {k: v / len(test_loader) for k, v in counter.items()}
 
 
 def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
@@ -88,7 +90,8 @@ def train(
     save_interval: int,
     seed: int,
     test_split: float,
-    test_interval: int,
+    test_1_interval: int,
+    test_n_interval: int,
     commit: str = None,
     config: str = None,
     config_name: str = None,
@@ -145,6 +148,8 @@ def train(
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     counter = Counter()
     save_count = 0
+    test_1_log = None
+    test_n_log = None
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
@@ -153,7 +158,7 @@ def train(
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
         for t, (v1, action_probs, discrete, v2, v_inf) in enumerate(train_loader):
             step = e * len(train_loader) + t
-            if t % test_interval == 0:
+            if t % test_1_interval == 0:
                 log = evaluate(
                     decode_outputs=dataset.decode_outputs,
                     iterations=1,
@@ -161,9 +166,19 @@ def train(
                     net=net,
                     test_loader=test_loader,
                 )
-                print_row(log, show_header=True)
-                if run is not None:
-                    wandb.log(log, step=step)
+                test_1_log = {f"test-1/{k}": v for k, v in log.items()}
+                print_row(test_1_log, show_header=True)
+            if t % test_n_interval == 0:
+                iterations = int(math.ceil(dataset.max_order / dataset.order_delta))
+                log = evaluate(
+                    decode_outputs=dataset.decode_outputs,
+                    iterations=iterations,
+                    loss_type=loss_type,
+                    net=net,
+                    test_loader=test_loader,
+                )
+                test_n_log = {f"test-n/{k}": v for k, v in log.items()}
+                print_row(test_n_log, show_header=True)
 
             net.train()
             optimizer.zero_grad()
@@ -195,12 +210,16 @@ def train(
             optimizer.step()
             counter.update(asdict(metrics))
             if t % log_interval == 0:
-                log = {f"train/{k}": v / log_interval for k, v in counter.items()}
-                log.update(save_count=save_count, lr=decayed_lr, epoch=e)
+                train_log = {f"train/{k}": v / log_interval for k, v in counter.items()}
+                train_log.update(
+                    save_count=save_count,
+                    lr=decayed_lr,
+                    epoch=e,
+                )
                 counter = Counter()
-                print_row(log, show_header=(t % test_interval == 0))
+                print_row(train_log, show_header=(t % test_1_interval == 0))
                 if run is not None:
-                    wandb.log(log, step=step)
+                    wandb.log(dict(**train_log, **test_1_log, **test_n_log), step=step)
 
                     # save
             if t % save_interval == 0:
