@@ -71,7 +71,7 @@ def train(
     data_args: dict,
     decay_args: dict,
     load_path: str,
-    log_freq: int,
+    log_interval: int,
     loss: str,
     lr: float,
     min_layers: Optional[int],
@@ -80,10 +80,10 @@ def train(
     n_batch: int,
     n_epochs: int,
     run: Optional[Run],
-    save_freq: int,
+    save_interval: int,
     seed: int,
     test_split: float,
-    test_freq: int,
+    test_interval: int,
     commit: str = None,
     config: str = None,
     config_name: str = None,
@@ -148,7 +148,7 @@ def train(
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
         for t, (continuous, discrete, Z) in enumerate(train_loader):
             step = e * len(train_loader) + t
-            if t % test_freq == 0:
+            if t % test_interval == 0:
                 log = evaluate(
                     decode_outputs=dataset.decode_outputs,
                     loss_type=loss_type,
@@ -186,16 +186,16 @@ def train(
             loss.backward()
             optimizer.step()
             counter.update(asdict(metrics))
-            if t % log_freq == 0:
-                log = {f"train/{k}": v / log_freq for k, v in counter.items()}
+            if t % log_interval == 0:
+                log = {f"train/{k}": v / log_interval for k, v in counter.items()}
                 log.update(save_count=save_count, lr=decayed_lr, epoch=e)
                 counter = Counter()
-                print_row(log, show_header=(t % test_freq == 0))
+                print_row(log, show_header=(t % test_interval == 0))
                 if run is not None:
                     wandb.log(log, step=step)
 
                     # save
-            if t % save_freq == 0:
+            if t % save_interval == 0:
                 save(run, net)
                 save_count += 1
 
