@@ -126,7 +126,7 @@ class RLData(Dataset):
             next_states[..., None],
             rewards,
         ]
-        self.continuous = torch.cat(continuous, -1).long().cuda()
+        self.continuous = torch.cat(continuous, -1).cuda()
         self.discrete = torch.cat(discrete, -1).long().cuda()
 
         self.targets = V2.cuda()
