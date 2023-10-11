@@ -42,14 +42,16 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for continuous, discrete, Z in test_loader:
-            Y, loss = net.forward(continuous, discrete, Z)
+        for v1, action_probs, discrete, targets in test_loader:
+            outputs, loss = net.forward(
+                v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+            )
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
                 loss_type=loss_type,
-                outputs=Y,
-                targets=Z,
+                outputs=outputs,
+                targets=targets,
             )
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
@@ -146,7 +148,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        for t, (continuous, discrete, targets) in enumerate(train_loader):
+        for t, (v1, action_probs, discrete, targets) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_interval == 0:
                 log = evaluate(
@@ -162,7 +164,9 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            outputs, loss = net.forward(continuous, discrete, targets)
+            outputs, loss = net.forward(
+                v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+            )
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
             #     idx = wrong.nonzero()

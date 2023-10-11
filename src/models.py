@@ -93,10 +93,15 @@ class SetTransformer(nn.Module):
         self.dec = nn.Linear(n_hidden, n_output)
 
     def forward(
-        self, continuous: torch.Tensor, discrete: torch.Tensor, targets: torch.Tensor
+        self,
+        v1: torch.Tensor,
+        action_probs: torch.Tensor,
+        discrete: torch.Tensor,
+        targets: torch.Tensor,
     ):
         discrete = self.embedding(discrete)
         _, _, _, D = discrete.shape
+        continuous = torch.cat([action_probs, v1[..., None]], dim=-1)
         continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
