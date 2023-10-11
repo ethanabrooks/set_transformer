@@ -106,17 +106,14 @@ class RLData(Dataset):
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
-        continuous = [
-            action_probs,
-            _V1[..., None],
-        ]
+        self.action_probs = torch.Tensor(action_probs).cuda()
+        self.v1 = torch.Tensor(_V1).cuda()
         discrete = [
             states[..., None],
             actions[..., None],
             next_states[..., None],
             rewards,
         ]
-        self.continuous = torch.cat(continuous, -1).cuda()
         self.discrete = torch.cat(discrete, -1).long().cuda()
 
         self.targets = V2.cuda()
@@ -125,7 +122,12 @@ class RLData(Dataset):
         return len(self.discrete)
 
     def __getitem__(self, idx):
-        return self.continuous[idx], self.discrete[idx], self.targets[idx]
+        return (
+            self.v1[idx],
+            self.action_probs[idx],
+            self.discrete[idx],
+            self.targets[idx],
+        )
 
     @property
     def decode_outputs(self):
