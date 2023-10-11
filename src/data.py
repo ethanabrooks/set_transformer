@@ -16,6 +16,7 @@ class RLData(Dataset):
         n_policies: int,
         order_delta: int,
     ):
+        self.order_delta = order_delta
         n_rounds = 2 * grid_size
 
         # 2D deltas for up, down, left, right
@@ -139,3 +140,7 @@ class RLData(Dataset):
             return None
         else:
             return self.decode_V
+
+    @property
+    def max_order(self):
+        return len(self.V2) - 1

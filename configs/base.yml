@@ -24,5 +24,6 @@ n_batch: 50
 n_epochs: 50000
 save_interval: 40000
 seed: 0
-test_interval: 1000
+test_1_interval: 1000
+test_n_interval: 2000
 test_split: 0.02
