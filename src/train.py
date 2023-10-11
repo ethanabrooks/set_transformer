@@ -35,6 +35,7 @@ def load(
 
 def evaluate(
     decode_outputs: torch.Tensor,
+    iterations: int,
     loss_type: LossType,
     net: nn.Module,
     test_loader: DataLoader,
@@ -42,16 +43,18 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for v1, action_probs, discrete, v2, v_inf in test_loader:
-            outputs, loss = net.forward(
-                v1=v1, action_probs=action_probs, discrete=discrete, targets=v2
-            )
+        for v1, action_probs, discrete, targets, v_inf in test_loader:
+            for _ in range(iterations):
+                outputs, loss = net.forward(
+                    v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+                )
+                v1 = outputs
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=v2,
+                targets=targets if iterations == 1 else v_inf,
             )
             counter.update(asdict(metrics))
     return {f"eval/{k}": v / len(test_loader) for k, v in counter.items()}
@@ -153,6 +156,7 @@ def train(
             if t % test_interval == 0:
                 log = evaluate(
                     decode_outputs=dataset.decode_outputs,
+                    iterations=1,
                     loss_type=loss_type,
                     net=net,
                     test_loader=test_loader,
