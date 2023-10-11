@@ -19,8 +19,6 @@ class GRU(nn.Module):
 class SetTransformer(nn.Module):
     def __init__(
         self,
-        continuous_max: torch.Tensor,
-        continuous_min: torch.Tensor,
         isab_args: dict,
         loss_type: LossType,
         n_isab: int,
@@ -31,8 +29,6 @@ class SetTransformer(nn.Module):
         sab_args: dict,
     ):
         super(SetTransformer, self).__init__()
-        self.continuous_max = continuous_max
-        self.continuous_min = continuous_min
         self.embedding = nn.Embedding(n_tokens, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
