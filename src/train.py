@@ -146,7 +146,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        for t, (continuous, discrete, Z) in enumerate(train_loader):
+        for t, (continuous, discrete, targets) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_interval == 0:
                 log = evaluate(
@@ -162,7 +162,7 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            Y, loss = net.forward(continuous, discrete, Z)
+            outputs, loss = net.forward(continuous, discrete, targets)
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
             #     idx = wrong.nonzero()
@@ -175,8 +175,8 @@ def train(
                 decode_outputs=dataset.decode_outputs,
                 loss=loss,
                 loss_type=loss_type,
-                outputs=Y,
-                targets=Z,
+                outputs=outputs,
+                targets=targets,
             )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
