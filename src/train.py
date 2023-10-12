@@ -193,11 +193,12 @@ def train(
             net.train()
             optimizer.zero_grad()
 
+            targets_index = min(order_delta, dataset.max_order)
             outputs, loss = net.forward(
                 v1=values[0],
                 action_probs=action_probs,
                 discrete=discrete,
-                targets=values[order_delta],
+                targets=values[targets_index],
             )
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
@@ -212,7 +213,7 @@ def train(
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=values[order_delta],
+                targets=values[targets_index],
             )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
