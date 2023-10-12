@@ -7,6 +7,7 @@ decay_args:
 load_path: null
 log_interval: 200
 loss: "mse"
+lr: 0.001
 max_layers: 10
 min_layers: 1
 model_args:
