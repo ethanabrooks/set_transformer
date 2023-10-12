@@ -14,9 +14,7 @@ class RLData(Dataset):
         loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
-        order_delta: int,
     ):
-        self.order_delta = order_delta
         n_rounds = 2 * grid_size
 
         # 2D deltas for up, down, left, right
@@ -67,6 +65,7 @@ class RLData(Dataset):
 
         # Initialize V_0
         V = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
+        self.V = V
 
         for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
@@ -91,13 +90,11 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
+        input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
 
-        self.V2 = V
-        v1 = V[order, idxs1, idxs2]
-        order2 = torch.clamp(order + order_delta, 0, len(V) - 1)
-        v2 = V[order2, idxs1, idxs2]
-        V_inf = V[-1, idxs1, idxs2]
+        order = [input_order + o for o in range(len(V))]
+        order = [torch.clamp(o, 0, self.max_order) for o in order]
+        V = [V[o, idxs1, idxs2] for o in order]
 
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
@@ -108,8 +105,8 @@ class RLData(Dataset):
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
+        self.values = [torch.Tensor(v).cuda() for v in V]
         self.action_probs = torch.Tensor(action_probs).cuda()
-        self.v1 = torch.Tensor(v1).cuda()
         discrete = [
             states[..., None],
             actions[..., None],
@@ -118,19 +115,14 @@ class RLData(Dataset):
         ]
         self.discrete = torch.cat(discrete, -1).long().cuda()
 
-        self.v2 = v2.cuda()
-        self.v_inf = torch.Tensor(V_inf).cuda()
-
     def __len__(self):
         return len(self.discrete)
 
     def __getitem__(self, idx):
         return (
-            self.v1[idx],
             self.action_probs[idx],
             self.discrete[idx],
-            self.v2[idx],
-            self.v_inf[idx],
+            *[v[idx] for v in self.values],
         )
 
     @property
@@ -142,4 +134,4 @@ class RLData(Dataset):
 
     @property
     def max_order(self):
-        return len(self.V2) - 1
+        return len(self.V) - 1
