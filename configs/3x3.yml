@@ -4,7 +4,6 @@ data_args:
 decay_args:
   final_step: 2_000_000
   warmup_steps: 40_000
-lr: 0.001
 model_args:
   n_isab: 0
   n_sab: 3
