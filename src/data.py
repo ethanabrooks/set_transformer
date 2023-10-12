@@ -15,13 +15,14 @@ class RLData(Dataset):
         loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
+        p_wall: float,
         stop_at_rmse: float,
     ):
         # 2D deltas for up, down, left, right
         deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
         A = len(deltas)
         G = grid_size**2  # number of goals
-        N = G + 1  # number of states - absorbing state
+        N = G + 1  # number of goal states + absorbing state
         P = n_policies
 
         all_states_1d = torch.arange(grid_size)
@@ -31,8 +32,12 @@ class RLData(Dataset):
         assert [*all_states.shape] == [G, 2]
 
         # get next states for product of states and actions
+        is_wall = torch.rand(P, G, A, 1) < p_wall
         next_states = all_states[:, None] + deltas[None]
         assert [*next_states.shape] == [G, A, 2]
+        states = all_states[None, :, None].tile(P, 1, A, 1)
+        next_states = next_states[None].tile(P, 1, 1, 1)
+        next_states = states * is_wall + next_states * (~is_wall)
         next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
 
         # add absorbing state for goals
@@ -40,9 +45,8 @@ class RLData(Dataset):
         next_state_idxs = next_states[..., 0] * grid_size + next_states[..., 1]
         # add absorbing state
         next_state_idxs = F.pad(next_state_idxs, (0, 0, 0, 1), value=G)
-        is_goal = next_state_idxs[None] == goal_idxs[:, None, None]
+        is_goal = next_state_idxs == goal_idxs[:, None, None]
         # transition to absorbing state instead of goal
-        next_state_idxs = next_state_idxs[None].tile(P, 1, 1)
         next_state_idxs[is_goal] = G
 
         T: torch.Tensor = F.one_hot(next_state_idxs, num_classes=N)  # transition matrix
