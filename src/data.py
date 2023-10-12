@@ -66,15 +66,14 @@ class RLData(Dataset):
         gamma = 1  # discount factor
 
         # Initialize V_0
-        V1 = torch.zeros((n_rounds - 1, n_policies, N), dtype=torch.float)
-        V2 = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
+        V = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
 
         for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
-            V1[k] = V2[k]
-            EV = (T_Pi * V1[k, :, None]).sum(-1)
+            V[k] = V[k]
+            EV = (T_Pi * V[k, :, None]).sum(-1)
             Vk1 = ER + gamma * EV
-            V2[k + 1] = Vk1
+            V[k + 1] = Vk1
 
         states = torch.arange(N).repeat_interleave(A)
         states = states[None].tile(n_policies, 1)
@@ -92,20 +91,20 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        order = torch.randint(0, len(V1) - 1, (P, 1)).tile(1, A * N)
+        order = torch.randint(0, len(V) - 1, (P, 1)).tile(1, A * N)
 
-        self.V2 = V2
-        v1 = V1[order, idxs1, idxs2]
-        order2 = torch.clamp(order + order_delta, 0, len(V2) - 1)
-        v2 = V2[order2, idxs1, idxs2]
-        V_inf = V2[-1, idxs1, idxs2]
+        self.V2 = V
+        v1 = V[order, idxs1, idxs2]
+        order2 = torch.clamp(order + order_delta, 0, len(V) - 1)
+        v2 = V[order2, idxs1, idxs2]
+        V_inf = V[-1, idxs1, idxs2]
 
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
             pass
         elif loss_type == LossType.CROSS_ENTROPY:
-            V2, self.decode_V = contiguous_integers(V2)
-            assert torch.equal(V2, self.decode_V[V2])
+            _V, self.decode_V = contiguous_integers(V)
+            assert torch.equal(V, self.decode_V[_V])
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
