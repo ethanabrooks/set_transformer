@@ -1,7 +1,6 @@
 data_args:
   n_pi_bins: 3
   n_policies: 100_000
-  order_delta: 1
 decay_args:
   final_step: 200_000
   warmup_steps: 4000
@@ -22,6 +21,7 @@ model_args:
     n_heads: 8
 n_batch: 50
 n_epochs: 50000
+order_delta: 1
 save_interval: 40000
 seed: 0
 test_1_interval: 100

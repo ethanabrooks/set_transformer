@@ -38,17 +38,22 @@ def evaluate(
     iterations: int,
     loss_type: LossType,
     net: nn.Module,
+    order_delta: int,
     test_loader: DataLoader,
 ):
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for v1, action_probs, discrete, targets, v_inf in test_loader:
-            for _ in range(iterations):
+        for action_probs, discrete, *values in test_loader:
+            v1 = values[0]
+            for i in range(1, iterations + 1):
                 outputs: torch.Tensor
                 loss: torch.Tensor
                 outputs, loss = net.forward(
-                    v1=v1, action_probs=action_probs, discrete=discrete, targets=targets
+                    v1=v1,
+                    action_probs=action_probs,
+                    discrete=discrete,
+                    targets=values[min(i * order_delta, len(values) - 1)],
                 )
                 v1 = outputs.squeeze(-1)
             metrics = get_metrics(
@@ -56,7 +61,7 @@ def evaluate(
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=targets if iterations == 1 else v_inf,
+                targets=values[iterations],
             )
             counter.update(asdict(metrics))
     return {k: v / len(test_loader) for k, v in counter.items()}
@@ -86,6 +91,7 @@ def train(
     model_args: dict,
     n_batch: int,
     n_epochs: int,
+    order_delta: int,
     run: Optional[Run],
     save_interval: int,
     seed: int,
@@ -130,7 +136,7 @@ def train(
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.discrete.max().item() + 1
-    dim_output = dataset.v2.max().item() + 1
+    dim_output = dataset.V.max().item() + 1
     net = SetTransformer(
         **model_args,
         n_output=dim_output,
@@ -158,7 +164,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        for t, (v1, action_probs, discrete, v2, v_inf) in enumerate(train_loader):
+        for t, (action_probs, discrete, *values) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
@@ -166,17 +172,19 @@ def train(
                     iterations=1,
                     loss_type=loss_type,
                     net=net,
+                    order_delta=order_delta,
                     test_loader=test_loader,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
             if t % test_n_interval == 0:
-                iterations = int(math.ceil(dataset.max_order / dataset.order_delta))
+                iterations = int(math.ceil(dataset.max_order / order_delta))
                 log = evaluate(
                     decode_outputs=dataset.decode_outputs,
                     iterations=iterations,
                     loss_type=loss_type,
                     net=net,
+                    order_delta=order_delta,
                     test_loader=test_loader,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
@@ -186,7 +194,10 @@ def train(
             optimizer.zero_grad()
 
             outputs, loss = net.forward(
-                v1=v1, action_probs=action_probs, discrete=discrete, targets=v2
+                v1=values[0],
+                action_probs=action_probs,
+                discrete=discrete,
+                targets=values[order_delta],
             )
             # wrong = Y.argmax(-1) != Z
             # if wrong.any():
@@ -201,7 +212,7 @@ def train(
                 loss=loss,
                 loss_type=loss_type,
                 outputs=outputs,
-                targets=v2,
+                targets=values[order_delta],
             )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
