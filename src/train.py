@@ -146,10 +146,12 @@ def train(
     test_size = int(test_split * len(dataset))
     train_size = len(dataset) - test_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+
     counter = Counter()
     save_count = 0
     test_1_log = None
     test_n_log = None
+    tick = time.time()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
@@ -210,12 +212,10 @@ def train(
             optimizer.step()
             counter.update(asdict(metrics))
             if t % log_interval == 0:
+                fps = log_interval / (time.time() - tick)
+                tick = time.time()
                 train_log = {f"train/{k}": v / log_interval for k, v in counter.items()}
-                train_log.update(
-                    save_count=save_count,
-                    lr=decayed_lr,
-                    epoch=e,
-                )
+                train_log.update(epoch=e, fps=fps, lr=decayed_lr, save_count=save_count)
                 counter = Counter()
                 print_row(train_log, show_header=(t % test_1_interval == 0))
                 if run is not None:
