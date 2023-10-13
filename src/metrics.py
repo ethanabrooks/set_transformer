@@ -6,7 +6,6 @@ import torch
 
 @dataclass
 class Metrics:
-    accuracy: float
     loss: float
     mae: float
     pair_wise_accuracy: float
@@ -42,13 +41,11 @@ def get_metrics(
         targets = decode_outputs[targets]
     else:
         raise ValueError(f"Unknown loss type: {loss_type}")
-    mask = targets != 0
 
     mae = compute_mae(outputs, targets)
     rmse = compute_rmse(outputs, targets)
 
     outputs = (50 * outputs).round() / 50
-    accuracy = (outputs == targets)[mask].float().mean().item()
 
     # Compute pairwise differences for outputs and targets
     diff_outputs = outputs[:, 1:] - outputs[:, :-1]
@@ -63,7 +60,6 @@ def get_metrics(
 
     metrics = Metrics(
         loss=loss.item(),
-        accuracy=accuracy,
         mae=mae,
         pair_wise_accuracy=pair_wise_accuracy,
         rmse=rmse,
