@@ -44,23 +44,28 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for action_probs, discrete, *values in test_loader:
+        for input_order, action_probs, discrete, *values in test_loader:
+            max_order = len(values) - 1
             v1 = values[0]
-            for i in range(1, iterations + 1):
+            final_outputs = torch.zeros_like(v1)
+            for i in range(iterations):
                 outputs: torch.Tensor
                 loss: torch.Tensor
                 outputs, loss = net.forward(
                     v1=v1,
                     action_probs=action_probs,
                     discrete=discrete,
-                    targets=values[min(i * order_delta, len(values) - 1)],
+                    targets=values[min((i + 1) * order_delta, max_order)],
                 )
                 v1 = outputs.squeeze(-1)
+                mask = (input_order + i * order_delta) < max_order
+                final_outputs[mask] = v1[mask]
+
             metrics = get_metrics(
                 decode_outputs=decode_outputs,
                 loss=loss,
                 loss_type=loss_type,
-                outputs=outputs,
+                outputs=final_outputs,
                 targets=values[iterations],
             )
             counter.update(asdict(metrics))
@@ -164,7 +169,7 @@ def train(
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
         train_n_loader = DataLoader(train_n_dataset, batch_size=n_batch, shuffle=False)
-        for t, (action_probs, discrete, *values) in enumerate(train_loader):
+        for t, (_, action_probs, discrete, *values) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
