@@ -85,8 +85,6 @@ def train(
     load_path: str,
     loss: str,
     lr: float,
-    min_layers: Optional[int],
-    max_layers: Optional[int],
     model_args: dict,
     n_batch: int,
     n_epochs: int,
@@ -106,16 +104,6 @@ def train(
     del commit
     del config
     del config_name
-
-    def check_layers(n_isab: int, n_sab: int, **_):  # dead: disable
-        del _
-        n_layers = n_sab + n_isab
-        if n_layers < (min_layers or 1):
-            exit(0)
-        if max_layers is not None and n_layers > max_layers:
-            exit(0)
-
-    check_layers(**model_args)
 
     # Set the seed for PyTorch
     torch.manual_seed(seed)
