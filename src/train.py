@@ -85,6 +85,7 @@ def train(
     load_path: str,
     loss: str,
     lr: float,
+    max_test: int,
     model_args: dict,
     n_batch: int,
     n_epochs: int,
@@ -140,7 +141,11 @@ def train(
     # Split the dataset into train and test sets
     test_size = int(test_split * len(dataset))
     train_size = len(dataset) - test_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    test_size = min(test_size, max_test)
+    discard_size = len(dataset) - test_size - train_size
+    train_dataset, test_dataset, _ = random_split(
+        dataset, [train_size, test_size, discard_size]
+    )
     random_indices = torch.randint(0, len(train_dataset), [test_size])
     train_n_dataset = Subset(train_dataset, random_indices)
 

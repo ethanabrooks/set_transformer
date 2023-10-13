@@ -8,6 +8,7 @@ decay_args:
 load_path: null
 loss: "mse"
 lr: 0.001
+max_test: 2000
 model_args:
   isab_args:
     n_inds: 32
