@@ -96,9 +96,9 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
+        self.input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
 
-        order = [input_order + o for o in range(len(V))]
+        order = [self.input_order + o for o in range(len(V))]
         order = [torch.clamp(o, 0, self.max_order) for o in order]
         V = [V[o, idxs1, idxs2] for o in order]
 
@@ -126,6 +126,7 @@ class RLData(Dataset):
 
     def __getitem__(self, idx):
         return (
+            self.input_order[idx],
             self.action_probs[idx],
             self.discrete[idx],
             *[v[idx] for v in self.values],
