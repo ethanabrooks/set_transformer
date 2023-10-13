@@ -233,12 +233,12 @@ def train(
 
             loss.backward()
             optimizer.step()
-            counter.update(asdict(metrics))
+            counter.update(asdict(metrics), n=1)
             if t % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
                 train_1_log = {
-                    f"train/{k}": v / train_1_interval for k, v in counter.items()
+                    f"train/{k}": v / counter["n"] for k, v in counter.items()
                 }
                 train_1_log.update(
                     epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
