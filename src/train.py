@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset, random_split
 from wandb.sdk.wandb_run import Run
 
 import wandb
@@ -83,7 +83,6 @@ def train(
     data_args: dict,
     decay_args: dict,
     load_path: str,
-    log_interval: int,
     loss: str,
     lr: float,
     min_layers: Optional[int],
@@ -98,6 +97,8 @@ def train(
     test_split: float,
     test_1_interval: int,
     test_n_interval: int,
+    train_1_interval: int,
+    train_n_interval: int,
     commit: str = None,
     config: str = None,
     config_name: str = None,
@@ -152,18 +153,24 @@ def train(
     test_size = int(test_split * len(dataset))
     train_size = len(dataset) - test_size
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    random_indices = torch.randint(0, len(train_dataset), [test_size])
+    train_n_dataset = Subset(train_dataset, random_indices)
 
     counter = Counter()
     save_count = 0
     test_1_log = None
     test_n_log = None
+    train_1_log = None
+    train_n_log = None
     tick = time.time()
+    iterations = int(math.ceil(dataset.max_order / order_delta))
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
+        train_n_loader = DataLoader(train_n_dataset, batch_size=n_batch, shuffle=False)
         for t, (action_probs, discrete, *values) in enumerate(train_loader):
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
@@ -178,7 +185,6 @@ def train(
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
             if t % test_n_interval == 0:
-                iterations = int(math.ceil(dataset.max_order / order_delta))
                 log = evaluate(
                     decode_outputs=dataset.decode_outputs,
                     iterations=iterations,
@@ -189,6 +195,18 @@ def train(
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
                 print_row(test_n_log, show_header=True)
+
+            if t % train_n_interval == 0:
+                log = evaluate(
+                    decode_outputs=dataset.decode_outputs,
+                    iterations=iterations,
+                    loss_type=loss_type,
+                    net=net,
+                    order_delta=order_delta,
+                    test_loader=train_n_loader,
+                )
+                train_n_log = {f"train-n/{k}": v for k, v in log.items()}
+                print_row(train_n_log, show_header=True)
 
             net.train()
             optimizer.zero_grad()
@@ -223,15 +241,22 @@ def train(
             loss.backward()
             optimizer.step()
             counter.update(asdict(metrics))
-            if t % log_interval == 0:
-                fps = log_interval / (time.time() - tick)
+            if t % train_1_interval == 0:
+                fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
-                train_log = {f"train/{k}": v / log_interval for k, v in counter.items()}
-                train_log.update(epoch=e, fps=fps, lr=decayed_lr, save_count=save_count)
+                train_1_log = {
+                    f"train/{k}": v / train_1_interval for k, v in counter.items()
+                }
+                train_1_log.update(
+                    epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
+                )
                 counter = Counter()
-                print_row(train_log, show_header=(t % test_1_interval == 0))
+                print_row(train_1_log, show_header=(t % train_1_interval == 0))
                 if run is not None:
-                    wandb.log(dict(**train_log, **test_1_log, **test_n_log), step=step)
+                    wandb.log(
+                        dict(**test_1_log, **test_n_log, **train_1_log, **train_n_log),
+                        step=step,
+                    )
 
                     # save
             if t % save_interval == 0:
