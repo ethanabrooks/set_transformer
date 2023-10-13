@@ -18,6 +18,14 @@ class LossType(Enum):
     CROSS_ENTROPY = auto()
 
 
+def compute_rmse(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return (outputs - targets).square().float().mean(-1).sqrt().mean().item()
+
+
+def compute_mae(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return torch.abs(outputs - targets).float().mean().item()
+
+
 def get_metrics(
     decode_outputs: torch.Tensor,
     loss: torch.Tensor,
@@ -36,8 +44,8 @@ def get_metrics(
         raise ValueError(f"Unknown loss type: {loss_type}")
     mask = targets != 0
 
-    mae = torch.abs(outputs - targets)[mask].float().mean().item()
-    rmse = (outputs - targets).square().float().mean(-1).sqrt().mean().item()
+    mae = compute_mae(outputs, targets)
+    rmse = compute_rmse(outputs, targets)
 
     outputs = (50 * outputs).round() / 50
     accuracy = (outputs == targets)[mask].float().mean().item()

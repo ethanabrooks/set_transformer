@@ -1,10 +1,11 @@
+import itertools
+
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 from discretization import contiguous_integers, round_tensor
-from metrics import LossType
+from metrics import LossType, compute_rmse
 
 
 class RLData(Dataset):
@@ -14,9 +15,8 @@ class RLData(Dataset):
         loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
+        stop_at_rmse: float,
     ):
-        n_rounds = 2 * grid_size
-
         # 2D deltas for up, down, left, right
         deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
         A = len(deltas)
@@ -64,15 +64,21 @@ class RLData(Dataset):
         gamma = 1  # discount factor
 
         # Initialize V_0
-        V = torch.zeros((n_rounds, n_policies, N), dtype=torch.float)
-        self.V = V
+        V = [torch.zeros((n_policies, N), dtype=torch.float)]
 
-        for k in tqdm(range(n_rounds - 1)):  # n_rounds of policy evaluation
+        print("Policy evaluation...")
+        for k in itertools.count():  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
-            V[k] = V[k]
-            EV = (T_Pi * V[k, :, None]).sum(-1)
+            Vk = V[-1]
+            EV = (T_Pi * Vk[:, None]).sum(-1)
             Vk1 = ER + gamma * EV
-            V[k + 1] = Vk1
+            V.append(Vk1)
+            rmse = compute_rmse(Vk1, Vk)
+            print("Iteration:", k, "RMSE:", rmse)
+            if rmse < stop_at_rmse:
+                break
+        V = torch.stack(V)
+        self.V = V
 
         states = torch.arange(N).repeat_interleave(A)
         states = states[None].tile(n_policies, 1)
