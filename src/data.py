@@ -71,7 +71,7 @@ class RLData(Dataset):
         V = [torch.zeros((n_policies, N), dtype=torch.float)]
 
         print("Policy evaluation...")
-        for k in itertools.count():  # n_rounds of policy evaluation
+        for k in itertools.count(1):  # n_rounds of policy evaluation
             ER = (Pi * R).sum(-1)
             Vk = V[-1]
             EV = (T_Pi * Vk[:, None]).sum(-1)
