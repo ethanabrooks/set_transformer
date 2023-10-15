@@ -13,8 +13,8 @@ data_args:
   omit_states_actions: 0
   stop_at_rmse: 0.005
 decay_args:
-  final_step: 2_000_000
-  warmup_steps: 40_000
+  final_step: 200_000
+  warmup_steps: 10_000
 load_path: null
 loss: "mse"
 lr: 0.001
