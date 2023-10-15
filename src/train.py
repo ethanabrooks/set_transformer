@@ -121,7 +121,7 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(**data_args)
+    dataset = RLData(**data_args, seed=seed)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.discrete.max().item() + 1
