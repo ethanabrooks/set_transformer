@@ -2,7 +2,7 @@ data_args:
   grid_world_args:
     absorbing_state: true
     dense_reward: false
-    gamma: 1.0
+    gamma: 0.99
     grid_size: 4
     heldout_goals: []
     p_wall: 0
