@@ -15,6 +15,7 @@ class RLData(Dataset):
         loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
+        omit_states_actions: int,
         p_wall: float,
         stop_at_rmse: float,
     ):
@@ -100,9 +101,9 @@ class RLData(Dataset):
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
         # sample order -- number of steps of policy evaluation
-        self.input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
+        input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
 
-        order = [self.input_order + o for o in range(len(V))]
+        order = [input_order + o for o in range(len(V))]
         order = [torch.clamp(o, 0, self.max_order) for o in order]
         V = [V[o, idxs1, idxs2] for o in order]
 
@@ -135,8 +136,10 @@ class RLData(Dataset):
             return torch.gather(x, 1, p.expand_as(x))
 
         *self.values, self.action_probs, self.discrete = [
-            shuffle(x).cuda() for x in [*self.values, self.action_probs, self.discrete]
+            shuffle(x)[:, omit_states_actions:].cuda()
+            for x in [*self.values, self.action_probs, self.discrete]
         ]
+        self.input_order = input_order[:, omit_states_actions:].cuda()
 
     def __len__(self):
         return len(self.discrete)
