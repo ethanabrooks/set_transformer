@@ -1,6 +1,6 @@
 data_args:
-  grid_size: 3
-  n_pi_bins: 2
+  grid_world_args:
+    grid_size: 3
 decay_args:
   final_step: 2_000_000
   warmup_steps: 40_000

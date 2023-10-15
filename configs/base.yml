@@ -1,9 +1,16 @@
 bellman_delta: 1
 data_args:
-  n_pi_bins: 3
-  n_policies: 100_000
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 1.0
+    heldout_goals: []
+    p_wall: 0
+    terminate_on_goal: false
+    use_heldout_goals: false
+  n_data: 100_000
+  n_pi_bins: 2
   omit_states_actions: 0
-  p_wall: 0
   stop_at_rmse: 0.005
 decay_args:
   final_step: 200_000

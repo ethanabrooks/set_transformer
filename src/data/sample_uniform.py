@@ -1,10 +1,10 @@
 import itertools
 
 import torch
-import torch.nn.functional as F
 
 import data.base
 from metrics import compute_rmse
+from tabular.grid_world import GridWorld
 
 
 def round_tensor(tensor: torch.Tensor, round_to: int):
@@ -14,71 +14,36 @@ def round_tensor(tensor: torch.Tensor, round_to: int):
 class RLData(data.base.RLData):
     def __init__(
         self,
-        grid_size: int,
+        grid_world_args: dict,
         n_pi_bins: int,
-        n_policies: int,
+        n_data: int,
         omit_states_actions: int,
-        p_wall: float,
+        seed: int,
         stop_at_rmse: float,
     ):
         # 2D deltas for up, down, left, right
-        deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
-        A = len(deltas)
-        G = grid_size**2  # number of goals
-        N = G + 1  # number of goal states + absorbing state
-        P = n_policies
-
-        all_states_1d = torch.arange(grid_size)
-        all_states = torch.stack(
-            torch.meshgrid(all_states_1d, all_states_1d, indexing="ij"), -1
-        ).reshape(-1, 2)
-        assert [*all_states.shape] == [G, 2]
-
-        # get next states for product of states and actions
-        is_wall = torch.rand(P, G, A, 1) < p_wall
-        next_states = all_states[:, None] + deltas[None]
-        assert [*next_states.shape] == [G, A, 2]
-        states = all_states[None, :, None].tile(P, 1, A, 1)
-        next_states = next_states[None].tile(P, 1, 1, 1)
-        next_states = states * is_wall + next_states * (~is_wall)
-        next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
-
-        # add absorbing state for goals
-        goal_idxs = torch.randint(0, G, (P,))
-        next_state_idxs = next_states[..., 0] * grid_size + next_states[..., 1]
-        # add absorbing state
-        next_state_idxs = F.pad(next_state_idxs, (0, 0, 0, 1), value=G)
-        is_goal = next_state_idxs == goal_idxs[:, None, None]
-        # transition to absorbing state instead of goal
-        next_state_idxs[is_goal] = G
-
-        T: torch.Tensor = F.one_hot(next_state_idxs, num_classes=N)  # transition matrix
-        R = is_goal.float()  # reward function
+        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
+        A = len(grid_world.deltas)
+        G = grid_world.grid_size**2  # number of goals
+        S = G + 1  # number of goal states + absorbing state
+        B = n_data
 
         alpha = torch.ones(A)
-        Pi = torch.distributions.Dirichlet(alpha).sample((P, N))  # random policies
-        assert [*Pi.shape] == [P, N, A]
+        Pi = torch.distributions.Dirichlet(alpha).sample((B, S))  # random policies
+        assert [*Pi.shape] == [B, S, A]
 
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
         Pi = Pi / Pi.sum(-1, keepdim=True)
-        Pi_ = Pi.view(P * N, 1, A)
-        T_ = T.float().view(P * N, A, N)
-        T_Pi = torch.bmm(Pi_, T_)
-        T_Pi = T_Pi.view(P, N, N)
-
-        gamma = 1  # discount factor
 
         # Initialize V_0
-        V = [torch.zeros((n_policies, N), dtype=torch.float)]
+        V = [torch.zeros((B, S), dtype=torch.float)]
 
         print("Policy evaluation...")
         for k in itertools.count(1):  # n_rounds of policy evaluation
-            ER = (Pi * R).sum(-1)
             Vk = V[-1]
-            EV = (T_Pi * Vk[:, None]).sum(-1)
-            Vk1 = ER + gamma * EV
+            Vk1 = grid_world.policy_evaluation(Pi, Vk)
             V.append(Vk1)
             rmse = compute_rmse(Vk1, Vk)
             print("Iteration:", k, "RMSE:", rmse)
@@ -87,27 +52,20 @@ class RLData(data.base.RLData):
         V = torch.stack(V)
         self.V = V
 
-        states = torch.arange(N).repeat_interleave(A)
-        states = states[None].tile(n_policies, 1)
-        actions = torch.arange(A).repeat(N)
-        actions = actions[None].tile(n_policies, 1)
-
-        transition_probs = T[torch.arange(P)[:, None], states, actions]
-        next_states = transition_probs.argmax(-1)
-
-        idxs1 = torch.arange(n_policies)[:, None]
-        idxs2 = states
-
-        # Gather probabilities from Pi that correspond to states
-        action_probs = Pi[idxs1, idxs2]
-        rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
+        states = torch.arange(S).repeat_interleave(A)
+        states = states[None].tile(B, 1)
+        actions = torch.arange(A).repeat(S)
+        actions = actions[None].tile(B, 1)
+        next_states, rewards, _, _ = grid_world.step_fn(states, actions)
 
         # sample n_bellman -- number of steps of policy evaluation
-        input_n_bellman = torch.randint(0, self.max_n_bellman, (P, 1)).tile(1, A * N)
+        input_n_bellman = torch.randint(0, self.max_n_bellman, (B, 1)).tile(1, A * S)
 
         n_bellman = [input_n_bellman + o for o in range(len(V))]
         n_bellman = [torch.clamp(o, 0, self.max_n_bellman) for o in n_bellman]
-        V = [V[o, idxs1, idxs2] for o in n_bellman]
+        arange = torch.arange(B)[:, None]
+        action_probs = Pi[arange, states]
+        V = [V[o, arange, states] for o in n_bellman]
 
         self.values = [torch.Tensor(v) for v in V]
         self.action_probs = torch.Tensor(action_probs)
@@ -115,11 +73,11 @@ class RLData(data.base.RLData):
             states[..., None],
             actions[..., None],
             next_states[..., None],
-            rewards,
+            rewards[..., None],
         ]
         self.discrete = torch.cat(discrete, -1).long()
 
-        perm = torch.rand(P, N * A).argsort(dim=1)
+        perm = torch.rand(B, S * A).argsort(dim=1)
 
         def shuffle(x: torch.Tensor):
             p = perm
