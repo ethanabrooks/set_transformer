@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from metrics import LossType
 from modules import ISAB, SAB
 
 
@@ -62,10 +61,8 @@ class SetTransformer(nn.Module):
     def __init__(
         self,
         isab_args: dict,
-        loss_type: LossType,
         n_isab: int,
         n_hidden: int,
-        n_output: int,
         n_sab: int,
         n_tokens: int,
         positional_encoding_args: dict,
@@ -75,7 +72,6 @@ class SetTransformer(nn.Module):
         self.embedding = nn.Embedding(n_tokens, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.loss_type = loss_type
         self.n_hidden = n_hidden
         self.positional_encoding = PositionalEncoding(
             n_hidden=n_hidden, **positional_encoding_args
@@ -88,9 +84,7 @@ class SetTransformer(nn.Module):
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-        if loss_type == LossType.MSE:
-            n_output = 1
-        self.dec = nn.Linear(n_hidden, n_output)
+        self.dec = nn.Linear(n_hidden, 1)
 
     def forward(
         self,
@@ -116,10 +110,5 @@ class SetTransformer(nn.Module):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        if self.loss_type == LossType.MSE:
-            loss: torch.Tensor = F.mse_loss(outputs.squeeze(-1), targets.float())
-        elif self.loss_type == LossType.CROSS_ENTROPY:
-            loss: torch.Tensor = F.cross_entropy(outputs.swapaxes(1, 2), targets)
-        else:
-            raise ValueError(f"Unknown loss type: {self.loss_type}")
+        loss: torch.Tensor = F.mse_loss(outputs.squeeze(-1), targets.float())
         return outputs, loss

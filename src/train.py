@@ -15,7 +15,7 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from data.sample_uniform import RLData
-from metrics import LossType, get_metrics
+from metrics import get_metrics
 from models import SetTransformer
 from pretty import print_row
 
@@ -34,9 +34,7 @@ def load(
 
 
 def evaluate(
-    decode_outputs: torch.Tensor,
     iterations: int,
-    loss_type: LossType,
     net: nn.Module,
     bellman_delta: int,
     test_loader: DataLoader,
@@ -62,9 +60,7 @@ def evaluate(
                 final_outputs[mask] = v1[mask]
 
             metrics = get_metrics(
-                decode_outputs=decode_outputs,
                 loss=loss,
-                loss_type=loss_type,
                 outputs=final_outputs,
                 targets=values[iterations],
             )
@@ -125,19 +121,11 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    loss_type = LossType[loss.upper()]
-
-    dataset = RLData(**data_args, loss_type=loss_type)
+    dataset = RLData(**data_args)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.discrete.max().item() + 1
-    dim_output = dataset.V.max().item() + 1
-    net = SetTransformer(
-        **model_args,
-        n_output=dim_output,
-        n_tokens=n_tokens,
-        loss_type=loss_type,
-    )
+    net = SetTransformer(**model_args, n_tokens=n_tokens)
     if load_path is not None:
         load(load_path, net, run)
     net = net.cuda()
@@ -173,9 +161,7 @@ def train(
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
-                    decode_outputs=dataset.decode_outputs,
                     iterations=1,
-                    loss_type=loss_type,
                     net=net,
                     bellman_delta=bellman_delta,
                     test_loader=test_loader,
@@ -184,9 +170,7 @@ def train(
                 print_row(test_1_log, show_header=True)
             if t % test_n_interval == 0:
                 log = evaluate(
-                    decode_outputs=dataset.decode_outputs,
                     iterations=iterations,
-                    loss_type=loss_type,
                     net=net,
                     bellman_delta=bellman_delta,
                     test_loader=test_loader,
@@ -196,9 +180,7 @@ def train(
 
             if t % train_n_interval == 0:
                 log = evaluate(
-                    decode_outputs=dataset.decode_outputs,
                     iterations=iterations,
-                    loss_type=loss_type,
                     net=net,
                     bellman_delta=bellman_delta,
                     test_loader=train_n_loader,
@@ -216,18 +198,9 @@ def train(
                 discrete=discrete,
                 targets=values[targets_index],
             )
-            # wrong = Y.argmax(-1) != Z
-            # if wrong.any():
-            #     idx = wrong.nonzero()
-            #     _X = dataset.decode_inputs(X.cpu())
-            #     _Z = dataset.decode_outputs(Z.cpu())
-            #     _Y = dataset.decode_outputs(Y.argmax(-1).cpu())
-            #     breakpoint()
 
             metrics = get_metrics(
-                decode_outputs=dataset.decode_outputs,
                 loss=loss,
-                loss_type=loss_type,
                 outputs=outputs,
                 targets=values[targets_index],
             )

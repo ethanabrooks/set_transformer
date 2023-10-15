@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum, auto
 
 import torch
 
@@ -12,11 +11,6 @@ class Metrics:
     rmse: float
 
 
-class LossType(Enum):
-    MSE = auto()
-    CROSS_ENTROPY = auto()
-
-
 def compute_rmse(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return (outputs - targets).square().float().mean(-1).sqrt().mean().item()
 
@@ -26,21 +20,11 @@ def compute_mae(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 
 def get_metrics(
-    decode_outputs: torch.Tensor,
     loss: torch.Tensor,
-    loss_type: LossType,
     outputs: torch.Tensor,
     targets: torch.Tensor,
 ) -> tuple[torch.Tensor, Metrics]:
-    if loss_type == LossType.MSE:
-        outputs = outputs.squeeze(-1)
-    elif loss_type == LossType.CROSS_ENTROPY:
-        outputs = outputs.argmax(-1)
-        decode_outputs = decode_outputs.cuda()
-        outputs = decode_outputs[outputs]
-        targets = decode_outputs[targets]
-    else:
-        raise ValueError(f"Unknown loss type: {loss_type}")
+    outputs = outputs.squeeze(-1)
 
     mae = compute_mae(outputs, targets)
     rmse = compute_rmse(outputs, targets)
