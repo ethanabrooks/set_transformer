@@ -115,15 +115,28 @@ class RLData(Dataset):
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
-        self.values = [torch.Tensor(v).cuda() for v in V]
-        self.action_probs = torch.Tensor(action_probs).cuda()
+        self.values = [torch.Tensor(v) for v in V]
+        self.action_probs = torch.Tensor(action_probs)
         discrete = [
             states[..., None],
             actions[..., None],
             next_states[..., None],
             rewards,
         ]
-        self.discrete = torch.cat(discrete, -1).long().cuda()
+        self.discrete = torch.cat(discrete, -1).long()
+
+        perm = torch.rand(P, N * A).argsort(dim=1)
+
+        def shuffle(x: torch.Tensor):
+            p = perm
+            while p.dim() < x.dim():
+                p = p[..., None]
+
+            return torch.gather(x, 1, p.expand_as(x))
+
+        *self.values, self.action_probs, self.discrete = [
+            shuffle(x).cuda() for x in [*self.values, self.action_probs, self.discrete]
+        ]
 
     def __len__(self):
         return len(self.discrete)
