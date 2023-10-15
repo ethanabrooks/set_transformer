@@ -4,15 +4,17 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from discretization import contiguous_integers, round_tensor
-from metrics import LossType, compute_rmse
+from metrics import compute_rmse
+
+
+def round_tensor(tensor: torch.Tensor, round_to: int):
+    return (tensor * round_to).round().long()
 
 
 class RLData(Dataset):
     def __init__(
         self,
         grid_size: int,
-        loss_type: LossType,
         n_pi_bins: int,
         n_policies: int,
         omit_states_actions: int,
@@ -107,15 +109,6 @@ class RLData(Dataset):
         n_bellman = [torch.clamp(o, 0, self.max_n_bellman) for o in n_bellman]
         V = [V[o, idxs1, idxs2] for o in n_bellman]
 
-        self.loss_type = loss_type
-        if loss_type == LossType.MSE:
-            pass
-        elif loss_type == LossType.CROSS_ENTROPY:
-            _V, self.decode_V = contiguous_integers(V)
-            assert torch.equal(V, self.decode_V[_V])
-        else:
-            raise ValueError(f"Unknown loss type: {loss_type}")
-
         self.values = [torch.Tensor(v) for v in V]
         self.action_probs = torch.Tensor(action_probs)
         discrete = [
@@ -151,13 +144,6 @@ class RLData(Dataset):
             self.discrete[idx],
             *[v[idx] for v in self.values],
         )
-
-    @property
-    def decode_outputs(self):
-        if self.loss_type == LossType.MSE:
-            return None
-        else:
-            return self.decode_V
 
     @property
     def max_n_bellman(self):
