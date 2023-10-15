@@ -1,7 +1,21 @@
+from abc import ABC
+from dataclasses import dataclass
+from typing import Generic, TypeVar
+
 from torch.utils.data import Dataset
 
+T = TypeVar("T")
 
-class RLData(Dataset):
+
+@dataclass(frozen=True)
+class Step(Generic[T]):
+    tasks: T
+    observations: T
+    actions: T
+    rewards: T
+
+
+class RLData(Dataset, ABC):
     def __len__(self):
         return len(self.discrete)
 
