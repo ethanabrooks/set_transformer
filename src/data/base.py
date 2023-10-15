@@ -1,7 +1,12 @@
+from abc import ABC
+from typing import TypeVar
+
 from torch.utils.data import Dataset
 
+T = TypeVar("T")
 
-class RLData(Dataset):
+
+class RLData(Dataset, ABC):
     def __len__(self):
         return len(self.discrete)
 
