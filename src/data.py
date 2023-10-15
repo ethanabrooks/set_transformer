@@ -100,12 +100,12 @@ class RLData(Dataset):
         action_probs = Pi[idxs1, idxs2]
         rewards = R[idxs1, idxs2].gather(dim=2, index=actions[..., None])
 
-        # sample order -- number of steps of policy evaluation
-        input_order = torch.randint(0, self.max_order, (P, 1)).tile(1, A * N)
+        # sample n_bellman -- number of steps of policy evaluation
+        input_n_bellman = torch.randint(0, self.max_n_bellman, (P, 1)).tile(1, A * N)
 
-        order = [input_order + o for o in range(len(V))]
-        order = [torch.clamp(o, 0, self.max_order) for o in order]
-        V = [V[o, idxs1, idxs2] for o in order]
+        n_bellman = [input_n_bellman + o for o in range(len(V))]
+        n_bellman = [torch.clamp(o, 0, self.max_n_bellman) for o in n_bellman]
+        V = [V[o, idxs1, idxs2] for o in n_bellman]
 
         self.loss_type = loss_type
         if loss_type == LossType.MSE:
@@ -139,14 +139,14 @@ class RLData(Dataset):
             shuffle(x)[:, omit_states_actions:].cuda()
             for x in [*self.values, self.action_probs, self.discrete]
         ]
-        self.input_order = input_order[:, omit_states_actions:].cuda()
+        self.input_n_bellman = input_n_bellman[:, omit_states_actions:].cuda()
 
     def __len__(self):
         return len(self.discrete)
 
     def __getitem__(self, idx):
         return (
-            self.input_order[idx],
+            self.input_n_bellman[idx],
             self.action_probs[idx],
             self.discrete[idx],
             *[v[idx] for v in self.values],
@@ -160,5 +160,5 @@ class RLData(Dataset):
             return self.decode_V
 
     @property
-    def max_order(self):
+    def max_n_bellman(self):
         return len(self.V) - 1

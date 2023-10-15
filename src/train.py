@@ -38,14 +38,14 @@ def evaluate(
     iterations: int,
     loss_type: LossType,
     net: nn.Module,
-    order_delta: int,
+    bellman_delta: int,
     test_loader: DataLoader,
 ):
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for input_order, action_probs, discrete, *values in test_loader:
-            max_order = len(values) - 1
+        for input_n_bellman, action_probs, discrete, *values in test_loader:
+            max_n_bellman = len(values) - 1
             v1 = values[0]
             final_outputs = torch.zeros_like(v1)
             for i in range(iterations):
@@ -55,10 +55,10 @@ def evaluate(
                     v1=v1,
                     action_probs=action_probs,
                     discrete=discrete,
-                    targets=values[min((i + 1) * order_delta, max_order)],
+                    targets=values[min((i + 1) * bellman_delta, max_n_bellman)],
                 )
                 v1 = outputs.squeeze(-1)
-                mask = (input_order + i * order_delta) < max_order
+                mask = (input_n_bellman + i * bellman_delta) < max_n_bellman
                 final_outputs[mask] = v1[mask]
 
             metrics = get_metrics(
@@ -94,7 +94,7 @@ def train(
     model_args: dict,
     n_batch: int,
     n_epochs: int,
-    order_delta: int,
+    bellman_delta: int,
     run: Optional[Run],
     save_interval: int,
     seed: int,
@@ -161,7 +161,7 @@ def train(
     train_1_log = None
     train_n_log = None
     tick = time.time()
-    iterations = int(math.ceil(dataset.max_order / order_delta))
+    iterations = int(math.ceil(dataset.max_n_bellman / bellman_delta))
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
@@ -177,7 +177,7 @@ def train(
                     iterations=1,
                     loss_type=loss_type,
                     net=net,
-                    order_delta=order_delta,
+                    bellman_delta=bellman_delta,
                     test_loader=test_loader,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
@@ -188,7 +188,7 @@ def train(
                     iterations=iterations,
                     loss_type=loss_type,
                     net=net,
-                    order_delta=order_delta,
+                    bellman_delta=bellman_delta,
                     test_loader=test_loader,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
@@ -200,7 +200,7 @@ def train(
                     iterations=iterations,
                     loss_type=loss_type,
                     net=net,
-                    order_delta=order_delta,
+                    bellman_delta=bellman_delta,
                     test_loader=train_n_loader,
                 )
                 train_n_log = {f"train-n/{k}": v for k, v in log.items()}
@@ -209,7 +209,7 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            targets_index = min(order_delta, dataset.max_order)
+            targets_index = min(bellman_delta, dataset.max_n_bellman)
             outputs, loss = net.forward(
                 v1=values[0],
                 action_probs=action_probs,
