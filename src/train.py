@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset, random_split
 from wandb.sdk.wandb_run import Run
 
 import wandb
-from data import RLData
+from data.sample_uniform import RLData
 from metrics import LossType, get_metrics
 from models import SetTransformer
 from pretty import print_row
