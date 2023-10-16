@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from wandb.sdk.wandb_run import Run
 
 import data.base
@@ -36,14 +36,16 @@ def load(
 def evaluate(
     bellman_delta: int,
     iterations: int,
+    n_batch: int,
     net: nn.Module,
     round_accuracy_to: int,
-    test_loader: DataLoader,
+    dataset: Dataset,
 ):
     net.eval()
     counter = Counter()
+    loader = DataLoader(dataset, batch_size=n_batch, shuffle=False)
     with torch.no_grad():
-        for x in test_loader:
+        for x in loader:
             (input_n_bellman, action_probs, discrete, *values) = [x.cuda() for x in x]
             max_n_bellman = len(values) - 1
             v1 = values[0]
@@ -68,7 +70,7 @@ def evaluate(
                 round_accuracy_to=round_accuracy_to,
             )
             counter.update(asdict(metrics))
-    return {k: v / len(test_loader) for k, v in counter.items()}
+    return {k: v / len(loader) for k, v in counter.items()}
 
 
 def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
@@ -157,28 +159,28 @@ def train(
     for e in range(n_epochs):
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
-        test_loader = DataLoader(test_data, batch_size=n_batch, shuffle=False)
-        train_n_loader = DataLoader(train_n_data, batch_size=n_batch, shuffle=False)
         for t, x in enumerate(train_loader):
             (_, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
+                    dataset=test_data,
                     iterations=1,
+                    n_batch=n_batch,
                     net=net,
                     round_accuracy_to=round_accuracy_to,
-                    test_loader=test_loader,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
             if t % test_n_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
+                    dataset=test_data,
                     iterations=iterations,
+                    n_batch=n_batch,
                     net=net,
                     round_accuracy_to=round_accuracy_to,
-                    test_loader=test_loader,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
                 print_row(test_n_log, show_header=True)
@@ -186,10 +188,11 @@ def train(
             if t % train_n_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
+                    dataset=train_n_data,
                     iterations=iterations,
+                    n_batch=n_batch,
                     net=net,
                     round_accuracy_to=round_accuracy_to,
-                    test_loader=train_n_loader,
                 )
                 train_n_log = {f"train-n/{k}": v for k, v in log.items()}
                 print_row(train_n_log, show_header=True)
