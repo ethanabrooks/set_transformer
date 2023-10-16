@@ -52,7 +52,7 @@ def get_config(config_name):
     config_path = root / f"{config_name}.yml"
     config = OmegaConf.load(config_path)
     check_alphabetical_order(config, str(config_path))
-    base_config_path = root / "base.yml"
+    base_config_path = config_path.parent / "base.yml"
     base_config = OmegaConf.load(base_config_path)
     check_alphabetical_order(base_config, str(base_config_path))
     merged = OmegaConf.merge(base_config, config)

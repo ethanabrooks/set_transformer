@@ -1,4 +1,6 @@
-from typing import Optional
+import itertools
+from dataclasses import dataclass
+from typing import Generic, Optional, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,7 +8,17 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from data.base import Step
+from metrics import compute_rmse
+
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class Step(Generic[T]):
+    actions: T
+    action_probs: T
+    rewards: T
+    done: T
 
 
 class GridWorld:
@@ -169,77 +181,7 @@ class GridWorld:
         # self.visualize_policy(policy[None].tile(self.n_tasks, 1, 1))
         return policy
 
-    def get_trajectories(
-        self,
-        episode_length: int,
-        Pi: torch.Tensor,
-        n_episodes: int = 1,
-    ):
-        B = self.n_tasks
-        N = self.n_states
-        A = len(self.deltas)
-        assert [*Pi.shape] == [B, N, A]
-
-        trajectory_length = episode_length * n_episodes
-        states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
-        actions = torch.zeros((B, trajectory_length), dtype=torch.int)
-        rewards = torch.zeros((B, trajectory_length))
-        done = torch.zeros((B, trajectory_length), dtype=torch.bool)
-        current_states = self.reset_fn()
-        time_step = torch.zeros((B))
-
-        for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
-            # Convert current current_states to indices
-            current_state_indices = (
-                current_states[:, 0] * self.grid_size + current_states[:, 1]
-            )
-
-            # Sample actions from the policy
-            A = (
-                torch.multinomial(Pi[torch.arange(B), current_state_indices], 1)
-                .squeeze(1)
-                .long()
-            )
-
-            # Convert current current_states to indices
-            current_state_indices = states[:, 0] * self.grid_size + states[:, 1]
-            next_state_indices, R, D, _ = self.step_fn(
-                current_state_indices, A, time_step
-            )
-
-            # Convert next state indices to coordinates
-            next_states = torch.stack(
-                (
-                    next_state_indices // self.grid_size,
-                    next_state_indices % self.grid_size,
-                ),
-                dim=1,
-            )
-            next_states_on_reset = self.reset_fn()
-            next_states[D] = next_states_on_reset[D]
-
-            # Store the current current_states and rewards
-            states[:, t] = current_states
-            actions[:, t] = A
-            rewards[:, t] = R
-            done[:, t] = D
-            time_step += 1
-            time_step[D] = 0
-
-            # Update current current_states
-            current_states = next_states
-
-        return (
-            Step(
-                tasks=self.goals[:, None].expand_as(states),
-                observations=states,
-                actions=actions[..., None],
-                rewards=rewards,
-            ),
-            done,
-        )
-
-    def policy_evaluation(self, Pi: torch.Tensor, V: torch.Tensor = None):
+    def evaluate_policy(self, Pi: torch.Tensor, V: torch.Tensor = None):
         self.check_pi(Pi)
 
         B = self.n_tasks
@@ -262,6 +204,90 @@ class GridWorld:
         V = ER + self.gamma * EV
         return V
 
+    def evaluate_policy_iteratively(self, Pi: torch.Tensor, stop_at_rmse: float):
+        B = self.n_tasks
+        S = self.n_states
+        V = [torch.zeros((B, S), dtype=torch.float)]
+        for k in itertools.count(1):  # n_rounds of policy evaluation
+            Vk = V[-1]
+            Vk1 = self.evaluate_policy(Pi, Vk)
+            V.append(Vk1)
+            rmse = compute_rmse(Vk1, Vk)
+            print("Iteration:", k, "RMSE:", rmse)
+            if rmse < stop_at_rmse:
+                break
+        return V
+
+    def get_trajectories(
+        self,
+        episode_length: int,
+        Pi: torch.Tensor,
+        n_episodes: int = 1,
+    ):
+        B = self.n_tasks
+        N = self.n_states
+        A = len(self.deltas)
+        assert [*Pi.shape] == [B, N, A]
+
+        trajectory_length = episode_length * n_episodes
+        states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
+        actions = torch.zeros((B, trajectory_length), dtype=torch.int)
+        action_probs = torch.zeros((B, trajectory_length, A), dtype=torch.float)
+        rewards = torch.zeros((B, trajectory_length))
+        done = torch.zeros((B, trajectory_length), dtype=torch.bool)
+        current_states = self.reset_fn()
+        time_step = torch.zeros((B))
+        arange = torch.arange(B)
+
+        for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
+            # Convert current current_states to indices
+            current_state_indices = (
+                current_states[:, 0] * self.grid_size + current_states[:, 1]
+            )
+
+            # Sample actions from the policy
+            A = (
+                torch.multinomial(Pi[arange, current_state_indices], 1)
+                .squeeze(1)
+                .long()
+            )
+
+            # Convert current current_states to indices
+            next_state_indices, R, D, _ = self.step_fn(
+                current_state_indices, A, time_step
+            )
+
+            # Convert next state indices to coordinates
+            next_states = torch.stack(
+                (
+                    next_state_indices // self.grid_size,
+                    next_state_indices % self.grid_size,
+                ),
+                dim=1,
+            )
+            next_states_on_reset = self.reset_fn()
+            next_states[D] = next_states_on_reset[D]
+
+            # Store the current current_states and rewards
+            states[:, t] = current_states
+            actions[:, t] = A
+            action_probs[:, t] = Pi[arange, current_state_indices]
+            rewards[:, t] = R
+            done[:, t] = D
+            time_step += 1
+            time_step[D] = 0
+
+            # Update current current_states
+            current_states = next_states
+
+        return Step(
+            observations=states,
+            actions=actions[..., None],
+            action_probs=action_probs,
+            rewards=rewards,
+            done=done,
+        )
+
     def reset_fn(self):
         array = self.random.choice(self.grid_size, size=(self.n_tasks, 2))
         return torch.tensor(array)
@@ -280,7 +306,10 @@ class GridWorld:
         assert states.shape == actions.shape
         shape = states.shape
 
-        arange = torch.arange(self.n_tasks)[:, None].expand_as(states).flatten()
+        arange = torch.arange(self.n_tasks)
+        while arange.dim() < states.dim():
+            arange = arange[..., None]
+        arange = arange.expand_as(states).flatten()
         states = states.flatten()
         actions = actions.flatten()
 

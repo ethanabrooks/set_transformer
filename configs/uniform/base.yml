@@ -12,6 +12,7 @@ data_args:
   n_pi_bins: 2
   omit_states_actions: 0
   stop_at_rmse: 0.005
+data_path: "data/sample_uniform"
 decay_args:
   final_step: 200_000
   warmup_steps: 10_000
