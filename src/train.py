@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Subset, random_split
+from torch.utils.data import DataLoader, Subset
 from wandb.sdk.wandb_run import Run
 
 import data.base
@@ -85,12 +85,10 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
 
 def train(
     data_args: dict,
-    data_path: str,
     decay_args: dict,
     load_path: str,
     loss: str,
     lr: float,
-    max_test: int,
     model_args: dict,
     n_batch: int,
     n_epochs: int,
@@ -99,10 +97,13 @@ def train(
     run: Optional[Run],
     save_interval: int,
     seed: int,
-    test_split: float,
     test_1_interval: int,
+    test_data_args: dict,
+    test_data_path: str,
     test_n_interval: int,
     train_1_interval: int,
+    train_data_args: dict,
+    train_data_path: str,
     train_n_interval: int,
     commit: str = None,
     config: str = None,
@@ -126,26 +127,22 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = data.base.make(data_path, **data_args, seed=seed)
+    train_data = data.base.make(
+        train_data_path, **data_args, **train_data_args, seed=seed
+    )
+    test_data = data.base.make(
+        test_data_path, **data_args, **test_data_args, seed=seed + 1
+    )
+    random_indices = torch.randint(0, len(train_data), [len(test_data)])
+    train_n_data = Subset(train_data, random_indices)
 
     print("Create net... ", end="", flush=True)
-    n_tokens = dataset.discrete.max().item() + 1
+    n_tokens = train_data.discrete.max().item() + 1
     net = SetTransformer(**model_args, n_tokens=n_tokens)
     if load_path is not None:
         load(load_path, net, run)
     net = net.cuda()
     print("✓")
-
-    # Split the dataset into train and test sets
-    test_size = int(test_split * len(dataset))
-    train_size = len(dataset) - test_size
-    test_size = min(test_size, max_test)
-    discard_size = len(dataset) - test_size - train_size
-    train_dataset, test_dataset, _ = random_split(
-        dataset, [train_size, test_size, discard_size]
-    )
-    random_indices = torch.randint(0, len(train_dataset), [test_size])
-    train_n_dataset = Subset(train_dataset, random_indices)
 
     counter = Counter()
     save_count = 0
@@ -154,14 +151,14 @@ def train(
     train_1_log = None
     train_n_log = None
     tick = time.time()
-    iterations = int(math.ceil(dataset.max_n_bellman / bellman_delta))
+    iterations = int(math.ceil(train_data.max_n_bellman / bellman_delta))
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
         # Split the dataset into train and test sets
-        train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
-        train_n_loader = DataLoader(train_n_dataset, batch_size=n_batch, shuffle=False)
+        train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
+        test_loader = DataLoader(test_data, batch_size=n_batch, shuffle=False)
+        train_n_loader = DataLoader(train_n_data, batch_size=n_batch, shuffle=False)
         for t, x in enumerate(train_loader):
             (_, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
@@ -200,7 +197,7 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            targets_index = min(bellman_delta, dataset.max_n_bellman)
+            targets_index = min(bellman_delta, train_data.max_n_bellman)
             outputs, loss = net.forward(
                 v1=values[0],
                 action_probs=action_probs,
