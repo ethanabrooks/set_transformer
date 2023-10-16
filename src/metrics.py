@@ -31,6 +31,18 @@ def get_metrics(
 
     outputs = (50 * outputs).round() / 50
 
+    perm = torch.rand(outputs.shape).argsort(dim=1).cuda()
+
+    def shuffle(x: torch.Tensor):
+        p = perm
+        while p.dim() < x.dim():
+            p = p[..., None]
+
+        return torch.gather(x, 1, p.expand_as(x))
+
+    outputs = shuffle(outputs)
+    targets = shuffle(targets)
+
     # Compute pairwise differences for outputs and targets
     diff_outputs = outputs[:, 1:] - outputs[:, :-1]
     diff_targets = targets[:, 1:] - targets[:, :-1]
