@@ -23,13 +23,14 @@ def get_metrics(
     loss: torch.Tensor,
     outputs: torch.Tensor,
     targets: torch.Tensor,
+    round_accuracy_to: int,
 ) -> Metrics:
     outputs = outputs.squeeze(-1)
 
     mae = compute_mae(outputs, targets)
     rmse = compute_rmse(outputs, targets)
 
-    outputs = (50 * outputs).round() / 50
+    outputs = (round_accuracy_to * outputs).round() / round_accuracy_to
 
     perm = torch.rand(outputs.shape).argsort(dim=1).cuda()
 
