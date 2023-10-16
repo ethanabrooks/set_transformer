@@ -13,8 +13,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset, random_split
 from wandb.sdk.wandb_run import Run
 
+import data.base
 import wandb
-from data.sample_uniform import RLData
 from metrics import get_metrics
 from models import SetTransformer
 from pretty import print_row
@@ -42,7 +42,8 @@ def evaluate(
     net.eval()
     counter = Counter()
     with torch.no_grad():
-        for input_n_bellman, action_probs, discrete, *values in test_loader:
+        for x in test_loader:
+            (input_n_bellman, action_probs, discrete, *values) = [x.cuda() for x in x]
             max_n_bellman = len(values) - 1
             v1 = values[0]
             final_outputs = torch.zeros_like(v1)
@@ -82,6 +83,7 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
 
 def train(
     data_args: dict,
+    data_path: str,
     decay_args: dict,
     load_path: str,
     loss: str,
@@ -121,7 +123,7 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    dataset = RLData(**data_args, seed=seed)
+    dataset = data.base.make(data_path, **data_args, seed=seed)
 
     print("Create net... ", end="", flush=True)
     n_tokens = dataset.discrete.max().item() + 1
@@ -157,7 +159,8 @@ def train(
         train_loader = DataLoader(train_dataset, batch_size=n_batch, shuffle=True)
         test_loader = DataLoader(test_dataset, batch_size=n_batch, shuffle=False)
         train_n_loader = DataLoader(train_n_dataset, batch_size=n_batch, shuffle=False)
-        for t, (_, action_probs, discrete, *values) in enumerate(train_loader):
+        for t, x in enumerate(train_loader):
+            (_, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(

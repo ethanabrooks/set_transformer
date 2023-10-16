@@ -1,14 +1,8 @@
-import itertools
-
 import torch
 
 import data.base
-from metrics import compute_rmse
 from tabular.grid_world import GridWorld
-
-
-def round_tensor(tensor: torch.Tensor, round_to: int):
-    return (tensor * round_to).round().long()
+from tabular.value_iteration import round_tensor
 
 
 class RLData(data.base.RLData):
@@ -24,8 +18,7 @@ class RLData(data.base.RLData):
         # 2D deltas for up, down, left, right
         grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
         A = len(grid_world.deltas)
-        G = grid_world.grid_size**2  # number of goals
-        S = G + 1  # number of goal states + absorbing state
+        S = grid_world.n_states
         B = n_data
 
         alpha = torch.ones(A)
@@ -37,20 +30,10 @@ class RLData(data.base.RLData):
         Pi = Pi.float()
         Pi = Pi / Pi.sum(-1, keepdim=True)
 
-        # Initialize V_0
-        V = [torch.zeros((B, S), dtype=torch.float)]
-
         print("Policy evaluation...")
-        for k in itertools.count(1):  # n_rounds of policy evaluation
-            Vk = V[-1]
-            Vk1 = grid_world.policy_evaluation(Pi, Vk)
-            V.append(Vk1)
-            rmse = compute_rmse(Vk1, Vk)
-            print("Iteration:", k, "RMSE:", rmse)
-            if rmse < stop_at_rmse:
-                break
-        V = torch.stack(V)
+        V = torch.stack(grid_world.evaluate_policy_iteratively(Pi, stop_at_rmse))
         self.V = V
+        self._max_n_bellman = len(V) - 1
 
         states = torch.arange(S).repeat_interleave(A)
         states = states[None].tile(B, 1)
@@ -59,23 +42,25 @@ class RLData(data.base.RLData):
         next_states, rewards, _, _ = grid_world.step_fn(states, actions)
 
         # sample n_bellman -- number of steps of policy evaluation
-        input_n_bellman = torch.randint(0, self.max_n_bellman, (B, 1)).tile(1, A * S)
+        self._input_bellman = input_bellman = torch.randint(
+            0, self._max_n_bellman, (B, 1)
+        ).tile(1, A * S)
 
-        n_bellman = [input_n_bellman + o for o in range(len(V))]
+        n_bellman = [input_bellman + o for o in range(len(V))]
         n_bellman = [torch.clamp(o, 0, self.max_n_bellman) for o in n_bellman]
         arange = torch.arange(B)[:, None]
         action_probs = Pi[arange, states]
         V = [V[o, arange, states] for o in n_bellman]
 
-        self.values = [torch.Tensor(v) for v in V]
-        self.action_probs = torch.Tensor(action_probs)
+        self._values = [torch.Tensor(v) for v in V]
+        continuous = torch.Tensor(action_probs)
         discrete = [
             states[..., None],
             actions[..., None],
             next_states[..., None],
             rewards[..., None],
         ]
-        self.discrete = torch.cat(discrete, -1).long()
+        discrete = torch.cat(discrete, -1).long()
 
         perm = torch.rand(B, S * A).argsort(dim=1)
 
@@ -86,8 +71,28 @@ class RLData(data.base.RLData):
 
             return torch.gather(x, 1, p.expand_as(x))
 
-        *self.values, self.action_probs, self.discrete = [
-            shuffle(x)[:, omit_states_actions:].cuda()
-            for x in [*self.values, self.action_probs, self.discrete]
+        *self._values, self._continuous, self._discrete = [
+            shuffle(x)[:, omit_states_actions:]
+            for x in [*self._values, continuous, discrete]
         ]
-        self.input_n_bellman = input_n_bellman[:, omit_states_actions:].cuda()
+        self.input_n_bellman = input_bellman[:, omit_states_actions:].cuda()
+
+    @property
+    def continuous(self) -> torch.Tensor:
+        return self._continuous
+
+    @property
+    def discrete(self) -> torch.Tensor:
+        return self._discrete
+
+    @property
+    def input_bellman(self) -> torch.Tensor:
+        return self._input_bellman
+
+    @property
+    def max_n_bellman(self):
+        return self._max_n_bellman
+
+    @property
+    def values(self) -> list[torch.Tensor]:
+        return self._values
