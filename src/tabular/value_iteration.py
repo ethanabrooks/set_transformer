@@ -7,16 +7,29 @@ from matplotlib import pyplot as plt
 from tabular.grid_world import GridWorld
 
 
+def round_tensor(tensor: torch.Tensor, round_to: int):
+    return (tensor * round_to).round().long()
+
+
 class ValueIteration(GridWorld):
     def __init__(self, alpha: float, atol: float = 0.02, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.alpha = alpha
         self.atol = atol
 
+    def improve_policy(self, Pi: torch.Tensor, V: torch.Tensor):
+        self.check_pi(Pi)
+        self.check_V(V)
+        Q = self.R + self.gamma * (self.T * V[:, None, None]).sum(-1)
+        new_Pi = torch.zeros_like(Pi)
+        new_Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
+        return (1 - self.alpha) * Pi + (self.alpha) * new_Pi
+
     def value_iteration(
         self,
-        n_policies: int,
+        n_pi_bins: int,
         n_rounds: int,
+        stop_at_rmse: float,
     ):
         B = self.n_tasks
         S = self.n_states
@@ -27,9 +40,12 @@ class ValueIteration(GridWorld):
         alpha = torch.ones(len(self.deltas))
         Pi = (
             torch.distributions.Dirichlet(alpha)
-            .sample((n_policies, S))
-            .tile(math.ceil(B / n_policies), 1, 1)[:B]
+            .sample((self.n_tasks, S))
+            .tile(math.ceil(B / self.n_tasks), 1, 1)[:B]
         )
+        Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
+        Pi = Pi.float()
+        Pi = Pi / Pi.sum(-1, keepdim=True)
         self.check_pi(Pi)
 
         # Compute next states for each action and state for each batch (goal)
@@ -56,19 +72,12 @@ class ValueIteration(GridWorld):
 
         V = None
         for _ in range(n_rounds):
-            V = self.policy_evaluation(Pi, V)
+            V_iter = self.evaluate_policy_iteratively(Pi, stop_at_rmse)
+            V = self.evaluate_policy(Pi, V)
             # self.visualize_values(V)
-            yield V, Pi
-            Pi = self.policy_improvement(Pi, V)
+            yield V_iter, Pi
+            Pi = self.improve_policy(Pi, V)
             # self.visualize_policy(Pi)
-
-    def policy_improvement(self, Pi: torch.Tensor, V: torch.Tensor):
-        self.check_pi(Pi)
-        self.check_V(V)
-        Q = self.R + self.gamma * (self.T * V[:, None, None]).sum(-1)
-        new_Pi = torch.zeros_like(Pi)
-        new_Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
-        return (1 - self.alpha) * Pi + (self.alpha) * new_Pi
 
     def visualize_values(self, V: torch.Tensor, task_idx: int = 0):
         global_min = V[task_idx].min().item()
