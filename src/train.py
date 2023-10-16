@@ -34,9 +34,10 @@ def load(
 
 
 def evaluate(
+    bellman_delta: int,
     iterations: int,
     net: nn.Module,
-    bellman_delta: int,
+    round_accuracy_to: int,
     test_loader: DataLoader,
 ):
     net.eval()
@@ -64,6 +65,7 @@ def evaluate(
                 loss=loss,
                 outputs=final_outputs,
                 targets=values[iterations],
+                round_accuracy_to=round_accuracy_to,
             )
             counter.update(asdict(metrics))
     return {k: v / len(test_loader) for k, v in counter.items()}
@@ -93,6 +95,7 @@ def train(
     n_batch: int,
     n_epochs: int,
     bellman_delta: int,
+    round_accuracy_to: int,
     run: Optional[Run],
     save_interval: int,
     seed: int,
@@ -164,18 +167,20 @@ def train(
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
+                    bellman_delta=bellman_delta,
                     iterations=1,
                     net=net,
-                    bellman_delta=bellman_delta,
+                    round_accuracy_to=round_accuracy_to,
                     test_loader=test_loader,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
             if t % test_n_interval == 0:
                 log = evaluate(
+                    bellman_delta=bellman_delta,
                     iterations=iterations,
                     net=net,
-                    bellman_delta=bellman_delta,
+                    round_accuracy_to=round_accuracy_to,
                     test_loader=test_loader,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
@@ -183,9 +188,10 @@ def train(
 
             if t % train_n_interval == 0:
                 log = evaluate(
+                    bellman_delta=bellman_delta,
                     iterations=iterations,
                     net=net,
-                    bellman_delta=bellman_delta,
+                    round_accuracy_to=round_accuracy_to,
                     test_loader=train_n_loader,
                 )
                 train_n_log = {f"train-n/{k}": v for k, v in log.items()}
@@ -206,6 +212,7 @@ def train(
                 loss=loss,
                 outputs=outputs,
                 targets=values[targets_index],
+                round_accuracy_to=round_accuracy_to,
             )
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
