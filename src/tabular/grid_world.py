@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from metrics import compute_rmse
+from tabular.maze import generate_maze, maze_to_state_action
 
 T = TypeVar("T")
 
@@ -29,6 +30,7 @@ class GridWorld:
         gamma: float,
         grid_size: int,
         heldout_goals: list[tuple[int, int]],
+        n_maze: int,
         n_tasks: int,
         p_wall: float,
         seed: int,
@@ -39,6 +41,7 @@ class GridWorld:
         self.deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
         A = len(self.deltas)
         G = grid_size**2  # number of goals
+        M = n_maze
         T = n_tasks
 
         # add absorbing state for goals
@@ -56,9 +59,19 @@ class GridWorld:
         )
         self.n_tasks = n_tasks
 
-        is_wall = torch.rand(T, G, A, 1) < p_wall
-        goal_idxs = torch.randint(0, G, (T,))
-        self.goals = torch.stack([goal_idxs // grid_size, goal_idxs % grid_size], dim=1)
+        # generate walls
+        is_wall = torch.rand(T, G, A) < p_wall
+        if n_maze:
+            mazes = [
+                maze_to_state_action(generate_maze(grid_size)).view(G, A)
+                for _ in tqdm(range(M), desc="Generating mazes")
+            ]
+            mazes = torch.stack(mazes)
+            assert [*mazes.shape] == [M, G, A]
+            maze_idx = torch.randint(0, M, (T,))
+            is_wall = mazes[maze_idx] & is_wall
+            assert [*is_wall.shape] == [T, G, A]
+        is_wall = is_wall[..., None]
 
         # Compute next states for each action and state for each batch (goal)
         next_states = self.states[:, None] + self.deltas[None, :]
@@ -73,6 +86,9 @@ class GridWorld:
 
         # Determine if next_state is the goal for each batch (goal)
         # is_goal = (self.goals[:, None] == self.states[None]).all(-1)
+        # create walls and goals
+        goal_idxs = torch.randint(0, G, (T,))
+        self.goals = torch.stack([goal_idxs // grid_size, goal_idxs % grid_size], dim=1)
         is_goal = goal_idxs[:, None, None] == next_state_indices
 
         # Modify transition to go to absorbing state if the next state is a goal

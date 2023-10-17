@@ -34,6 +34,7 @@ test_data_args:
     gamma: 0.99
     grid_size: 4
     heldout_goals: []
+    n_maze: 0
     p_wall: 0
     terminate_on_goal: false
     use_heldout_goals: false
@@ -48,6 +49,7 @@ train_data_args:
     gamma: 0.99
     grid_size: 4
     heldout_goals: []
+    n_maze: 0
     p_wall: 0
     terminate_on_goal: false
     use_heldout_goals: false
