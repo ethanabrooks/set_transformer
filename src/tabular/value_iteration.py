@@ -37,6 +37,7 @@ class ValueIteration(GridWorld):
         self,
         n_pi_bins: int,
         n_rounds: int,
+        pi_lower_bound: float,
         stop_at_rmse: float,
     ):
         B = self.n_tasks
@@ -53,6 +54,7 @@ class ValueIteration(GridWorld):
         )
         Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
+        Pi = torch.clamp(Pi, pi_lower_bound, 1)
         Pi = Pi / Pi.sum(-1, keepdim=True)
         self.check_pi(Pi)
 

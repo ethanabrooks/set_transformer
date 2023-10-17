@@ -10,6 +10,7 @@ data_args:
     use_heldout_goals: false
   n_pi_bins: 2
   omit_states_actions: 0
+  pi_lower_bound: 0.1
   stop_at_rmse: 0.005
 decay_args:
   final_step: 200_000
