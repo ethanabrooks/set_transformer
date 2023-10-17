@@ -15,6 +15,7 @@ class RLData(Dataset, ABC):
 
     def __getitem__(self, idx):
         return (
+            idx,
             self.input_bellman[idx],
             self.continuous[idx],
             self.discrete[idx],

@@ -192,15 +192,17 @@ class GridWorld:
 
         # Compute the policy conditioned transition function
         Pi_ = Pi.view(B * N, 1, A)
-        T_ = self.T.view(B * N, A, N)
+        T = self.T.to(Pi.device)
+        T_ = T.view(B * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
         T_Pi = T_Pi.view(B, N, N)
 
         # Initialize V_0
         if V is None:
-            V = torch.zeros((B, N), dtype=torch.float32)
+            V = torch.zeros((B, N), dtype=torch.float32, device=Pi.device)
         self.check_V(V)
-        ER = (Pi * self.R).sum(-1)
+        R = self.R.to(Pi.device)
+        ER = (Pi * R).sum(-1)
         EV = (T_Pi * V[:, None]).sum(-1)
         V = ER + self.gamma * EV
         return V
@@ -208,13 +210,13 @@ class GridWorld:
     def evaluate_policy_iteratively(self, Pi: torch.Tensor, stop_at_rmse: float):
         B = self.n_tasks
         S = self.n_states
-        V = [torch.zeros((B, S), dtype=torch.float)]
+        V = [torch.zeros((B, S), device=Pi.device, dtype=torch.float)]
         for k in itertools.count(1):  # n_rounds of policy evaluation
             Vk = V[-1]
             Vk1 = self.evaluate_policy(Pi, Vk)
             V.append(Vk1)
             rmse = compute_rmse(Vk1, Vk)
-            print("Iteration:", k, "RMSE:", rmse)
+            # print("Iteration:", k, "RMSE:", rmse)
             if rmse < stop_at_rmse:
                 break
         return V
