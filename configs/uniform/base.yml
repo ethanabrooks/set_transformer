@@ -1,13 +1,4 @@
 data_args:
-  grid_world_args:
-    absorbing_state: true
-    dense_reward: false
-    gamma: 0.99
-    grid_size: 4
-    heldout_goals: []
-    p_wall: 0
-    terminate_on_goal: false
-    use_heldout_goals: false
   n_pi_bins: 2
   omit_states_actions: 0
   pi_lower_bound: 0.1
@@ -37,11 +28,29 @@ save_interval: 40000
 seed: 0
 test_1_interval: ${train_1_interval}
 test_data_args:
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 0.99
+    grid_size: 4
+    heldout_goals: []
+    p_wall: 0
+    terminate_on_goal: false
+    use_heldout_goals: false
   n_data: 2000
 test_data_path: "data/sample_uniform"
 test_n_interval: ${train_1_interval}
 train_1_interval: 5000
 train_data_args:
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 0.99
+    grid_size: 4
+    heldout_goals: []
+    p_wall: 0
+    terminate_on_goal: false
+    use_heldout_goals: false
   n_data: 80_000
 train_data_path: "data/sample_uniform"
 train_n_interval: 1e7
