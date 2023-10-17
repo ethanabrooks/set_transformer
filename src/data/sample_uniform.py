@@ -11,6 +11,7 @@ class RLData(data.base.RLData):
     def __init__(
         self,
         grid_world_args: dict,
+        pi_lower_bound: float,
         n_pi_bins: int,
         n_data: int,
         omit_states_actions: int,
@@ -33,7 +34,7 @@ class RLData(data.base.RLData):
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
-        Pi = torch.clamp(Pi, 0.1, 1)
+        Pi = torch.clamp(Pi, pi_lower_bound, 1)
         Pi = Pi / Pi.sum(-1, keepdim=True)
 
         print("Policy evaluation...")
