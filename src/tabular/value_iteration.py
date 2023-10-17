@@ -1,4 +1,5 @@
 import math
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -12,18 +13,25 @@ def round_tensor(tensor: torch.Tensor, round_to: int):
 
 
 class ValueIteration(GridWorld):
-    def __init__(self, alpha: float, atol: float = 0.02, *args, **kwargs):
+    def __init__(self, atol: float = 0.02, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.alpha = alpha
         self.atol = atol
 
-    def improve_policy(self, Pi: torch.Tensor, V: torch.Tensor):
-        self.check_pi(Pi)
-        self.check_V(V)
-        Q = self.R + self.gamma * (self.T * V[:, None, None]).sum(-1)
-        new_Pi = torch.zeros_like(Pi)
-        new_Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
-        return (1 - self.alpha) * Pi + (self.alpha) * new_Pi
+    def improve_policy(self, V: torch.Tensor, idxs: Optional[torch.Tensor] = None):
+        # self.check_V(V)
+        R = self.R
+        T = self.T
+        if idxs is not None:
+            T = T.to(idxs.device)
+            T = T[idxs]
+            R = R.to(idxs.device)
+            R = R[idxs]
+        Q = R + self.gamma * (T * V[:, None, None]).sum(-1)
+        Pi = torch.zeros(
+            (self.n_tasks, self.n_states, len(self.deltas)), device=T.device
+        )
+        Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
+        return Pi
 
     def value_iteration(
         self,
@@ -76,7 +84,7 @@ class ValueIteration(GridWorld):
             V = self.evaluate_policy(Pi, V)
             # self.visualize_values(V)
             yield V_iter, Pi
-            Pi = self.improve_policy(Pi, V)
+            Pi = self.improve_policy(V)
             # self.visualize_policy(Pi)
 
     def visualize_values(self, V: torch.Tensor, task_idx: int = 0):
