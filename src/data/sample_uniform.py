@@ -1,8 +1,10 @@
+from dataclasses import asdict
+
 import torch
+from torch import Tensor
 
 import data.base
-from tabular.grid_world import GridWorld
-from tabular.value_iteration import round_tensor
+from tabular.value_iteration import ValueIteration, round_tensor
 
 
 class RLData(data.base.RLData):
@@ -15,8 +17,11 @@ class RLData(data.base.RLData):
         seed: int,
         stop_at_rmse: float,
     ):
+        self.omit_states_actions = omit_states_actions
+        self.stop_at_rmse = stop_at_rmse
         # 2D deltas for up, down, left, right
-        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
+        grid_world = ValueIteration(**grid_world_args, n_tasks=n_data, seed=seed)
+        self.grid_world = grid_world
         A = len(grid_world.deltas)
         S = grid_world.n_states
         B = n_data
@@ -96,3 +101,26 @@ class RLData(data.base.RLData):
     @property
     def values(self) -> list[torch.Tensor]:
         return self._values
+
+    def get_metrics(
+        self,
+        idxs: torch.Tensor,
+        loss: Tensor,
+        outputs: Tensor,
+        targets: Tensor,
+        round_accuracy_to: float,
+    ):
+        metrics = super().get_metrics(
+            idxs=idxs,
+            loss=loss,
+            outputs=outputs,
+            targets=targets,
+            round_accuracy_to=round_accuracy_to,
+        )
+        metrics = asdict(metrics)
+        if self.omit_states_actions == 0:
+            values = outputs[:, :: len(self.grid_world.deltas)]
+            Pi = self.grid_world.improve_policy(values, idxs=idxs)
+            values = self.grid_world.evaluate_policy_iteratively(Pi, self.stop_at_rmse)
+            metrics.update(improved_policy_value=values[-1].mean().item())
+        return metrics

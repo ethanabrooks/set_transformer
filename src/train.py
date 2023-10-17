@@ -46,7 +46,9 @@ def evaluate(
     loader = DataLoader(dataset, batch_size=n_batch, shuffle=False)
     with torch.no_grad():
         for x in loader:
-            (input_n_bellman, action_probs, discrete, *values) = [x.cuda() for x in x]
+            (idxs, input_n_bellman, action_probs, discrete, *values) = [
+                x.cuda() for x in x
+            ]
             max_n_bellman = len(values) - 1
             v1 = values[0]
             final_outputs = torch.zeros_like(v1)
@@ -160,7 +162,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            (_, action_probs, discrete, *values) = [x.cuda() for x in x]
+            (_, _, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
             if t % test_1_interval == 0:
                 log = evaluate(
