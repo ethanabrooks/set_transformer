@@ -33,6 +33,7 @@ class RLData(data.base.RLData):
         # Compute the policy conditioned transition function
         Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
         Pi = Pi.float()
+        Pi = torch.clamp(Pi, 0.1, 1)
         Pi = Pi / Pi.sum(-1, keepdim=True)
 
         print("Policy evaluation...")
