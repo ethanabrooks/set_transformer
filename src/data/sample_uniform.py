@@ -64,14 +64,14 @@ class RLData(data.base.RLData):
         V = [V[o, arange, states] for o in n_bellman]
 
         self._values = [torch.Tensor(v) for v in V]
-        continuous = torch.Tensor(action_probs)
+        self._continuous = torch.Tensor(action_probs)
         discrete = [
             states[..., None],
             actions[..., None],
             next_states[..., None],
             rewards[..., None],
         ]
-        discrete = torch.cat(discrete, -1).long()
+        self._discrete = torch.cat(discrete, -1).long()
 
         perm = torch.rand(B, S * A).argsort(dim=1)
 
@@ -82,11 +82,12 @@ class RLData(data.base.RLData):
 
             return torch.gather(x, 1, p.expand_as(x))
 
-        *self._values, self._continuous, self._discrete = [
-            shuffle(x)[:, omit_states_actions:]
-            for x in [*self._values, continuous, discrete]
-        ]
-        self.input_n_bellman = input_bellman[:, omit_states_actions:].cuda()
+        if omit_states_actions > 0:
+            *self._values, self._continuous, self._discrete = [
+                shuffle(x)[:, omit_states_actions:]
+                for x in [*self._values, self._continuous, self._discrete]
+            ]
+            self.input_n_bellman = input_bellman[:, omit_states_actions:].cuda()
 
     @property
     def continuous(self) -> torch.Tensor:
