@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
 
 
@@ -42,6 +43,17 @@ class RLData(Dataset, ABC):
     @property
     @abstractmethod
     def values(self) -> list[torch.Tensor]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def evaluate(
+        self,
+        bellman_delta: int,
+        iterations: int,
+        n_batch: int,
+        net: nn.Module,
+        **metrics_args,
+    ):
         raise NotImplementedError
 
 
