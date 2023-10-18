@@ -1,5 +1,6 @@
 from collections import Counter
 from dataclasses import asdict
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -16,6 +17,7 @@ class RLData(data.base.RLData):
         self,
         grid_world_args: dict,
         pi_lower_bound: float,
+        max_initial_bellman: Optional[int],
         n_pi_bins: int,
         n_data: int,
         omit_states_actions: int,
@@ -45,6 +47,8 @@ class RLData(data.base.RLData):
         V = torch.stack(grid_world.evaluate_policy_iteratively(Pi, stop_at_rmse))
         self.V = V
         self._max_n_bellman = len(V) - 1
+        if max_initial_bellman is None:
+            max_initial_bellman = self._max_n_bellman
 
         states = torch.arange(S).repeat_interleave(A)
         states = states[None].tile(B, 1)
@@ -54,7 +58,7 @@ class RLData(data.base.RLData):
 
         # sample n_bellman -- number of steps of policy evaluation
         self._input_bellman = input_bellman = torch.randint(
-            0, self._max_n_bellman, (B, 1)
+            0, max_initial_bellman, (B, 1)
         ).tile(1, A * S)
 
         n_bellman = [input_bellman + o for o in range(len(V))]
