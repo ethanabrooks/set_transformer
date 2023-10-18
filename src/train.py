@@ -8,7 +8,6 @@ from typing import Optional
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
@@ -31,48 +30,6 @@ def load(
     wandb.restore(MODEL_FNAME, run_path=load_path, root=root)
     state = torch.load(os.path.join(root, MODEL_FNAME))
     net.load_state_dict(state, strict=True)
-
-
-def evaluate(
-    bellman_delta: int,
-    dataset: data.base.RLData,
-    iterations: int,
-    n_batch: int,
-    net: nn.Module,
-    **metrics_args,
-):
-    net.eval()
-    counter = Counter()
-    loader = DataLoader(dataset, batch_size=n_batch, shuffle=False)
-    with torch.no_grad():
-        for x in loader:
-            (idxs, input_n_bellman, action_probs, discrete, *values) = [
-                x.cuda() for x in x
-            ]
-            max_n_bellman = len(values) - 1
-            v1 = values[0]
-            final_outputs = torch.zeros_like(v1)
-            for i in range(iterations):
-                outputs: torch.Tensor
-                loss: torch.Tensor
-                outputs, loss = net.forward(
-                    v1=v1,
-                    action_probs=action_probs,
-                    discrete=discrete,
-                    targets=values[min((i + 1) * bellman_delta, max_n_bellman)],
-                )
-                v1 = outputs.squeeze(-1)
-                mask = (input_n_bellman + i * bellman_delta) < max_n_bellman
-                final_outputs[mask] = v1[mask]
-
-            metrics = get_metrics(
-                loss=loss,
-                outputs=final_outputs,
-                targets=values[iterations],
-                **metrics_args,
-            )
-            counter.update(asdict(metrics))
-    return {k: v / len(loader) for k, v in counter.items()}
 
 
 def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
@@ -161,9 +118,8 @@ def train(
             (_, _, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
             if step % test_1_interval == 0:
-                log = evaluate(
+                log = test_data.evaluate(
                     bellman_delta=bellman_delta,
-                    dataset=test_data,
                     iterations=1,
                     n_batch=n_batch,
                     net=net,
@@ -172,9 +128,8 @@ def train(
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
             if step % test_n_interval == 0:
-                log = evaluate(
+                log = test_data.evaluate(
                     bellman_delta=bellman_delta,
-                    dataset=test_data,
                     iterations=iterations,
                     n_batch=n_batch,
                     net=net,

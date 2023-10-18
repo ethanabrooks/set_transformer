@@ -1,9 +1,13 @@
+from collections import Counter
 from dataclasses import asdict
 
 import torch
+import torch.nn as nn
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 import data.base
+from metrics import get_metrics
 from tabular.value_iteration import ValueIteration, round_tensor
 
 
@@ -112,8 +116,7 @@ class RLData(data.base.RLData):
         targets: Tensor,
         accuracy_threshold: float,
     ):
-        metrics = super().get_metrics(
-            idxs=idxs,
+        metrics = get_metrics(
             loss=loss,
             outputs=outputs,
             targets=targets,
@@ -126,3 +129,45 @@ class RLData(data.base.RLData):
             values = self.grid_world.evaluate_policy_iteratively(Pi, self.stop_at_rmse)
             metrics.update(improved_policy_value=values[-1].mean().item())
         return metrics
+
+    def evaluate(
+        self,
+        bellman_delta: int,
+        iterations: int,
+        n_batch: int,
+        net: nn.Module,
+        **metrics_args,
+    ):
+        net.eval()
+        counter = Counter()
+        loader = DataLoader(self, batch_size=n_batch, shuffle=False)
+        with torch.no_grad():
+            for x in loader:
+                (idxs, input_n_bellman, action_probs, discrete, *values) = [
+                    x.cuda() for x in x
+                ]
+                max_n_bellman = len(values) - 1
+                v1 = values[0]
+                final_outputs = torch.zeros_like(v1)
+                for i in range(iterations):
+                    outputs: torch.Tensor
+                    loss: torch.Tensor
+                    outputs, loss = net.forward(
+                        v1=v1,
+                        action_probs=action_probs,
+                        discrete=discrete,
+                        targets=values[min((i + 1) * bellman_delta, max_n_bellman)],
+                    )
+                    v1 = outputs.squeeze(-1)
+                    mask = (input_n_bellman + i * bellman_delta) < max_n_bellman
+                    final_outputs[mask] = v1[mask]
+
+                metrics = self.get_metrics(
+                    idxs=idxs,
+                    loss=loss,
+                    outputs=final_outputs,
+                    targets=values[iterations],
+                    **metrics_args,
+                )
+                counter.update(metrics)
+        return {k: v / len(loader) for k, v in counter.items()}
