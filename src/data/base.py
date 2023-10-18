@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import TypeVar
 
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset
-
 
 T = TypeVar("T")
 
@@ -46,6 +46,17 @@ class RLData(Dataset, ABC):
     @property
     @abstractmethod
     def values(self) -> list[torch.Tensor]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def evaluate(
+        self,
+        bellman_delta: int,
+        iterations: int,
+        n_batch: int,
+        net: nn.Module,
+        **metrics_args,
+    ):
         raise NotImplementedError
 
 
