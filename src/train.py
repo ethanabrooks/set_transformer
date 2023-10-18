@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
 import data.base
@@ -108,7 +108,6 @@ def train(
     train_1_interval: int,
     train_data_args: dict,
     train_data_path: str,
-    train_n_interval: int,
     commit: str = None,
     config: str = None,
     config_name: str = None,
@@ -137,8 +136,6 @@ def train(
     test_data = data.base.make(
         test_data_path, **data_args, **test_data_args, seed=seed + 1
     )
-    random_indices = torch.randint(0, len(train_data), [len(test_data)])
-    train_n_data = Subset(train_data, random_indices)
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
@@ -153,7 +150,6 @@ def train(
     test_1_log = None
     test_n_log = None
     train_1_log = None
-    train_n_log = None
     tick = time.time()
     iterations = int(math.ceil(train_data.max_n_bellman / bellman_delta))
 
@@ -186,18 +182,6 @@ def train(
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
                 print_row(test_n_log, show_header=True)
-
-            if step % train_n_interval == 0:
-                log = evaluate(
-                    bellman_delta=bellman_delta,
-                    dataset=train_n_data,
-                    iterations=iterations,
-                    n_batch=n_batch,
-                    net=net,
-                    **evaluate_args,
-                )
-                train_n_log = {f"train-n/{k}": v for k, v in log.items()}
-                print_row(train_n_log, show_header=True)
 
             net.train()
             optimizer.zero_grad()
@@ -237,7 +221,7 @@ def train(
                 print_row(train_1_log, show_header=(step % train_1_interval == 0))
                 if run is not None:
                     wandb.log(
-                        dict(**test_1_log, **test_n_log, **train_1_log, **train_n_log),
+                        dict(**test_1_log, **test_n_log, **train_1_log),
                         step=step,
                     )
 

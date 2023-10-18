@@ -56,4 +56,3 @@ train_data_args:
     use_heldout_goals: false
   n_data: 80_000
 train_data_path: "data/sample_uniform"
-train_n_interval: 1e7
