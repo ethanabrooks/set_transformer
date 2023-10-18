@@ -6,6 +6,8 @@ data_args:
 decay_args:
   final_step: 200_000
   warmup_steps: 10_000
+evaluate_args:
+  accuracy_threshold: 0.01
 load_path: null
 loss: "mse"
 lr: 0.001
@@ -23,7 +25,6 @@ model_args:
     n_heads: 8
 n_batch: 50
 n_epochs: 100
-round_accuracy_to: 50
 save_interval: 40000
 seed: 0
 test_1_interval: ${train_1_interval}
