@@ -110,14 +110,14 @@ class RLData(data.base.RLData):
         loss: Tensor,
         outputs: Tensor,
         targets: Tensor,
-        round_accuracy_to: float,
+        accuracy_threshold: float,
     ):
         metrics = super().get_metrics(
             idxs=idxs,
             loss=loss,
             outputs=outputs,
             targets=targets,
-            round_accuracy_to=round_accuracy_to,
+            accuracy_threshold=accuracy_threshold,
         )
         metrics = asdict(metrics)
         if self.omit_states_actions == 0:
