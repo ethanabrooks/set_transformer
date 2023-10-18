@@ -8,10 +8,6 @@ from matplotlib import pyplot as plt
 from tabular.grid_world import GridWorld
 
 
-def round_tensor(tensor: torch.Tensor, round_to: int):
-    return (tensor * round_to).round().long()
-
-
 class ValueIteration(GridWorld):
     def __init__(self, atol: float = 0.02, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,9 +24,7 @@ class ValueIteration(GridWorld):
 
     def value_iteration(
         self,
-        n_pi_bins: int,
         n_rounds: int,
-        pi_lower_bound: float,
         stop_at_rmse: float,
     ):
         B = self.n_tasks
@@ -45,10 +39,6 @@ class ValueIteration(GridWorld):
             .sample((self.n_tasks, S))
             .tile(math.ceil(B / self.n_tasks), 1, 1)[:B]
         )
-        Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
-        Pi = Pi.float()
-        Pi = torch.clamp(Pi, pi_lower_bound, 1)
-        Pi = Pi / Pi.sum(-1, keepdim=True)
         self.check_pi(Pi)
 
         # Compute next states for each action and state for each batch (goal)
