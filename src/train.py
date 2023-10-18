@@ -164,7 +164,7 @@ def train(
         for t, x in enumerate(train_loader):
             (_, _, action_probs, discrete, *values) = [x.cuda() for x in x]
             step = e * len(train_loader) + t
-            if t % test_1_interval == 0:
+            if step % test_1_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
                     dataset=test_data,
@@ -175,7 +175,7 @@ def train(
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
                 print_row(test_1_log, show_header=True)
-            if t % test_n_interval == 0:
+            if step % test_n_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
                     dataset=test_data,
@@ -187,7 +187,7 @@ def train(
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
                 print_row(test_n_log, show_header=True)
 
-            if t % train_n_interval == 0:
+            if step % train_n_interval == 0:
                 log = evaluate(
                     bellman_delta=bellman_delta,
                     dataset=train_n_data,
@@ -224,7 +224,7 @@ def train(
             loss.backward()
             optimizer.step()
             counter.update(asdict(metrics), n=1)
-            if t % train_1_interval == 0:
+            if step % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
                 train_1_log = {
@@ -234,7 +234,7 @@ def train(
                     epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
                 )
                 counter = Counter()
-                print_row(train_1_log, show_header=(t % train_1_interval == 0))
+                print_row(train_1_log, show_header=(step % train_1_interval == 0))
                 if run is not None:
                     wandb.log(
                         dict(**test_1_log, **test_n_log, **train_1_log, **train_n_log),
@@ -242,7 +242,7 @@ def train(
                     )
 
                     # save
-            if t % save_interval == 0:
+            if step % save_interval == 0:
                 save(run, net)
                 save_count += 1
 
