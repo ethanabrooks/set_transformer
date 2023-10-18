@@ -23,14 +23,12 @@ def get_metrics(
     loss: torch.Tensor,
     outputs: torch.Tensor,
     targets: torch.Tensor,
-    round_accuracy_to: int,
+    accuracy_threshold: float,
 ) -> tuple[torch.Tensor, Metrics]:
     outputs = outputs.squeeze(-1)
 
     mae = compute_mae(outputs, targets)
     rmse = compute_rmse(outputs, targets)
-
-    outputs = (round_accuracy_to * outputs).round() / round_accuracy_to
 
     perm = torch.rand(outputs.shape).argsort(dim=1).cuda()
 
@@ -48,12 +46,9 @@ def get_metrics(
     diff_outputs = outputs[:, 1:] - outputs[:, :-1]
     diff_targets = targets[:, 1:] - targets[:, :-1]
 
-    # Compute signs of differences
-    sign_outputs = torch.sign(diff_outputs)
-    sign_targets = torch.sign(diff_targets)
-
+    diff_diffs = diff_outputs - diff_targets
     # Count where signs match
-    pair_wise_accuracy = (sign_outputs == sign_targets).float().mean().item()
+    pair_wise_accuracy = (diff_diffs.abs() < accuracy_threshold).float().mean().item()
 
     metrics = Metrics(
         loss=loss.item(),
