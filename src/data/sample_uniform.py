@@ -9,16 +9,14 @@ from torch.utils.data import DataLoader
 import data.base
 import wandb
 from metrics import get_metrics
-from tabular.value_iteration import ValueIteration, round_tensor
+from tabular.value_iteration import ValueIteration
 
 
 class RLData(data.base.RLData):
     def __init__(
         self,
         grid_world_args: dict,
-        pi_lower_bound: float,
         max_initial_bellman: Optional[int],
-        n_pi_bins: int,
         n_data: int,
         omit_states_actions: int,
         seed: int,
@@ -36,12 +34,6 @@ class RLData(data.base.RLData):
         alpha = torch.ones(A)
         Pi = torch.distributions.Dirichlet(alpha).sample((B, S))  # random policies
         assert [*Pi.shape] == [B, S, A]
-
-        # Compute the policy conditioned transition function
-        Pi = round_tensor(Pi, n_pi_bins) / n_pi_bins
-        Pi = Pi.float()
-        Pi = torch.clamp(Pi, pi_lower_bound, 1)
-        Pi = Pi / Pi.sum(-1, keepdim=True)
 
         print("Policy evaluation...")
         V = torch.stack(grid_world.evaluate_policy_iteratively(Pi, stop_at_rmse))
