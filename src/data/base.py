@@ -53,7 +53,6 @@ class RLData(Dataset, ABC):
         n_batch: int,
         net: nn.Module,
         plot_indices: torch.Tensor,
-        **metrics_args,
     ):
         raise NotImplementedError
 
