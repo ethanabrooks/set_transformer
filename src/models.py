@@ -92,7 +92,7 @@ class SetTransformer(nn.Module):
         action_probs: torch.Tensor,
         discrete: torch.Tensor,
         targets: torch.Tensor,
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         discrete = self.embedding(discrete)
         _, _, _, D = discrete.shape
         continuous = torch.cat([action_probs, v1[..., None]], dim=-1)
