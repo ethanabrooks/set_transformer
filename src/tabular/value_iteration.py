@@ -19,17 +19,10 @@ class ValueIteration(GridWorld):
 
     def improve_policy(self, V: torch.Tensor, idxs: Optional[torch.Tensor] = None):
         # self.check_V(V)
-        R = self.R
-        T = self.T
-        if idxs is not None:
-            T = T.to(idxs.device)
-            T = T[idxs]
-            R = R.to(idxs.device)
-            R = R[idxs]
+        R = self.get_rewards(idxs)
+        T = self.get_transitions(idxs)
         Q = R + self.gamma * (T * V[:, None, None]).sum(-1)
-        Pi = torch.zeros(
-            (self.n_tasks, self.n_states, len(self.deltas)), device=T.device
-        )
+        Pi = torch.zeros((len(R), self.n_states, len(self.deltas)), device=T.device)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         return Pi
 
@@ -89,27 +82,76 @@ class ValueIteration(GridWorld):
             Pi = self.improve_policy(V)
             # self.visualize_policy(Pi)
 
-    def visualize_values(self, V: torch.Tensor, task_idx: int = 0):
-        global_min = V[task_idx].min().item()
-        global_max = V[task_idx].max().item()
+    def visualize_values(self, V: torch.Tensor, save_path: Optional[str] = None):
+        dims = len(V.shape)
+        global_min = V.min().item()
+        global_max = V.max().item()
 
-        if self.absorbing_state:
-            V = V[:, :-1]
-        values = V[task_idx].reshape((self.grid_size, self.grid_size))
-        fig, ax = plt.subplots()
-        im = ax.imshow(
-            values,
-            cmap="hot",
-            interpolation="nearest",
-            vmin=global_min,
-            vmax=global_max,
-        )
+        def imshow(values: torch.Tensor, ax: plt.Axes):
+            values = values[..., :-1]
+            im = ax.imshow(
+                values.reshape((2 * self.grid_size, self.grid_size)),
+                cmap="hot",
+                interpolation="nearest",
+                vmin=global_min,
+                vmax=global_max,
+            )
+            ax.axis("off")  # Turn off the axes
+            return im
 
-        # Add colorbar to each subplot
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        if dims == 2:
+            fig, ax = plt.subplots(figsize=(self.grid_size, self.grid_size))
+            imshow(V, ax)
 
-        plt.tight_layout()
-        plt.savefig("values.png")
+        elif dims == 3:
+            n_tasks = V.shape[0]
+            fig, axes = plt.subplots(
+                1, n_tasks, figsize=(self.grid_size * n_tasks, self.grid_size)
+            )
+            if n_tasks == 1:
+                axes = [axes]
+            for idx, ax in enumerate(axes):
+                imshow(V[idx], ax)
+
+        elif dims == 4:
+            n_rows, n_cols = V.shape[:2]
+            # Adjust the subplot size depending on the number of rows
+            fig_size = (self.grid_size / (n_rows**0.5)) * n_cols, (
+                self.grid_size / (n_rows**0.5)
+            ) * n_rows
+            fig, axes = plt.subplots(
+                n_rows, n_cols, figsize=fig_size, sharex="all", sharey="all"
+            )
+
+            # Capture the return image for colorbar
+            ims = []
+            for i in range(n_rows):
+                for j in range(n_cols):
+                    im = imshow(V[i, j], axes[i, j])
+                    ims.append(im)
+
+            # Add a single colorbar for all plots
+            # fig.colorbar(ims[0], ax=axes.ravel().tolist())
+
+        else:
+            raise ValueError(f"Unsupported number of dimensions: {dims}")
+
+        if save_path:
+            plt.savefig(
+                save_path, dpi=self.grid_size**2 / 2
+            )  # adjust dpi if necessary
+        return fig
+
+
+def imshow(values: torch.Tensor, ax: plt.Axes, grid_size: int):
+    global_min = values.min().item()
+    global_max = values.max().item()
+
+    values = values.reshape((grid_size, grid_size))
+    im = ax.imshow(
+        values, cmap="hot", interpolation="nearest", vmin=global_min, vmax=global_max
+    )
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
 
 # whitelist:
