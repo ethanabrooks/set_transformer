@@ -13,6 +13,7 @@ def print_row(
     formats: Optional[dict[str, Callable[[Any], str]]] = None,
     widths: Optional[dict[str, float]] = None,
 ):
+    row = {k: v for k, v in row.items() if isinstance(v, (int, float))}
     if formats is None:
         formats = {}
     if widths is None:

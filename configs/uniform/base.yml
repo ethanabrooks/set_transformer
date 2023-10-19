@@ -25,6 +25,7 @@ model_args:
     n_heads: 8
 n_batch: 50
 n_epochs: 100
+n_plot: 3
 save_interval: 40000
 seed: 0
 test_1_interval: ${train_1_interval}
