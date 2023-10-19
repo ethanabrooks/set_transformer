@@ -9,6 +9,7 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.optim as optim
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
@@ -53,6 +54,7 @@ def train(
     model_args: dict,
     n_batch: int,
     n_epochs: int,
+    n_plot: int,
     bellman_delta: int,
     evaluate_args: dict,
     run: Optional[Run],
@@ -108,7 +110,8 @@ def train(
     test_n_log = None
     train_1_log = None
     tick = time.time()
-    iterations = int(math.ceil(train_data.max_n_bellman / bellman_delta))
+    iterations = int(math.ceil(test_data.max_n_bellman / bellman_delta))
+    plot_indices = torch.randint(0, len(test_data), [n_plot]).cuda()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
     for e in range(n_epochs):
@@ -123,6 +126,7 @@ def train(
                     iterations=1,
                     n_batch=n_batch,
                     net=net,
+                    plot_indices=plot_indices,
                     **evaluate_args,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
@@ -133,6 +137,7 @@ def train(
                     iterations=iterations,
                     n_batch=n_batch,
                     net=net,
+                    plot_indices=plot_indices,
                     **evaluate_args,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
@@ -142,6 +147,8 @@ def train(
             optimizer.zero_grad()
 
             targets_index = min(bellman_delta, train_data.max_n_bellman)
+            outputs: torch.Tensor
+            loss: torch.Tensor
             outputs, loss = net.forward(
                 v1=values[0],
                 action_probs=action_probs,
@@ -179,13 +186,20 @@ def train(
                         dict(**test_1_log, **test_n_log, **train_1_log),
                         step=step,
                     )
+                plt.close()
+                test_1_log = {}
+                test_n_log = filter_number(**test_n_log)
 
-                    # save
+            # save
             if step % save_interval == 0:
                 save(run, net)
                 save_count += 1
 
     save(run, net)
+
+
+def filter_number(**kwargs):
+    return {k: v for k, v in kwargs.items() if isinstance(v, (float, int))}
 
 
 def save(run: Run, net: SetTransformer):
