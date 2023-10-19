@@ -101,14 +101,13 @@ def train(
     net = SetTransformer(**model_args, n_tokens=n_tokens)
     if load_path is not None:
         load(load_path, net, run)
-    net = net.cuda()
+    net: SetTransformer = net.cuda()
     print("✓")
 
     counter = Counter()
     save_count = 0
-    test_1_log = None
-    test_n_log = None
-    train_1_log = None
+    test_1_log = {}
+    test_n_log = {}
     tick = time.time()
     iterations = int(math.ceil(test_data.max_n_bellman / bellman_delta))
     plot_indices = torch.randint(0, len(test_data), [n_plot]).cuda()
