@@ -41,7 +41,7 @@ test_data_args:
     terminate_on_goal: false
     use_heldout_goals: false
   max_initial_bellman: 1
-  n_data: 2000
+  n_data: 200
 test_data_path: "data/sample_uniform"
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
