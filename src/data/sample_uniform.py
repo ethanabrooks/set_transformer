@@ -4,7 +4,6 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from torch import Tensor
 from torch.utils.data import DataLoader
 
 import data.base
@@ -114,38 +113,14 @@ class RLData(data.base.RLData):
     def values(self) -> list[torch.Tensor]:
         return self._values
 
-    def get_metrics(
-        self,
-        idxs: torch.Tensor,
-        loss: Tensor,
-        outputs: Tensor,
-        targets: Tensor,
-        accuracy_threshold: float,
-    ):
-        metrics = get_metrics(
-            loss=loss,
-            outputs=outputs,
-            targets=targets,
-            accuracy_threshold=accuracy_threshold,
-        )
-        metrics = asdict(metrics)
-        if self.omit_states_actions == 0:
-            values = outputs[:, :: len(self.grid_world.deltas)]
-            Pi = self.grid_world.improve_policy(values, idxs=idxs)
-            values = self.grid_world.evaluate_policy_iteratively(
-                Pi, self.stop_at_rmse, idxs=idxs
-            )
-            metrics.update(improved_policy_value=values[-1].mean().item())
-        return metrics
-
     def evaluate(
         self,
+        accuracy_threshold: float,
         bellman_delta: int,
         iterations: int,
         n_batch: int,
         net: nn.Module,
         plot_indices: torch.Tensor,
-        **metrics_args,
     ):
         net.eval()
         counter = Counter()
@@ -180,13 +155,21 @@ class RLData(data.base.RLData):
                     mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
                     final_outputs[mask] = v1[mask]
 
-                metrics = self.get_metrics(
-                    idxs=idxs,
+                metrics = get_metrics(
                     loss=loss,
-                    outputs=final_outputs,
-                    targets=values[iterations],
-                    **metrics_args,
+                    outputs=outputs,
+                    targets=targets,
+                    accuracy_threshold=accuracy_threshold,
                 )
+                metrics = asdict(metrics)
+                if self.omit_states_actions == 0:
+                    values = outputs[:, :: len(self.grid_world.deltas)]
+                    Pi = self.grid_world.improve_policy(values, idxs=idxs)
+                    values = self.grid_world.evaluate_policy_iteratively(
+                        Pi, self.stop_at_rmse, idxs=idxs
+                    )
+                    improved_policy_value = values[-1].mean().item()
+                    metrics.update(improved_policy_value=improved_policy_value)
                 counter.update(metrics)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, values in plot_values.items():
