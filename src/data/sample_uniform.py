@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import asdict
 from typing import Optional
 
@@ -8,6 +8,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 import data.base
+import wandb
 from metrics import get_metrics
 from tabular.value_iteration import ValueIteration, round_tensor
 
@@ -131,7 +132,9 @@ class RLData(data.base.RLData):
         if self.omit_states_actions == 0:
             values = outputs[:, :: len(self.grid_world.deltas)]
             Pi = self.grid_world.improve_policy(values, idxs=idxs)
-            values = self.grid_world.evaluate_policy_iteratively(Pi, self.stop_at_rmse)
+            values = self.grid_world.evaluate_policy_iteratively(
+                Pi, self.stop_at_rmse, idxs=idxs
+            )
             metrics.update(improved_policy_value=values[-1].mean().item())
         return metrics
 
@@ -141,12 +144,15 @@ class RLData(data.base.RLData):
         iterations: int,
         n_batch: int,
         net: nn.Module,
+        plot_indices: torch.Tensor,
         **metrics_args,
     ):
         net.eval()
         counter = Counter()
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
+        plot_values = defaultdict(list)
         with torch.no_grad():
+            x: torch.Tensor
             for x in loader:
                 (idxs, input_n_bellman, action_probs, discrete, *values) = [
                     x.cuda() for x in x
@@ -154,17 +160,24 @@ class RLData(data.base.RLData):
                 max_n_bellman = len(values) - 1
                 v1 = values[0]
                 final_outputs = torch.zeros_like(v1)
-                for i in range(iterations):
+                plot_mask = torch.isin(idxs, plot_indices)
+                for j in range(iterations):
                     outputs: torch.Tensor
                     loss: torch.Tensor
+                    targets = values[min((j + 1) * bellman_delta, max_n_bellman)]
                     outputs, loss = net.forward(
                         v1=v1,
                         action_probs=action_probs,
                         discrete=discrete,
-                        targets=values[min((i + 1) * bellman_delta, max_n_bellman)],
+                        targets=targets,
                     )
-                    v1 = outputs.squeeze(-1)
-                    mask = (input_n_bellman + i * bellman_delta) < max_n_bellman
+                    outputs = outputs.squeeze(-1)
+                    for idx, output, target in zip(
+                        idxs[:, None][plot_mask], outputs[plot_mask], targets[plot_mask]
+                    ):
+                        plot_values[idx.item()].append([output, target])
+                    v1 = outputs
+                    mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
                     final_outputs[mask] = v1[mask]
 
                 metrics = self.get_metrics(
@@ -175,4 +188,12 @@ class RLData(data.base.RLData):
                     **metrics_args,
                 )
                 counter.update(metrics)
-        return {k: v / len(loader) for k, v in counter.items()}
+        metrics = {k: v / len(loader) for k, v in counter.items()}
+        for i, values in plot_values.items():
+            values = torch.stack([torch.stack(v) for v in values]).cpu()
+            fig = self.grid_world.visualize_values(
+                values[..., :: len(self.grid_world.deltas)]
+            )
+            metrics[f"values-plot {i}"] = wandb.Image(fig)
+
+        return metrics

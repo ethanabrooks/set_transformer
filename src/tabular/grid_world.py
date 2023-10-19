@@ -144,10 +144,10 @@ class GridWorld:
     #     B = self.n_tasks
     #     assert [*time_step.shape] == [B]
 
-    def check_V(self, V: torch.Tensor):
-        B = self.n_tasks
-        N = self.n_states
-        assert [*V.shape] == [B, N]
+    # def check_V(self, V: torch.Tensor):
+    #     B = self.n_tasks
+    #     N = self.n_states
+    #     assert [*V.shape] == [B, N]
 
     def create_exploration_policy(self):
         N = self.grid_size
@@ -197,17 +197,21 @@ class GridWorld:
         # self.visualize_policy(policy[None].tile(self.n_tasks, 1, 1))
         return policy
 
-    def evaluate_policy(self, Pi: torch.Tensor, V: torch.Tensor = None):
-        self.check_pi(Pi)
+    def evaluate_policy(
+        self,
+        Pi: torch.Tensor,
+        V: torch.Tensor = None,
+        idxs: Optional[torch.Tensor] = None,
+    ):
+        # self.check_pi(Pi)
 
-        B = self.n_tasks
+        B = self.n_tasks if idxs is None else len(idxs)
         N = self.n_states
         A = len(self.deltas)
-        assert [*Pi.shape] == [B, N, A]
 
         # Compute the policy conditioned transition function
         Pi_ = Pi.view(B * N, 1, A)
-        T = self.T.to(Pi.device)
+        T = self.get_transitions(idxs).to(Pi.device)
         T_ = T.view(B * N, A, N)
         T_Pi = torch.bmm(Pi_, T_)
         T_Pi = T_Pi.view(B, N, N)
@@ -215,20 +219,22 @@ class GridWorld:
         # Initialize V_0
         if V is None:
             V = torch.zeros((B, N), dtype=torch.float32, device=Pi.device)
-        self.check_V(V)
-        R = self.R.to(Pi.device)
+        # self.check_V(V)
+        R = self.get_rewards(idxs).to(Pi.device)
         ER = (Pi * R).sum(-1)
         EV = (T_Pi * V[:, None]).sum(-1)
         V = ER + self.gamma * EV
         return V
 
-    def evaluate_policy_iteratively(self, Pi: torch.Tensor, stop_at_rmse: float):
-        B = self.n_tasks
+    def evaluate_policy_iteratively(
+        self, Pi: torch.Tensor, stop_at_rmse: float, idxs: Optional[torch.Tensor] = None
+    ):
+        B = self.n_tasks if idxs is None else len(idxs)
         S = self.n_states
         V = [torch.zeros((B, S), device=Pi.device, dtype=torch.float)]
-        for k in itertools.count(1):  # n_rounds of policy evaluation
+        for _ in itertools.count(1):  # n_rounds of policy evaluation
             Vk = V[-1]
-            Vk1 = self.evaluate_policy(Pi, Vk)
+            Vk1 = self.evaluate_policy(Pi, Vk, idxs=idxs)
             V.append(Vk1)
             rmse = compute_rmse(Vk1, Vk)
             # print("Iteration:", k, "RMSE:", rmse)
@@ -306,6 +312,16 @@ class GridWorld:
             done=done,
         )
 
+    def get_rewards(self, idxs: Optional[torch.Tensor] = None):
+        if idxs is None:
+            return self.R
+        return self.R.to(idxs.device)[idxs]
+
+    def get_transitions(self, idxs: Optional[torch.Tensor] = None):
+        if idxs is None:
+            return self.T
+        return self.T.to(idxs.device)[idxs]
+
     def reset_fn(self):
         array = self.random.choice(self.grid_size, size=(self.n_tasks, 2))
         return torch.tensor(array)
@@ -348,71 +364,92 @@ class GridWorld:
             done = done | (states == self.goals).all(-1)
         return next_states, rewards, done, {}
 
-    def visualize_policy(self, Pi, task_idx: int = 0):
-        N = self.grid_size
-        policy = Pi[task_idx]
-        _, ax = plt.subplots(figsize=(6, 6))
-        plt.xlim(0, N)  # Adjusted the starting limit
-        plt.ylim(0, N)
+    def visualize_policy(self, Pi: torch.Tensor):
+        dims = len(Pi.shape)
 
-        # Draw grid
-        for i in range(N + 1):
-            offset = 0.5
-            plt.plot(
-                [i + offset, i + offset],
-                [0 + offset, N + offset],
-                color="black",
-                linewidth=0.5,
-            )
-            plt.plot(
-                [0 + offset, N + offset],
-                [i + offset, i + offset],
-                color="black",
-                linewidth=0.5,
-            )
+        if dims == 2:
+            fig, ax = plt.subplots(figsize=(6, 6))
+            plot_policy(Pi, ax, self.grid_size, self.deltas)
 
-        # Draw policy
-        for i in range(N):
-            for j in range(N):
-                center_x = j + 0.5
-                center_y = N - i - 0.5
+        elif dims == 3:
+            n_tasks = Pi.shape[0]
+            fig, axes = plt.subplots(1, n_tasks, figsize=(6 * n_tasks, 6))
+            for idx, ax in enumerate(axes):
+                plot_policy(Pi[idx], ax, self.grid_size, self.deltas)
 
-                for action_idx, prob in enumerate(policy[N * i + j]):
-                    if (
-                        prob > 0
-                    ):  # Only draw if there's a non-zero chance of taking the action
-                        delta = self.deltas[action_idx]
-                        if tuple(delta) == (0, 0):
-                            radius = (
-                                0.2 * prob.item()
-                            )  # The circle's radius could be proportional to the action probability
-                            circle = plt.Circle(
-                                (center_x, center_y),
-                                radius,
-                                color="red",
-                                alpha=prob.item(),
-                            )
-                            ax.add_patch(circle)
-                            continue  # Skip the arrow drawing part for no-op action
+        elif dims == 4:
+            n_rows, n_cols = Pi.shape[:2]
+            fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 6 * n_rows))
+            for i in range(n_rows):
+                for j in range(n_cols):
+                    plot_policy(Pi[i, j], axes[i, j], self.grid_size, self.deltas)
+        else:
+            raise ValueError(f"Unsupported number of dimensions: {dims}")
 
-                        di, dj = delta * 0.4
-                        dx, dy = dj, -di
-                        ax.arrow(
-                            center_x - dx / 2,
-                            center_y - dy / 2,
-                            dx,
-                            dy,
-                            head_width=0.2,
-                            head_length=0.2,
-                            fc="blue",
-                            ec="blue",
-                            alpha=prob.item(),  # Set the opacity according to the probability
-                        )
-
-        plt.gca().set_aspect("equal", adjustable="box")
-        plt.xticks(np.arange(0.5, N + 0.5), np.arange(N))
-        plt.yticks(np.arange(0.5, N + 0.5), np.arange(N))
+        plt.tight_layout()
         plt.savefig("policy.png")
+
+
+def plot_policy(policy: torch.Tensor, ax: plt.Axes, grid_size: int, deltas: list):
+    N = grid_size
+    plt.xlim(0, N)  # Adjusted the starting limit
+    plt.ylim(0, N)
+
+    # Draw grid
+    for i in range(N + 1):
+        offset = 0.5
+        ax.plot(
+            [i + offset, i + offset],
+            [0 + offset, N + offset],
+            color="black",
+            linewidth=0.5,
+        )
+        ax.plot(
+            [0 + offset, N + offset],
+            [i + offset, i + offset],
+            color="black",
+            linewidth=0.5,
+        )
+
+    # Draw policy
+    for i in range(N):
+        for j in range(N):
+            center_x = j + 0.5
+            center_y = N - i - 0.5
+
+            for action_idx, prob in enumerate(policy[N * i + j]):
+                if prob > 0:
+                    delta = deltas[action_idx]
+                    if tuple(delta) == (0, 0):
+                        radius = 0.2 * prob.item()
+                        circle = plt.Circle(
+                            (center_x, center_y),
+                            radius,
+                            color="red",
+                            alpha=prob.item(),
+                        )
+                        ax.add_patch(circle)
+                        continue
+
+                    di, dj = delta * 0.4
+                    dx, dy = dj, -di
+                    ax.arrow(
+                        center_x - dx / 2,
+                        center_y - dy / 2,
+                        dx,
+                        dy,
+                        head_width=0.2,
+                        head_length=0.2,
+                        fc="blue",
+                        ec="blue",
+                        alpha=prob.item(),
+                    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xticks(np.arange(0.5, N + 0.5))
+    ax.set_yticks(np.arange(0.5, N + 0.5))
+    ax.set_xticklabels(np.arange(N))
+    ax.set_yticklabels(np.arange(N))
 
 
 # whitelist
