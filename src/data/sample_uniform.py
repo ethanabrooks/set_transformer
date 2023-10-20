@@ -85,6 +85,10 @@ class RLData(data.base.RLData):
             ]
             self.input_n_bellman = input_bellman[:, omit_states_actions:].cuda()
 
+        self.optimally_improved_policy_values = self.compute_improved_policy_value(
+            self.V[-1]
+        ).cuda()
+
     @property
     def continuous(self) -> torch.Tensor:
         return self._continuous
@@ -104,6 +108,15 @@ class RLData(data.base.RLData):
     @property
     def values(self) -> list[torch.Tensor]:
         return self._values
+
+    def compute_improved_policy_value(
+        self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
+    ):
+        Pi = self.grid_world.improve_policy(values, idxs=idxs)
+        *_, values = self.grid_world.evaluate_policy_iteratively(
+            Pi, self.stop_at_rmse, idxs=idxs
+        )
+        return values
 
     def evaluate(
         self,
@@ -156,12 +169,17 @@ class RLData(data.base.RLData):
                 metrics = asdict(metrics)
                 if self.omit_states_actions == 0:
                     values = outputs[:, :: len(self.grid_world.deltas)]
-                    Pi = self.grid_world.improve_policy(values, idxs=idxs)
-                    values = self.grid_world.evaluate_policy_iteratively(
-                        Pi, self.stop_at_rmse, idxs=idxs
+                    improved_policy_value = self.compute_improved_policy_value(
+                        idxs=idxs, values=values
                     )
-                    improved_policy_value = values[-1].mean().item()
-                    metrics.update(improved_policy_value=improved_policy_value)
+                    optimally_improved_policy_values = (
+                        self.optimally_improved_policy_values[idxs]
+                    )
+                    regret = optimally_improved_policy_values - improved_policy_value
+                    metrics.update(
+                        optimally_improved_policy_values=optimally_improved_policy_values.mean().item(),
+                        regret=regret.mean().item(),
+                    )
                 counter.update(metrics)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, values in plot_values.items():
