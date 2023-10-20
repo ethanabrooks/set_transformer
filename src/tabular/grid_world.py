@@ -80,9 +80,7 @@ class GridWorld:
         next_states = next_states[None].tile(T, 1, 1, 1)
         next_states = states * is_wall + next_states * (~is_wall)
         next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
-        next_state_indices = (
-            next_states[..., 0] * self.grid_size + next_states[..., 1]
-        )  # Convert to indices
+        next_state_indices = self.convert_2d_to_1d(next_states)  # Convert to indices
 
         # Determine if next_state is the goal for each batch (goal)
         # is_goal = (self.goals[:, None] == self.states[None]).all(-1)
@@ -119,9 +117,7 @@ class GridWorld:
 
     @property
     def goals(self):
-        return torch.stack(
-            [self.goal_idxs // self.grid_size, self.goal_idxs % self.grid_size], dim=1
-        )
+        return self.convert_1d_to_2d(self.goal_idxs)
 
     @property
     def n_states(self):
@@ -129,6 +125,12 @@ class GridWorld:
         if self.use_absorbing_state:
             n_states += 1
         return n_states
+
+    def convert_1d_to_2d(self, x: torch.Tensor):
+        return torch.stack([x // self.grid_size, x % self.grid_size], dim=1)
+
+    def convert_2d_to_1d(self, x: torch.Tensor):
+        return self.grid_size * x[..., 0] + x[..., 1]
 
     # def check_actions(self, actions: torch.Tensor):
     #     B = self.n_tasks
@@ -274,9 +276,7 @@ class GridWorld:
 
         for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
             # Convert current current_states to indices
-            current_state_indices = (
-                current_states[:, 0] * self.grid_size + current_states[:, 1]
-            )
+            current_state_indices = self.convert_2d_to_1d(current_states)
 
             # Sample actions from the policy
             A = (
@@ -294,13 +294,7 @@ class GridWorld:
             )
 
             # Convert next state indices to coordinates
-            next_states = torch.stack(
-                (
-                    next_state_indices // self.grid_size,
-                    next_state_indices % self.grid_size,
-                ),
-                dim=1,
-            )
+            next_states = self.convert_1d_to_2d(next_state_indices)
             next_states_on_reset = self.reset_fn()
             next_states[D] = next_states_on_reset[D]
 
