@@ -16,9 +16,10 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class Step(Generic[T]):
-    observations: T
+    states: T
     actions: T
     action_probs: T
+    next_states: T
     rewards: T
     done: T
 
@@ -269,15 +270,16 @@ class GridWorld:
         states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
         actions = torch.zeros((B, trajectory_length), dtype=torch.int)
         action_probs = torch.zeros((B, trajectory_length, A), dtype=torch.int)
+        next_states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
         rewards = torch.zeros((B, trajectory_length))
         done = torch.zeros((B, trajectory_length), dtype=torch.bool)
-        current_states = self.reset_fn()
+        S1 = self.reset_fn()
         time_step = torch.zeros((B))
         arange = torch.arange(B)
 
         for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
             # Convert current current_states to indices
-            current_state_indices = self.convert_2d_to_1d(current_states)
+            current_state_indices = self.convert_2d_to_1d(S1)
 
             # Sample actions from the policy
             A = (
@@ -295,26 +297,28 @@ class GridWorld:
             )
 
             # Convert next state indices to coordinates
-            next_states = self.convert_1d_to_2d(next_state_indices)
-            next_states_on_reset = self.reset_fn()
-            next_states[D] = next_states_on_reset[D]
+            S2 = self.convert_1d_to_2d(next_state_indices)
 
             # Store the current current_states and rewards
-            states[:, t] = current_states
+            states[:, t] = S1
             actions[:, t] = A
             action_probs[:, t] = Pi[arange, current_state_indices]
+            next_states[:, t] = S2
             rewards[:, t] = R
             done[:, t] = D
             time_step += 1
             time_step[D] = 0
 
             # Update current current_states
-            current_states = next_states
+            S1 = S2
+            S_reset = self.reset_fn()
+            S1[D] = S_reset[D]
 
         return Step(
-            observations=states,
+            states=states,
             actions=actions[..., None],
             action_probs=action_probs,
+            next_states=next_states,
             rewards=rewards,
             done=done,
         )
