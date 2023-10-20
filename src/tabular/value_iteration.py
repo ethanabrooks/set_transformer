@@ -44,9 +44,7 @@ class ValueIteration(GridWorld):
         # Compute next states for each action and state for each batch (goal)
         next_states = states[:, None] + self.deltas[None, :]
         next_states = torch.clamp(next_states, 0, self.grid_size - 1)
-        S_ = (
-            next_states[..., 0] * self.grid_size + next_states[..., 1]
-        )  # Convert to indices
+        S_ = self.convert_2d_to_1d(next_states)  # Convert to indices
 
         # Determine if next_state is the goal for each batch (goal)
         is_goal = (self.goals[:, None] == states[None]).all(-1)
