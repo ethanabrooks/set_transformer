@@ -54,7 +54,7 @@ class ValueIteration(GridWorld):
         # Modify transition to go to absorbing state if the next state is a goal
         absorbing_state_idx = S - 1
         S_ = S_[None].tile(B, 1, 1)
-        if self.absorbing_state:
+        if self.use_absorbing_state:
             S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
 
         # Insert row for absorbing state
