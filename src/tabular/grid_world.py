@@ -45,7 +45,7 @@ class GridWorld:
         T = n_tasks
 
         # add absorbing state for goals
-        self.absorbing_state = absorbing_state
+        self.use_absorbing_state = absorbing_state
         self.dense_reward = dense_reward
         self.gamma = gamma
         self.grid_size = grid_size
@@ -87,13 +87,12 @@ class GridWorld:
         # Determine if next_state is the goal for each batch (goal)
         # is_goal = (self.goals[:, None] == self.states[None]).all(-1)
         # create walls and goals
-        goal_idxs = torch.randint(0, G, (T,))
-        self.goals = torch.stack([goal_idxs // grid_size, goal_idxs % grid_size], dim=1)
-        is_goal = goal_idxs[:, None, None] == next_state_indices
+        self.goal_idxs = torch.randint(0, G, (T,))
+        is_goal = self.goal_idxs[:, None, None] == next_state_indices
 
         # Modify transition to go to absorbing state if the next state is a goal
         absorbing_state_idx = self.n_states - 1
-        if self.absorbing_state:
+        if self.use_absorbing_state:
             # S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
             next_state_indices[is_goal[:, :G]] = absorbing_state_idx
 
@@ -111,13 +110,23 @@ class GridWorld:
         else:
             R = is_goal.float()
         self.R = R
-        if self.absorbing_state:
+        if self.use_absorbing_state:
             self.R = F.pad(R, padding, value=0)  # Insert row for absorbing state
+
+    @property
+    def absorbing_state(self):
+        return self.n_states - 1
+
+    @property
+    def goals(self):
+        return torch.stack(
+            [self.goal_idxs // self.grid_size, self.goal_idxs % self.grid_size], dim=1
+        )
 
     @property
     def n_states(self):
         n_states = self.grid_size**2
-        if self.absorbing_state:
+        if self.use_absorbing_state:
             n_states += 1
         return n_states
 
@@ -190,7 +199,7 @@ class GridWorld:
 
         # Flatten the 2D policy tensor to 1D
         policy = policy_2d.view(N * N, A)
-        if self.absorbing_state:
+        if self.use_absorbing_state:
             # Insert row for absorbing state
             policy = F.pad(policy, (0, 0, 0, 1), value=0)
             policy[-1, 0] = 1  # last state is terminal
@@ -348,11 +357,9 @@ class GridWorld:
         actions = actions.flatten()
 
         rewards = self.R[arange, states, actions]
-        rewards = rewards.reshape(shape)
 
         # Compute next state indices
         next_states = torch.argmax(self.T[arange, states, actions], dim=1)
-        next_states = next_states.reshape(shape)
 
         if time_step is None:
             done = torch.zeros_like(states, dtype=torch.bool)
@@ -361,7 +368,9 @@ class GridWorld:
         else:
             raise ValueError("Either episode_length or time_step must be provided")
         if self.terminate_on_goal:
-            done = done | (states == self.goals).all(-1)
+            done = done | (next_states == self.absorbing_state)
+        next_states = next_states.reshape(shape)
+        rewards = rewards.reshape(shape)
         return next_states, rewards, done, {}
 
     def visualize_policy(self, Pi: torch.Tensor):
