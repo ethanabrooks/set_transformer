@@ -36,7 +36,7 @@ test_data_args:
     heldout_goals: []
     n_maze: 200
     p_wall: 1
-    terminate_on_goal: false
+    terminate_on_goal: true
     use_heldout_goals: false
   max_initial_bellman: 1
   n_data: 200
@@ -52,7 +52,7 @@ train_data_args:
     heldout_goals: []
     n_maze: 0
     p_wall: 0.25
-    terminate_on_goal: false
+    terminate_on_goal: true
     use_heldout_goals: false
   max_initial_bellman: null
   n_data: 80_000
