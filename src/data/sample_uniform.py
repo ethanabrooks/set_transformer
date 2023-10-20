@@ -118,15 +118,60 @@ class RLData(data.base.RLData):
         )
         return values
 
-    def evaluate(
+    def get_metrics(
         self,
         accuracy_threshold: float,
         bellman_delta: int,
+        idxs: torch.Tensor,
+        input_n_bellman: torch.Tensor,
         iterations: int,
-        n_batch: int,
         net: nn.Module,
         plot_indices: torch.Tensor,
+        values: torch.Tensor,
+        **kwargs,
     ):
+        max_n_bellman = len(values) - 1
+        v1 = values[0]
+        final_outputs = torch.zeros_like(v1)
+        plot_mask = torch.isin(idxs, plot_indices)
+        plot_values = defaultdict(list)
+        for j in range(iterations):
+            outputs: torch.Tensor
+            loss: torch.Tensor
+            targets = values[min((j + 1) * bellman_delta, max_n_bellman)]
+            outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
+            outputs = outputs.squeeze(-1)
+            for idx, output, target in zip(
+                idxs[:, None][plot_mask], outputs[plot_mask], targets[plot_mask]
+            ):
+                plot_values[idx.item()].append([output, target])
+            v1 = outputs
+            mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
+            final_outputs[mask] = v1[mask]
+
+        metrics = get_metrics(
+            loss=loss,
+            outputs=outputs,
+            targets=targets,
+            accuracy_threshold=accuracy_threshold,
+        )
+        metrics = asdict(metrics)
+        if self.omit_states_actions == 0:
+            values = outputs[:, :: len(self.grid_world.deltas)]
+            improved_policy_value = self.compute_improved_policy_value(
+                idxs=idxs, values=values
+            )
+            optimally_improved_policy_values = self.optimally_improved_policy_values[
+                idxs
+            ]
+            regret = optimally_improved_policy_values - improved_policy_value
+            metrics.update(
+                improved_policy_value=improved_policy_value.mean().item(),
+                regret=regret.mean().item(),
+            )
+        return metrics, plot_values
+
+    def evaluate(self, n_batch: int, net: nn.Module, **kwargs):
         net.eval()
         counter = Counter()
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
@@ -137,50 +182,18 @@ class RLData(data.base.RLData):
                 (idxs, input_n_bellman, action_probs, discrete, *values) = [
                     x.cuda() for x in x
                 ]
-                max_n_bellman = len(values) - 1
-                v1 = values[0]
-                final_outputs = torch.zeros_like(v1)
-                plot_mask = torch.isin(idxs, plot_indices)
-                for j in range(iterations):
-                    outputs: torch.Tensor
-                    loss: torch.Tensor
-                    targets = values[min((j + 1) * bellman_delta, max_n_bellman)]
-                    outputs, loss = net.forward(
-                        v1=v1,
-                        action_probs=action_probs,
-                        discrete=discrete,
-                        targets=targets,
-                    )
-                    outputs = outputs.squeeze(-1)
-                    for idx, output, target in zip(
-                        idxs[:, None][plot_mask], outputs[plot_mask], targets[plot_mask]
-                    ):
-                        plot_values[idx.item()].append([output, target])
-                    v1 = outputs
-                    mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
-                    final_outputs[mask] = v1[mask]
-
-                metrics = get_metrics(
-                    loss=loss,
-                    outputs=outputs,
-                    targets=targets,
-                    accuracy_threshold=accuracy_threshold,
+                metrics, new_plot_values = self.get_metrics(
+                    idxs=idxs,
+                    input_n_bellman=input_n_bellman,
+                    net=net,
+                    values=values,
+                    action_probs=action_probs,
+                    discrete=discrete,
+                    **kwargs,
                 )
-                metrics = asdict(metrics)
-                if self.omit_states_actions == 0:
-                    values = outputs[:, :: len(self.grid_world.deltas)]
-                    improved_policy_value = self.compute_improved_policy_value(
-                        idxs=idxs, values=values
-                    )
-                    optimally_improved_policy_values = (
-                        self.optimally_improved_policy_values[idxs]
-                    )
-                    regret = optimally_improved_policy_values - improved_policy_value
-                    metrics.update(
-                        optimally_improved_policy_values=optimally_improved_policy_values.mean().item(),
-                        regret=regret.mean().item(),
-                    )
                 counter.update(metrics)
+                for k, v in new_plot_values.items():
+                    plot_values[k].extend(v)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, values in plot_values.items():
             values = torch.stack([torch.stack(v) for v in values]).cpu()
