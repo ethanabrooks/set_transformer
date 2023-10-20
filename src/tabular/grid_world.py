@@ -288,7 +288,10 @@ class GridWorld:
 
             # Convert current current_states to indices
             next_state_indices, R, D, _ = self.step_fn(
-                current_state_indices, A, time_step
+                states=current_state_indices,
+                actions=A,
+                episode_length=episode_length,
+                time_step=time_step,
             )
 
             # Convert next state indices to coordinates
