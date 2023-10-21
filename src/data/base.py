@@ -135,7 +135,7 @@ class RLData(Dataset, ABC):
         )
         return values
 
-    def get_metrics(
+    def get_n_metrics(
         self,
         accuracy_threshold: float,
         bellman_delta: int,
@@ -156,7 +156,8 @@ class RLData(Dataset, ABC):
             outputs: torch.Tensor
             loss: torch.Tensor
             targets = values[min((j + 1) * bellman_delta, max_n_bellman)]
-            outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
+            with torch.no_grad():
+                outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
             outputs = outputs.squeeze(-1)
             for idx, output, target in zip(
                 idxs[:, None][plot_mask], outputs[plot_mask], targets[plot_mask]
@@ -199,7 +200,7 @@ class RLData(Dataset, ABC):
                 (idxs, input_n_bellman, action_probs, discrete, *values) = [
                     x.cuda() for x in x
                 ]
-                metrics, new_plot_values = self.get_metrics(
+                metrics, new_plot_values = self.get_n_metrics(
                     idxs=idxs,
                     input_n_bellman=input_n_bellman,
                     net=net,
