@@ -1,5 +1,4 @@
 data_args:
-  omit_states_actions: 0
   stop_at_rmse: 0.005
 decay_args:
   final_step: 200_000
@@ -40,6 +39,7 @@ test_data_args:
     use_heldout_goals: false
   max_initial_bellman: 1
   n_data: 200
+  omit_states_actions: 0
 test_data_path: "data/sample_uniform"
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
@@ -56,4 +56,5 @@ train_data_args:
     use_heldout_goals: false
   max_initial_bellman: null
   n_data: 80_000
+  omit_states_actions: 0
 train_data_path: "data/sample_uniform"
