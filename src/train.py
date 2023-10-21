@@ -117,7 +117,9 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            (_, _, action_probs, discrete, *values) = [x.cuda() for x in x]
+            (idxs, input_n_bellman, action_probs, discrete, *values) = [
+                x.cuda() for x in x
+            ]
             step = e * len(train_loader) + t
             if step % test_1_interval == 0:
                 log = test_data.evaluate(
@@ -172,8 +174,23 @@ def train(
             if step % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
+                train_n_log, _ = train_data.get_n_metrics(
+                    action_probs=action_probs,
+                    bellman_delta=bellman_delta,
+                    discrete=discrete,
+                    idxs=idxs,
+                    input_n_bellman=input_n_bellman,
+                    iterations=iterations,
+                    net=net,
+                    plot_indices=plot_indices,
+                    values=values,
+                    **evaluate_args,
+                )
+                train_n_log = {
+                    "train-n/" + k: v for k, v in train_n_log.items() if k != "loss"
+                }
                 train_1_log = {
-                    f"train/{k}": v / counter["n"] for k, v in counter.items()
+                    f"train-1/{k}": v / counter["n"] for k, v in counter.items()
                 }
                 train_1_log.update(
                     epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
@@ -182,7 +199,7 @@ def train(
                 print_row(train_1_log, show_header=(step % train_1_interval == 0))
                 if run is not None:
                     wandb.log(
-                        dict(**test_1_log, **test_n_log, **train_1_log),
+                        dict(**test_1_log, **test_n_log, **train_1_log, **train_n_log),
                         step=step,
                     )
                 plt.close()
