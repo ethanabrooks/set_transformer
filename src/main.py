@@ -5,6 +5,7 @@ import sys
 import time
 import urllib
 from pathlib import Path
+from typing import Set
 
 import tomli
 from dollar_lambda import CommandTree, argument, option
@@ -13,6 +14,7 @@ from omegaconf import DictConfig, OmegaConf
 from ray import tune
 from ray.air.integrations.wandb import setup_wandb
 from rich import print
+from wandb.sdk.wandb_run import Run
 
 import wandb
 from param_space import param_space
@@ -66,8 +68,26 @@ def get_project_name():
     return pyproject["tool"]["poetry"]["name"]
 
 
+def get_ignored() -> Set[Path]:
+    repo = Repo(".")
+    src = Path(__file__).parent
+    ignored = repo.git.ls_files(
+        str(src), o=True, i=True, exclude_standard=True
+    ).splitlines()
+    return set(Path(p).absolute() for p in ignored)
+
+
 def check_dirty():
     assert not Repo(".").is_dirty()
+
+
+def include_fn(path: str, exclude: list[str]):
+    ignored = get_ignored()
+    path = Path(path).absolute()
+    include = path in ignored
+    for pattern in exclude:
+        include = include and not Path(path).match(pattern)
+    return include
 
 
 parsers = dict(config=option("config", default="delta-1"))
@@ -159,6 +179,7 @@ def sweep(
                 raise ValueError(f"Failed to index into config with path {k}")
             subconfig[key] = v
 
+        run: Run
         while True:
             try:
                 run = setup_wandb(
@@ -176,6 +197,10 @@ def sweep(
         print(
             f"wandb: ️👪 View group at {run.get_project_url()}/groups/{urllib.parse.quote(group)}/workspace"
         )
+        root = Path(__file__).parent
+        run.log_code(
+            str(root), include_fn=lambda p: include_fn(p, exclude=["__pycache__/**"])
+        )  # log untracked files
         config.update(run=run)
         return train(**config)
 
