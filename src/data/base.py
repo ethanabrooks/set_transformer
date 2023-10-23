@@ -176,20 +176,7 @@ class RLData(Dataset, ABC):
             accuracy_threshold=accuracy_threshold,
         )
         metrics = asdict(metrics)
-        if self.omit_states_actions == 0:
-            values = outputs[:, :: len(self.grid_world.deltas)]
-            improved_policy_value = self.compute_improved_policy_value(
-                idxs=idxs, values=values
-            )
-            optimally_improved_policy_values = self.optimally_improved_policy_values[
-                idxs
-            ]
-            regret = optimally_improved_policy_values - improved_policy_value
-            metrics.update(
-                improved_policy_value=improved_policy_value.mean().item(),
-                regret=regret.mean().item(),
-            )
-        return metrics, plot_values
+        return metrics, plot_values, outputs
 
     def evaluate(self, n_batch: int, net: nn.Module, **kwargs):
         net.eval()
@@ -202,7 +189,7 @@ class RLData(Dataset, ABC):
                 (idxs, input_n_bellman, action_probs, discrete, *values) = [
                     x.cuda() for x in x
                 ]
-                metrics, new_plot_values = self.get_n_metrics(
+                metrics, new_plot_values, _ = self.get_n_metrics(
                     idxs=idxs,
                     input_n_bellman=input_n_bellman,
                     net=net,
