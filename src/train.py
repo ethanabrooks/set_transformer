@@ -174,7 +174,7 @@ def train(
             if step % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
-                train_n_log, _ = train_data.get_n_metrics(
+                train_n_log, _, _ = train_data.get_n_metrics(
                     action_probs=action_probs,
                     bellman_delta=bellman_delta,
                     discrete=discrete,
