@@ -11,6 +11,6 @@
         "**/.direnv/*/**": true,
         "**/wandb/*/**": true,
         "**/results/*/**": true
-      }
-
+    },
+    "python.formatting.provider": "none"
 }
