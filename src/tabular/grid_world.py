@@ -370,7 +370,7 @@ class GridWorld:
         else:
             raise ValueError("Either episode_length or time_step must be provided")
         if self.terminate_on_goal:
-            done = done | (next_states == self.absorbing_state)
+            done = done | (states == self.absorbing_state)
         next_states = next_states.reshape(shape)
         rewards = rewards.reshape(shape)
         return next_states, rewards, done, {}
