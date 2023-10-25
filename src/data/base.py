@@ -174,14 +174,14 @@ class RLData(Dataset, ABC):
             with torch.no_grad():
                 outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
             outputs = outputs.squeeze(-1)
-            all_outputs.append(torch.stack([outputs, targets]))
             v1 = outputs
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
             final_outputs[mask] = v1[mask]
+            all_outputs.append(torch.stack([final_outputs, targets]))
 
         metrics = get_metrics(
             loss=loss,
-            outputs=outputs,
+            outputs=final_outputs,
             targets=targets,
             accuracy_threshold=accuracy_threshold,
         )
