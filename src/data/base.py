@@ -1,6 +1,6 @@
 import importlib
 from abc import ABC, abstractmethod
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
@@ -38,6 +38,7 @@ class RLData(Dataset, ABC):
         alpha = torch.ones(A)
         Pi = torch.distributions.Dirichlet(alpha).sample((B, S))  # random policies
         assert [*Pi.shape] == [B, S, A]
+        self.Pi = Pi.cuda()
 
         print("Policy evaluation...")
         V = torch.stack(grid_world.evaluate_policy_iteratively(Pi, stop_at_rmse))
@@ -47,20 +48,34 @@ class RLData(Dataset, ABC):
             max_initial_bellman = self._max_n_bellman
 
         states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
-        _, L = states.shape
 
         # sample n_bellman -- number of steps of policy evaluation
-        self._input_bellman = input_bellman = torch.randint(
-            0, max_initial_bellman, (B, 1)
-        ).tile(1, L)
+        self._input_bellman = input_bellman = torch.randint(0, max_initial_bellman, [B])
+        n_bellman = torch.arange(len(V))[:, None] + input_bellman[None, :]
 
-        n_bellman = [input_bellman + o for o in range(len(V))]
-        n_bellman = [torch.clamp(o, 0, self.max_n_bellman) for o in n_bellman]
-        arange = torch.arange(B)[:, None]
-        action_probs = Pi[arange, states]
-        V = [V[o, arange, states] for o in n_bellman]
+        n_bellman = torch.clamp(n_bellman, 0, self.max_n_bellman)
+        action_probs = Pi[torch.arange(B)[:, None], states]
+        # Use advanced indexing to get the desired tensor
 
-        self._values = [torch.Tensor(v) for v in V]
+        v_mesh, b_mesh = torch.meshgrid(
+            torch.arange(len(V)), torch.arange(B), indexing="ij"
+        )
+        v_mesh = v_mesh + input_bellman[None, :]
+        v_mesh = torch.clamp(v_mesh, 0, self.max_n_bellman)
+        V_indexed = V[v_mesh, b_mesh]
+        V_indexed = V_indexed[
+            torch.arange(len(V))[:, None, None],
+            torch.arange(B)[None, :, None],
+            states[None],
+        ]
+        for b in range(10):
+            for i, s in enumerate(states[b]):
+                for nb in range(len(V)):
+                    left = V_indexed[nb, b, i]
+                    right = V[min(len(V) - 1, nb + input_bellman[b]), b, s]
+                    assert torch.all(left == right), (nb, b, s, left, right)
+
+        self._values = V_indexed
         self._continuous = torch.Tensor(action_probs)
         discrete = [
             states[..., None],
@@ -70,21 +85,14 @@ class RLData(Dataset, ABC):
         ]
         self._discrete = torch.cat(discrete, -1).long()
 
-        perm = torch.rand(B, S * A).argsort(dim=1)
-
-        def shuffle(x: torch.Tensor):
-            p = perm
-            while p.dim() < x.dim():
-                p = p[..., None]
-
-            return torch.gather(x, 1, p.expand_as(x))
+        self.perm = torch.rand(B, S * A).argsort(dim=1)
 
         if omit_states_actions > 0:
-            *self._values, self._continuous, self._discrete = [
-                shuffle(x)[:, omit_states_actions:]
-                for x in [*self._values, self._continuous, self._discrete]
+            self._values = self.shuffle(self._values, 2)[:, :, omit_states_actions:]
+            self._continuous, self._discrete = [
+                self.shuffle(x, 1)[:, omit_states_actions:]
+                for x in [self._continuous, self._discrete]
             ]
-            self._input_bellman = input_bellman[:, omit_states_actions:].cuda()
 
         self.optimally_improved_policy_values = self.compute_improved_policy_value(
             self.V[-1]
@@ -99,7 +107,7 @@ class RLData(Dataset, ABC):
             self.input_bellman[idx],
             self.continuous[idx],
             self.discrete[idx],
-            *[v[idx] for v in self.values],
+            self.values[:, idx],
         )
 
     @property
@@ -143,26 +151,28 @@ class RLData(Dataset, ABC):
         input_n_bellman: torch.Tensor,
         iterations: int,
         net: nn.Module,
-        plot_indices: torch.Tensor,
         values: torch.Tensor,
         **kwargs,
     ):
-        max_n_bellman = len(values) - 1
-        v1 = values[0]
+        A = len(self.grid_world.deltas)
+        Pi: torch.Tensor = self.Pi[idxs]
+        Pi = Pi.repeat_interleave(A, 1)
+        if self.omit_states_actions > 0:
+            Pi = self.shuffle(Pi, 1, idxs=idxs)
+            Pi = Pi[:, self.omit_states_actions :]
+        _, max_n_bellman, _ = values.shape
+        max_n_bellman -= 1
+        v1 = values[:, 0]
         final_outputs = torch.zeros_like(v1)
-        plot_mask = torch.isin(idxs, plot_indices)
-        plot_values = defaultdict(list)
+        all_outputs = []
         for j in range(iterations):
             outputs: torch.Tensor
             loss: torch.Tensor
-            targets = values[min((j + 1) * bellman_delta, max_n_bellman)]
+            targets = values[:, min((j + 1) * bellman_delta, max_n_bellman)]
             with torch.no_grad():
                 outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
             outputs = outputs.squeeze(-1)
-            for idx, output, target in zip(
-                idxs[:, None][plot_mask], outputs[plot_mask], targets[plot_mask]
-            ):
-                plot_values[idx.item()].append([output, target])
+            all_outputs.append(torch.stack([outputs, targets]))
             v1 = outputs
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
             final_outputs[mask] = v1[mask]
@@ -174,20 +184,24 @@ class RLData(Dataset, ABC):
             accuracy_threshold=accuracy_threshold,
         )
         metrics = asdict(metrics)
-        return metrics, plot_values, outputs
+        outputs = torch.stack(all_outputs)
+        return metrics, outputs
 
-    def evaluate(self, n_batch: int, net: nn.Module, **kwargs):
+    def evaluate(
+        self, n_batch: int, net: nn.Module, plot_indices: torch.Tensor, **kwargs
+    ):
         net.eval()
         counter = Counter()
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
-        plot_values = defaultdict(list)
+        all_outputs = []
+        all_idxs = []
         with torch.no_grad():
             x: torch.Tensor
             for x in loader:
-                (idxs, input_n_bellman, action_probs, discrete, *values) = [
+                (idxs, input_n_bellman, action_probs, discrete, values) = [
                     x.cuda() for x in x
                 ]
-                metrics, new_plot_values, _ = self.get_n_metrics(
+                metrics, outputs = self.get_n_metrics(
                     idxs=idxs,
                     input_n_bellman=input_n_bellman,
                     net=net,
@@ -197,17 +211,37 @@ class RLData(Dataset, ABC):
                     **kwargs,
                 )
                 counter.update(metrics)
-                for k, v in new_plot_values.items():
-                    plot_values[k].extend(v)
+                all_outputs.append(outputs)
+                all_idxs.append(idxs)
         metrics = {k: v / len(loader) for k, v in counter.items()}
-        for i, values in plot_values.items():
-            values = torch.stack([torch.stack(v) for v in values]).cpu()
-            fig = self.grid_world.visualize_values(
-                values[..., :: len(self.grid_world.deltas)]
-            )
+        A = len(self.grid_world.deltas)
+
+        # add values plots to metrics
+        outputs = torch.cat(all_outputs, 2)
+        idxs = torch.cat(all_idxs)
+        values: torch.Tensor
+        values = outputs[:, :, :, ::A]
+        mask = torch.isin(idxs, plot_indices)
+        idxs = idxs[mask].cpu()
+        plot_values = values[:, :, mask]
+        plot_values = plot_values.cpu()
+        plot_values = torch.unbind(plot_values, dim=2)
+        for i, plot_value in zip(idxs, plot_values):
+            fig = self.grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
+
+    def shuffle(self, x: torch.Tensor, i: int, idxs: Optional[torch.Tensor] = None):
+        p = self.perm.to(x.device)
+        if idxs is not None:
+            p = p[idxs]
+        for _ in range(i - 1):
+            p = p[None]
+        while p.dim() < x.dim():
+            p = p[..., None]
+
+        return torch.gather(x, i, p.expand_as(x))
 
 
 def make(path: "str | Path", *args, **kwargs) -> RLData:

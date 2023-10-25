@@ -117,7 +117,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            (idxs, input_n_bellman, action_probs, discrete, *values) = [
+            (idxs, input_n_bellman, action_probs, discrete, values) = [
                 x.cuda() for x in x
             ]
             step = e * len(train_loader) + t
@@ -151,16 +151,16 @@ def train(
             outputs: torch.Tensor
             loss: torch.Tensor
             outputs, loss = net.forward(
-                v1=values[0],
+                v1=values[:, 0],
                 action_probs=action_probs,
                 discrete=discrete,
-                targets=values[targets_index],
+                targets=values[:, targets_index],
             )
 
             metrics = get_metrics(
                 loss=loss,
                 outputs=outputs,
-                targets=values[targets_index],
+                targets=values[:, targets_index],
                 **evaluate_args,
             )
 
@@ -174,7 +174,7 @@ def train(
             if step % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
-                train_n_log, _, _ = train_data.get_n_metrics(
+                train_n_log, _ = train_data.get_n_metrics(
                     action_probs=action_probs,
                     bellman_delta=bellman_delta,
                     discrete=discrete,
@@ -182,7 +182,6 @@ def train(
                     input_n_bellman=input_n_bellman,
                     iterations=iterations,
                     net=net,
-                    plot_indices=plot_indices,
                     values=values,
                     **evaluate_args,
                 )
