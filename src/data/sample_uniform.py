@@ -17,11 +17,15 @@ class RLData(data.base.RLData):
         return states, actions, next_states, rewards
 
     def get_n_metrics(self, *args, idxs: torch.Tensor, **kwargs):
-        metrics, plot_values, outputs = super().get_n_metrics(
-            *args, idxs=idxs, **kwargs
-        )
+        metrics, outputs = super().get_n_metrics(*args, idxs=idxs, **kwargs)
         if self.omit_states_actions == 0:
-            values = outputs[:, :: len(self.grid_world.deltas)]
+            values = outputs[
+                -1,  # last iteration of policy evaluation
+                0,  # output, not target
+                :,
+                :: len(self.grid_world.deltas),  # index into unique states
+            ]
+
             improved_policy_value = self.compute_improved_policy_value(
                 idxs=idxs, values=values
             )
@@ -33,4 +37,4 @@ class RLData(data.base.RLData):
                 improved_policy_value=improved_policy_value.mean().item(),
                 regret=regret.mean().item(),
             )
-        return metrics, plot_values, outputs
+        return metrics, outputs
