@@ -141,11 +141,11 @@ class GridWorld:
     #     assert actions.max() < A
     #     assert 0 <= actions.min()
 
-    def check_pi(self, Pi: torch.Tensor):
-        B = self.n_tasks
-        N = self.n_states
-        A = len(self.deltas)
-        assert [*Pi.shape] == [B, N, A]
+    # def check_pi(self, Pi: torch.Tensor):
+    #     B = self.n_tasks
+    #     N = self.n_states
+    #     A = len(self.deltas)
+    #     assert [*Pi.shape] == [B, N, A]
 
     # def check_states(self, states: torch.Tensor):
     #     B = self.n_tasks
