@@ -22,54 +22,6 @@ class ValueIteration(GridWorld):
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         return Pi
 
-    def value_iteration(
-        self,
-        n_rounds: int,
-        stop_at_rmse: float,
-    ):
-        B = self.n_tasks
-        S = self.n_states
-        A = len(self.deltas)
-        states = torch.tensor(
-            [[i, j] for i in range(self.grid_size) for j in range(self.grid_size)]
-        )
-        alpha = torch.ones(len(self.deltas))
-        Pi = (
-            torch.distributions.Dirichlet(alpha)
-            .sample((self.n_tasks, S))
-            .tile(math.ceil(B / self.n_tasks), 1, 1)[:B]
-        )
-        self.check_pi(Pi)
-
-        # Compute next states for each action and state for each batch (goal)
-        next_states = states[:, None] + self.deltas[None, :]
-        next_states = torch.clamp(next_states, 0, self.grid_size - 1)
-        S_ = self.convert_2d_to_1d(next_states)  # Convert to indices
-
-        # Determine if next_state is the goal for each batch (goal)
-        is_goal = (self.goals[:, None] == states[None]).all(-1)
-
-        # Modify transition to go to absorbing state if the next state is a goal
-        absorbing_state_idx = S - 1
-        S_ = S_[None].tile(B, 1, 1)
-        if self.use_absorbing_state:
-            S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
-
-        # Insert row for absorbing state
-        padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
-        S_ = F.pad(S_, padding, value=absorbing_state_idx)
-        R = is_goal.float()[..., None].tile(1, 1, A)
-        R = F.pad(R, padding, value=0)  # Insert row for absorbing state
-
-        V = None
-        for _ in range(n_rounds):
-            V_iter = self.evaluate_policy_iteratively(Pi, stop_at_rmse)
-            V = self.evaluate_policy(Pi, V)
-            # self.visualize_values(V)
-            yield V_iter, Pi
-            Pi = self.improve_policy(V)
-            # self.visualize_policy(Pi)
-
     def visualize_values(self, V: torch.Tensor, save_path: Optional[str] = None):
         dims = len(V.shape)
         global_min = V.min().item()
@@ -144,4 +96,3 @@ def imshow(values: torch.Tensor, ax: plt.Axes, grid_size: int):
 
 # whitelist:
 ValueIteration.visualize_values
-ValueIteration.value_iteration
