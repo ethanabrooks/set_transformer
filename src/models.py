@@ -61,6 +61,7 @@ class SetTransformer(nn.Module):
     def __init__(
         self,
         isab_args: dict,
+        n_actions: int,
         n_isab: int,
         n_hidden: int,
         n_sab: int,
@@ -84,7 +85,7 @@ class SetTransformer(nn.Module):
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
-        self.dec = nn.Linear(n_hidden, 1)
+        self.dec = nn.Linear(n_hidden, n_actions)
 
     def forward(
         self,
@@ -110,5 +111,5 @@ class SetTransformer(nn.Module):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        loss: torch.Tensor = F.mse_loss(outputs.squeeze(-1), targets.float())
+        loss: torch.Tensor = F.mse_loss(outputs, targets.float())
         return outputs, loss
