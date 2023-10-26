@@ -36,7 +36,9 @@ class RLData(Dataset, ABC):
         B = n_data
 
         alpha = torch.ones(A)
-        Pi = torch.distributions.Dirichlet(alpha).sample((B, S))  # random policies
+        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
+            (B, S)
+        )  # random policies
         assert [*Pi.shape] == [B, S, A]
         self.Pi = Pi.cuda()
 
