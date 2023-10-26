@@ -25,7 +25,6 @@ def get_metrics(
     targets: torch.Tensor,
     accuracy_threshold: float,
 ) -> Metrics:
-    outputs = outputs.squeeze(-1)
     mae = compute_mae(outputs, targets)
     rmse = compute_rmse(outputs, targets)
 
