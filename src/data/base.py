@@ -106,31 +106,19 @@ class RLData(Dataset, ABC):
     def __getitem__(self, idx):
         return (
             idx,
-            self.input_bellman[idx],
-            self.continuous[idx],
-            self.discrete[idx],
-            self.values[:, idx],
+            self._input_bellman[idx],
+            self._continuous[idx],
+            self._discrete[idx],
+            self._values[:, idx],
         )
-
-    @property
-    def continuous(self) -> torch.Tensor:
-        return self._continuous
 
     @property
     def discrete(self) -> torch.Tensor:
         return self._discrete
 
     @property
-    def input_bellman(self) -> torch.Tensor:
-        return self._input_bellman
-
-    @property
     def max_n_bellman(self):
         return self._max_n_bellman
-
-    @property
-    def values(self) -> list[torch.Tensor]:
-        return self._values
 
     @abstractmethod
     def collect_data(self):
