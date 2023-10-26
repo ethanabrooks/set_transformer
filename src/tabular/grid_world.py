@@ -213,7 +213,7 @@ class GridWorld:
     def evaluate_policy(
         self,
         Pi: torch.Tensor,
-        V: torch.Tensor = None,
+        Q: torch.Tensor = None,
         idxs: Optional[torch.Tensor] = None,
     ):
         # self.check_pi(Pi)
@@ -229,31 +229,38 @@ class GridWorld:
         T_Pi = torch.bmm(Pi_, T_)
         T_Pi = T_Pi.view(B, N, N)
 
-        # Initialize V_0
-        if V is None:
-            V = torch.zeros((B, N), dtype=torch.float32, device=Pi.device)
-        # self.check_V(V)
+        # Initialize Q_0
+        if Q is None:
+            Q = torch.zeros((B, N, A), dtype=torch.float32, device=Pi.device)
         R = self.get_rewards(idxs).to(Pi.device)
-        ER = (Pi * R).sum(-1)
-        EV = (T_Pi * V[:, None]).sum(-1)
-        V = ER + self.gamma * EV
-        return V
+        assert [*R.shape] == [B, N, A]
+        EQ = (Pi * Q).sum(-1)
+        assert [*EQ.shape] == [B, N]
+        EQ = (T * EQ[:, None, None]).sum(-1)
+        assert [*EQ.shape] == [B, N, A]
+        Q = R + self.gamma * EQ
+        return Q
 
     def evaluate_policy_iteratively(
-        self, Pi: torch.Tensor, stop_at_rmse: float, idxs: Optional[torch.Tensor] = None
+        self,
+        Pi: torch.Tensor,
+        stop_at_rmse: float,
+        idxs: Optional[torch.Tensor] = None,
     ):
         B = self.n_tasks if idxs is None else len(idxs)
         S = self.n_states
-        V = [torch.zeros((B, S), device=Pi.device, dtype=torch.float)]
+        A = len(self.deltas)
+
+        Q = [torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)]
         for _ in itertools.count(1):  # n_rounds of policy evaluation
-            Vk = V[-1]
+            Vk = Q[-1]
             Vk1 = self.evaluate_policy(Pi, Vk, idxs=idxs)
-            V.append(Vk1)
+            Q.append(Vk1)
             rmse = compute_rmse(Vk1, Vk)
             # print("Iteration:", k, "RMSE:", rmse)
             if rmse < stop_at_rmse:
                 break
-        return V
+        return Q
 
     def get_trajectories(
         self,
@@ -333,12 +340,9 @@ class GridWorld:
             return self.T
         return self.T.to(idxs.device)[idxs]
 
-    def improve_policy(self, V: torch.Tensor, idxs: Optional[torch.Tensor] = None):
+    def improve_policy(self, Q: torch.Tensor, idxs: Optional[torch.Tensor] = None):
         # self.check_V(V)
-        R = self.get_rewards(idxs)
-        T = self.get_transitions(idxs)
-        Q = R + self.gamma * (T * V[:, None, None]).sum(-1)
-        Pi = torch.zeros((len(R), self.n_states, len(self.deltas)), device=T.device)
+        Pi = torch.zeros_like(Q)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         return Pi
 

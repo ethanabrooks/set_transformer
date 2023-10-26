@@ -45,41 +45,51 @@ class RLData(Dataset, ABC):
         self.Pi = Pi.cuda()
 
         print("Policy evaluation...")
-        V = torch.stack(grid_world.evaluate_policy_iteratively(Pi, stop_at_rmse))
-        self.V = V
-        self._max_n_bellman = len(V) - 1
-        if max_initial_bellman is None:
-            max_initial_bellman = self._max_n_bellman
-
         states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
+        action_probs = Pi[torch.arange(B)[:, None], states]
+
+        Q = torch.stack(
+            grid_world.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
+        )
+        self.Q = Q
 
         # sample n_bellman -- number of steps of policy evaluation
+        self._max_n_bellman = len(Q) - 1
+        if max_initial_bellman is None:
+            max_initial_bellman = self._max_n_bellman
         self._input_bellman = input_bellman = torch.randint(0, max_initial_bellman, [B])
-        n_bellman = torch.arange(len(V))[:, None] + input_bellman[None, :]
+        n_bellman = torch.arange(len(Q))[:, None] + input_bellman[None, :]
+        n_bellman = torch.clamp(n_bellman, 0, len(Q) - 1)
 
-        n_bellman = torch.clamp(n_bellman, 0, self.max_n_bellman)
-        action_probs = Pi[torch.arange(B)[:, None], states]
-        # Use advanced indexing to get the desired tensor
-
-        v_mesh, b_mesh = torch.meshgrid(
-            torch.arange(len(V)), torch.arange(B), indexing="ij"
+        # create Q_indexed/self.q_values
+        q_mesh, b_mesh = torch.meshgrid(
+            torch.arange(len(Q)), torch.arange(B), indexing="ij"
         )
-        v_mesh = v_mesh + input_bellman[None, :]
-        v_mesh = torch.clamp(v_mesh, 0, self.max_n_bellman)
-        V_indexed = V[v_mesh, b_mesh]
-        V_indexed = V_indexed[
-            torch.arange(len(V))[:, None, None],
+        q_mesh = q_mesh + input_bellman[None, :]
+        q_mesh = torch.clamp(q_mesh, 0, len(Q) - 1)
+        Q_indexed = Q[q_mesh, b_mesh]
+        Q_indexed = Q_indexed[
+            torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
         ]
         for b in range(10):
             for i, s in enumerate(states[b]):
-                for nb in range(len(V)):
-                    left = V_indexed[nb, b, i]
-                    right = V[min(len(V) - 1, nb + input_bellman[b]), b, s]
+                for nb in range(len(Q)):
+                    left = Q_indexed[nb, b, i]
+                    right = Q[min(len(Q) - 1, nb + input_bellman[b]), b, s]
                     assert torch.all(left == right), (nb, b, s, left, right)
+        self._q_values = Q_indexed
 
+        self.V = (Q * Pi[None]).sum(-1)
+        V_indexed = self.V[q_mesh, b_mesh]
+        V_indexed = V_indexed[
+            torch.arange(len(Q))[:, None, None],
+            torch.arange(B)[None, :, None],
+            states[None],
+        ]
         self._values = V_indexed
+
         self._continuous = torch.Tensor(action_probs)
         discrete = [
             states[..., None],
@@ -106,7 +116,7 @@ class RLData(Dataset, ABC):
             self._input_bellman = input_bellman[:, omit_states_actions:].cuda()
 
         self.optimally_improved_policy_values = self.compute_improved_policy_value(
-            self.V[-1]
+            self.Q[-1]
         ).cuda()
 
     def __len__(self):
@@ -118,6 +128,7 @@ class RLData(Dataset, ABC):
             self._input_bellman[idx],
             self._continuous[idx],
             self._discrete[idx],
+            self._q_values[:, idx],
             self._values[:, idx],
         )
 
@@ -129,6 +140,10 @@ class RLData(Dataset, ABC):
     def max_n_bellman(self):
         return self._max_n_bellman
 
+    @property
+    def n_actions(self):
+        return len(self.grid_world.deltas)
+
     @abstractmethod
     def collect_data(self):
         raise NotImplementedError
@@ -138,7 +153,7 @@ class RLData(Dataset, ABC):
     ):
         Pi = self.grid_world.improve_policy(values, idxs=idxs)
         *_, values = self.grid_world.evaluate_policy_iteratively(
-            Pi, self.stop_at_rmse, idxs=idxs
+            Pi=Pi, stop_at_rmse=self.stop_at_rmse, idxs=idxs
         )
         return values
 
@@ -150,24 +165,27 @@ class RLData(Dataset, ABC):
         input_n_bellman: torch.Tensor,
         iterations: int,
         net: nn.Module,
+        q_values: torch.Tensor,
         values: torch.Tensor,
         **kwargs,
     ):
-        _, max_n_bellman, _ = values.shape
+        A = len(self.grid_world.deltas)
+        Pi = self.Pi[idxs].repeat_interleave(A, 1)
+        _, max_n_bellman, _, _ = q_values.shape
         max_n_bellman -= 1
         v1 = values[:, 0]
-        final_outputs = torch.zeros_like(v1)
+        q1 = q_values[:, 0]
+        final_outputs = torch.zeros_like(q1)
         all_outputs = []
         for j in range(iterations):
             outputs: torch.Tensor
             loss: torch.Tensor
-            targets = values[:, min((j + 1) * bellman_delta, max_n_bellman)]
+            targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
             with torch.no_grad():
                 outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
-            outputs = outputs.squeeze(-1)
-            v1 = outputs
+            v1 = (outputs * Pi).sum(-1)
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
-            final_outputs[mask] = v1[mask]
+            final_outputs[mask] = outputs[mask]
             all_outputs.append(torch.stack([final_outputs, targets]))
 
         metrics = get_metrics(
@@ -191,13 +209,14 @@ class RLData(Dataset, ABC):
         with torch.no_grad():
             x: torch.Tensor
             for x in loader:
-                (idxs, input_n_bellman, action_probs, discrete, values) = [
+                (idxs, input_n_bellman, action_probs, discrete, q_values, values) = [
                     x.cuda() for x in x
                 ]
                 metrics, outputs = self.get_n_metrics(
                     idxs=idxs,
                     input_n_bellman=input_n_bellman,
                     net=net,
+                    q_values=q_values,
                     values=values,
                     action_probs=action_probs,
                     discrete=discrete,
@@ -216,7 +235,9 @@ class RLData(Dataset, ABC):
         values = outputs[:, :, :, ::A]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
+        Pi = self.Pi[idxs][None, None]
         plot_values = values[:, :, mask]
+        plot_values = (plot_values * Pi).sum(-1)
         plot_values = plot_values.cpu()
         plot_values = torch.unbind(plot_values, dim=2)
         for i, plot_value in zip(idxs, plot_values):

@@ -98,7 +98,9 @@ def train(
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
-    net = SetTransformer(**model_args, n_tokens=n_tokens)
+    net = SetTransformer(
+        **model_args, n_actions=train_data.n_actions, n_tokens=n_tokens
+    )
     if load_path is not None:
         load(load_path, net, run)
     net: SetTransformer = net.cuda()
@@ -117,7 +119,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            (idxs, input_n_bellman, action_probs, discrete, values) = [
+            (idxs, input_n_bellman, action_probs, discrete, q_values, values) = [
                 x.cuda() for x in x
             ]
             step = e * len(train_loader) + t
@@ -154,13 +156,14 @@ def train(
                 v1=values[:, 0],
                 action_probs=action_probs,
                 discrete=discrete,
-                targets=values[:, targets_index],
+                targets=q_values[:, targets_index],
             )
+            targets = q_values[:, targets_index]
 
             metrics = get_metrics(
                 loss=loss,
                 outputs=outputs,
-                targets=values[:, targets_index],
+                targets=targets,
                 **evaluate_args,
             )
 
@@ -182,6 +185,7 @@ def train(
                     input_n_bellman=input_n_bellman,
                     iterations=iterations,
                     net=net,
+                    q_values=q_values,
                     values=values,
                     **evaluate_args,
                 )
