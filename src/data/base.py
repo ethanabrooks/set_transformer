@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 
 import wandb
 from metrics import get_metrics
-from tabular.value_iteration import ValueIteration
+from tabular.grid_world import GridWorld
 
 T = TypeVar("T")
 
@@ -31,7 +31,7 @@ class RLData(Dataset, ABC):
         self.omit_states_actions = omit_states_actions
         self.stop_at_rmse = stop_at_rmse
         # 2D deltas for up, down, left, right
-        grid_world = ValueIteration(**grid_world_args, n_tasks=n_data, seed=seed)
+        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
         self.grid_world = grid_world
         A = len(grid_world.deltas)
         S = grid_world.n_states
