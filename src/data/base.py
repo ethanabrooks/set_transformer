@@ -285,7 +285,9 @@ class Dataset(torch.utils.data.Dataset):
         _, max_n_bellman, _, _ = q_values.shape
         max_n_bellman -= 1
         v1 = values[:, 0]
+        assert torch.all(v1 == 0)
         q1 = q_values[:, 0]
+        assert torch.all(q1 == 0)
         final_outputs = torch.zeros_like(q1)
         all_outputs = []
         Pi = self.mdp.transitions.action_probs.cuda()[idxs]
