@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import torch
 
 import data.base
@@ -53,7 +54,3 @@ class Dataset(data.base.Dataset):
                 regret=regret.mean().item(),
             )
         return metrics, outputs
-
-    @classmethod
-    def make_mdp(cls, *args, **kwargs):
-        return MDP.make(*args, **kwargs)
