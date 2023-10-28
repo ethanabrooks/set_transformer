@@ -96,8 +96,8 @@ def train(
     train_data_args = OmegaConf.merge(data_args, train_data_args)
     test_data_args = OmegaConf.create(test_data_args)
     test_data_args = OmegaConf.merge(data_args, test_data_args)
-    train_data = data.base.make(train_data_path, **train_data_args, seed=seed)
-    test_data = data.base.make(test_data_path, **test_data_args, seed=seed + 1)
+    train_data = data.base.make(path=train_data_path, seed=seed, **train_data_args)
+    test_data = data.base.make(path=test_data_path, seed=seed + 1, **test_data_args)
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
