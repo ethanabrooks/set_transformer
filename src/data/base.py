@@ -222,47 +222,6 @@ class Dataset(torch.utils.data.Dataset):
             idxs=idxs,
         )
 
-    def get_n_metrics(
-        self,
-        accuracy_threshold: float,
-        bellman_delta: int,
-        idxs: torch.Tensor,
-        input_n_bellman: torch.Tensor,
-        iterations: int,
-        net: nn.Module,
-        q_values: torch.Tensor,
-        values: torch.Tensor,
-        **kwargs,
-    ):
-        _, max_n_bellman, _, _ = q_values.shape
-        max_n_bellman -= 1
-        v1 = values[:, 0]
-        q1 = q_values[:, 0]
-        final_outputs = torch.zeros_like(q1)
-        all_outputs = []
-        Pi = self.mdp.transitions.action_probs.cuda()[idxs]
-        for j in range(iterations):
-            outputs: torch.Tensor
-            loss: torch.Tensor
-            targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
-            with torch.no_grad():
-                outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
-            v1: torch.Tensor = outputs * Pi
-            v1 = v1.sum(-1)
-            mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
-            final_outputs[mask] = outputs[mask]
-            all_outputs.append(torch.stack([final_outputs, targets]))
-
-        metrics = get_metrics(
-            loss=loss,
-            outputs=final_outputs,
-            targets=targets,
-            accuracy_threshold=accuracy_threshold,
-        )
-        metrics = asdict(metrics)
-        outputs = torch.stack(all_outputs)
-        return metrics, outputs
-
     def evaluate(
         self, n_batch: int, net: nn.Module, plot_indices: torch.Tensor, **kwargs
     ):
@@ -310,3 +269,44 @@ class Dataset(torch.utils.data.Dataset):
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
+
+    def get_n_metrics(
+        self,
+        accuracy_threshold: float,
+        bellman_delta: int,
+        idxs: torch.Tensor,
+        input_n_bellman: torch.Tensor,
+        iterations: int,
+        net: nn.Module,
+        q_values: torch.Tensor,
+        values: torch.Tensor,
+        **kwargs,
+    ):
+        _, max_n_bellman, _, _ = q_values.shape
+        max_n_bellman -= 1
+        v1 = values[:, 0]
+        q1 = q_values[:, 0]
+        final_outputs = torch.zeros_like(q1)
+        all_outputs = []
+        Pi = self.mdp.transitions.action_probs.cuda()[idxs]
+        for j in range(iterations):
+            outputs: torch.Tensor
+            loss: torch.Tensor
+            targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
+            with torch.no_grad():
+                outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
+            v1: torch.Tensor = outputs * Pi
+            v1 = v1.sum(-1)
+            mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
+            final_outputs[mask] = outputs[mask]
+            all_outputs.append(torch.stack([final_outputs, targets]))
+
+        metrics = get_metrics(
+            loss=loss,
+            outputs=final_outputs,
+            targets=targets,
+            accuracy_threshold=accuracy_threshold,
+        )
+        metrics = asdict(metrics)
+        outputs = torch.stack(all_outputs)
+        return metrics, outputs
