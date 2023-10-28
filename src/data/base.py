@@ -1,13 +1,14 @@
 import importlib
 from abc import ABC, abstractmethod
 from collections import Counter
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+import torch.utils.data
+from torch.utils.data import DataLoader
 
 import wandb
 from data.utils import Transition
@@ -15,7 +16,50 @@ from metrics import get_metrics
 from tabular.grid_world import GridWorld
 
 
-class RLData(Dataset, ABC):
+@dataclass(frozen=True)
+class MDP(ABC):
+    grid_world: GridWorld
+    Pi: torch.Tensor
+    transitions: Transition[torch.Tensor]
+
+    @classmethod
+    @abstractmethod
+    def collect_data(cls, *args, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def make(
+        cls,
+        grid_world_args: dict,
+        n_data: int,
+        seed: int,
+        **kwargs,
+    ):
+        # 2D deltas for up, down, left, right
+        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
+        A = len(grid_world.deltas)
+        S = grid_world.n_states
+        B = n_data
+
+        alpha = torch.ones(A)
+        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
+            (B, S)
+        )  # random policies
+        assert [*Pi.shape] == [B, S, A]
+
+        print("Policy evaluation...")
+        # states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
+        transitions: Transition[torch.Tensor] = cls.collect_data(
+            **kwargs, grid_world=grid_world, Pi=Pi
+        )
+        return cls(
+            grid_world=grid_world,
+            Pi=Pi,
+            transitions=transitions,
+        )
+
+
+class Dataset(torch.utils.data.Dataset, ABC):
     def __init__(
         self,
         grid_world_args: dict,
@@ -29,32 +73,23 @@ class RLData(Dataset, ABC):
         self.n_data = n_data
         self.omit_states_actions = omit_states_actions
         self.stop_at_rmse = stop_at_rmse
-        # 2D deltas for up, down, left, right
-        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
-        self.grid_world = grid_world
-        A = len(grid_world.deltas)
-        S = grid_world.n_states
-        B = n_data
 
-        alpha = torch.ones(A)
-        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
-            (B, S)
-        )  # random policies
-        assert [*Pi.shape] == [B, S, A]
-        self.Pi = Pi.cuda()
+        self.mdp_data = mdp_data = self.make_mdp(
+            grid_world_args=grid_world_args, n_data=n_data, seed=seed, **kwargs
+        )
 
-        print("Policy evaluation...")
-        # states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
-        transitions: Transition[torch.Tensor] = self.collect_data(**kwargs, Pi=Pi)
+        transitions = mdp_data.transitions
         states = transitions.states
-        actions = transitions.actions
         action_probs = transitions.action_probs
-        next_states = transitions.next_states
-        rewards = transitions.rewards
         self._action_probs = action_probs.cuda()
 
+        B = n_data
+        S = mdp_data.grid_world.n_states
+        A = len(mdp_data.grid_world.deltas)
         Q = torch.stack(
-            grid_world.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
+            mdp_data.grid_world.evaluate_policy_iteratively(
+                Pi=mdp_data.Pi, stop_at_rmse=stop_at_rmse
+            )
         )
         self.Q = Q
 
@@ -86,7 +121,7 @@ class RLData(Dataset, ABC):
                     assert torch.all(left == right), (nb, b, s, left, right)
         self._q_values = Q_indexed
 
-        self.V = (Q * Pi[None]).sum(-1)
+        self.V = (Q * mdp_data.Pi[None]).sum(-1)
         V_indexed = self.V[q_mesh, b_mesh]
         V_indexed = V_indexed[
             torch.arange(len(Q))[:, None, None],
@@ -97,10 +132,10 @@ class RLData(Dataset, ABC):
 
         self._continuous = torch.Tensor(action_probs)
         discrete = [
-            states[..., None],
-            actions[..., None],
-            next_states[..., None],
-            rewards[..., None],
+            transitions.states[..., None],
+            transitions.actions[..., None],
+            transitions.next_states[..., None],
+            transitions.rewards[..., None],
         ]
         self._discrete = torch.cat(discrete, -1).long()
 
@@ -120,6 +155,22 @@ class RLData(Dataset, ABC):
             self.Q[-1]
         ).cuda()
 
+    @abstractmethod
+    def make_mdp(self, *args, **kwargs) -> MDP:
+        raise NotImplementedError
+
+    @property
+    def discrete(self) -> torch.Tensor:
+        return self._discrete
+
+    @property
+    def max_n_bellman(self):
+        return self._max_n_bellman
+
+    @property
+    def n_actions(self):
+        return len(self.mdp_data.grid_world.deltas)
+
     def __getitem__(self, idx):
         return (
             idx,
@@ -133,27 +184,12 @@ class RLData(Dataset, ABC):
     def __len__(self):
         return len(self.discrete)
 
-    @property
-    def discrete(self) -> torch.Tensor:
-        return self._discrete
-
-    @property
-    def max_n_bellman(self):
-        return self._max_n_bellman
-
-    @property
-    def n_actions(self):
-        return len(self.grid_world.deltas)
-
-    @abstractmethod
-    def collect_data(self):
-        raise NotImplementedError
-
     def compute_improved_policy_value(
         self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
     ):
-        Pi = self.grid_world.improve_policy(values, idxs=idxs)
-        *_, values = self.grid_world.evaluate_policy_iteratively(
+        grid_world = self.mdp_data.grid_world
+        Pi = grid_world.improve_policy(values, idxs=idxs)
+        *_, values = grid_world.evaluate_policy_iteratively(
             Pi=Pi, stop_at_rmse=self.stop_at_rmse, idxs=idxs
         )
         return values
@@ -226,7 +262,7 @@ class RLData(Dataset, ABC):
                 all_outputs.append(outputs)
                 all_idxs.append(idxs)
         metrics = {k: v / len(loader) for k, v in counter.items()}
-        A = len(self.grid_world.deltas)
+        A = len(self.mdp_data.grid_world.deltas)
 
         # add values plots to metrics
         outputs = torch.cat(all_outputs, 2)
@@ -235,13 +271,13 @@ class RLData(Dataset, ABC):
         values = outputs[:, :, :, ::A]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
-        Pi = self.Pi[idxs][None, None]
+        Pi = self.mdp_data.Pi[idxs][None, None].cuda()
         plot_values = values[:, :, mask]
-        plot_values = (plot_values * Pi).sum(-1)
-        plot_values = plot_values.cpu()
+        plot_values: torch.Tensor = plot_values * Pi
+        plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
         for i, plot_value in zip(idxs, plot_values):
-            fig = self.grid_world.visualize_values(plot_value)
+            fig = self.mdp_data.grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
@@ -258,10 +294,10 @@ class RLData(Dataset, ABC):
         return torch.gather(x, i, p.expand_as(x))
 
 
-def make(path: "str | Path", *args, **kwargs) -> RLData:
+def make(path: "str | Path", *args, **kwargs) -> Dataset:
     path = Path(path)
     name = path.stem
     name = ".".join(path.parts)
     module = importlib.import_module(name)
-    data: RLData = module.RLData(*args, **kwargs)
+    data: Dataset = module.Dataset(*args, **kwargs)
     return data
