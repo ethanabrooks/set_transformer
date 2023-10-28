@@ -1,10 +1,11 @@
 import torch
 
 import data.base
+from data.utils import Transition
 
 
 class RLData(data.base.RLData):
-    def collect_data(self, Pi):
+    def collect_data(self, Pi: torch.Tensor):
         grid_world = self.grid_world
         A = len(grid_world.deltas)
         S = grid_world.n_states
@@ -13,8 +14,16 @@ class RLData(data.base.RLData):
         states = states[None].tile(B, 1)
         actions = torch.arange(A).repeat(S)
         actions = actions[None].tile(B, 1)
-        next_states, rewards, _, _ = self.grid_world.step_fn(states, actions)
-        return states, actions, next_states, rewards
+        action_probs = Pi.repeat_interleave(A, 1)
+        next_states, rewards, done, _ = self.grid_world.step_fn(states, actions)
+        return Transition(
+            states=states,
+            actions=actions,
+            action_probs=action_probs,
+            next_states=next_states,
+            rewards=rewards,
+            done=done,
+        )
 
     def get_n_metrics(self, *args, idxs: torch.Tensor, **kwargs):
         metrics, outputs = super().get_n_metrics(*args, idxs=idxs, **kwargs)

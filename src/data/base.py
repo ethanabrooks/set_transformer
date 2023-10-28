@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
 import wandb
+from data.utils import Transition
 from metrics import get_metrics
 from tabular.grid_world import GridWorld
 
@@ -43,8 +44,13 @@ class RLData(Dataset, ABC):
         self.Pi = Pi.cuda()
 
         print("Policy evaluation...")
-        states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
-        action_probs = Pi[torch.arange(B)[:, None], states]
+        # states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
+        transitions: Transition[torch.Tensor] = self.collect_data(**kwargs, Pi=Pi)
+        states = transitions.states
+        actions = transitions.actions
+        action_probs = transitions.action_probs
+        next_states = transitions.next_states
+        rewards = transitions.rewards
         self._action_probs = action_probs.cuda()
 
         Q = torch.stack(
