@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from matplotlib import pyplot as plt
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
@@ -89,12 +90,14 @@ def train(
     # Set the seed for Python's random module
     random.seed(seed)
 
-    train_data = data.base.make(
-        train_data_path, **data_args, **train_data_args, seed=seed
-    )
-    test_data = data.base.make(
-        test_data_path, **data_args, **test_data_args, seed=seed + 1
-    )
+    # create data
+    data_args = OmegaConf.create(data_args)
+    train_data_args = OmegaConf.create(train_data_args)
+    train_data_args = OmegaConf.merge(data_args, train_data_args)
+    test_data_args = OmegaConf.create(test_data_args)
+    test_data_args = OmegaConf.merge(data_args, test_data_args)
+    train_data = data.base.make(train_data_path, **train_data_args, seed=seed)
+    test_data = data.base.make(test_data_path, **test_data_args, seed=seed + 1)
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1

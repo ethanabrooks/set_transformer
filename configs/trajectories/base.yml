@@ -1,4 +1,14 @@
 data_args:
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 0.99
+    grid_size: 4
+    heldout_goals: []
+    n_maze: 0
+    p_wall: 0
+    terminate_on_goal: true
+    use_heldout_goals: false
   omit_states_actions: 0
   stop_at_rmse: 0.005
 decay_args:
@@ -28,16 +38,6 @@ save_interval: 40000
 seed: 0
 test_1_interval: ${train_1_interval}
 test_data_args:
-  grid_world_args:
-    absorbing_state: true
-    dense_reward: false
-    gamma: 0.99
-    grid_size: 4
-    heldout_goals: []
-    n_maze: 200
-    p_wall: 0
-    terminate_on_goal: true
-    use_heldout_goals: false
   max_initial_bellman: 1
   n_data: 200
 test_data_path: "data/sample_uniform"
@@ -45,16 +45,6 @@ test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:
   episode_length: 20
-  grid_world_args:
-    absorbing_state: true
-    dense_reward: false
-    gamma: 0.99
-    grid_size: 4
-    heldout_goals: []
-    n_maze: 0
-    p_wall: 0
-    terminate_on_goal: true
-    use_heldout_goals: false
   max_initial_bellman: null
   n_data: 80_000
   n_episodes: 10
