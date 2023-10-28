@@ -111,26 +111,16 @@ class Dataset(torch.utils.data.Dataset, ABC):
     @classmethod
     def make(
         cls,
-        grid_world_args: dict,
         max_initial_bellman: Optional[int],
-        n_data: int,
+        mdp: MDP,
         omit_states_actions: int,
-        seed: int,
         stop_at_rmse: float,
-        **kwargs,
     ):
-        mdp = cls.make_mdp(
-            grid_world_args=grid_world_args,
-            n_data=n_data,
-            seed=seed,
-            **kwargs,
-        )
-
         transitions = mdp.transitions
         states = transitions.states
         action_probs = transitions.action_probs
 
-        B = n_data
+        B = mdp.grid_world.n_tasks
         S = mdp.grid_world.n_states
         A = len(mdp.grid_world.deltas)
         Q = torch.stack(
@@ -329,10 +319,16 @@ class Dataset(torch.utils.data.Dataset, ABC):
         return metrics
 
 
-def make(path: "str | Path", *args, **kwargs) -> Dataset:
+def make(
+    dataset_args: dict,
+    mdp_args: dict,
+    path: "str | Path",
+    seed: int,
+) -> Dataset:
     path = Path(path)
     name = path.stem
     name = ".".join(path.parts)
     module = importlib.import_module(name)
-    data: Dataset = module.Dataset.make(*args, **kwargs)
+    mdp: MDP = module.MDP.make(**mdp_args, seed=seed)
+    data: Dataset = module.Dataset.make(**dataset_args, mdp=mdp)
     return data
