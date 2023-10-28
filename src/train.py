@@ -180,21 +180,6 @@ def train(
             if step % train_1_interval == 0:
                 fps = train_1_interval / (time.time() - tick)
                 tick = time.time()
-                train_n_log, _ = train_data.get_n_metrics(
-                    action_probs=action_probs,
-                    bellman_delta=bellman_delta,
-                    discrete=discrete,
-                    idxs=idxs,
-                    input_n_bellman=input_n_bellman,
-                    iterations=iterations,
-                    net=net,
-                    q_values=q_values,
-                    values=values,
-                    **evaluate_args,
-                )
-                train_n_log = {
-                    "train-n/" + k: v for k, v in train_n_log.items() if k != "loss"
-                }
                 train_1_log = {
                     f"train-1/{k}": v / counter["n"] for k, v in counter.items()
                 }
@@ -205,7 +190,7 @@ def train(
                 print_row(train_1_log, show_header=(step % train_1_interval == 0))
                 if run is not None:
                     wandb.log(
-                        dict(**test_1_log, **test_n_log, **train_1_log, **train_n_log),
+                        dict(**test_1_log, **test_n_log, **train_1_log),
                         step=step,
                     )
                 plt.close()
