@@ -30,6 +30,7 @@ class MDP(data.base.MDP):
         )
 
 
+@dataclass(frozen=True)
 class Dataset(data.base.Dataset):
     def get_n_metrics(self, *args, idxs: torch.Tensor, **kwargs):
         metrics, outputs = super().get_n_metrics(*args, idxs=idxs, **kwargs)
@@ -38,7 +39,7 @@ class Dataset(data.base.Dataset):
                 -1,  # last iteration of policy evaluation
                 0,  # output, not target
                 :,
-                :: len(self.mdp_data.grid_world.deltas),  # index into unique states
+                :: len(self.mdp.grid_world.deltas),  # index into unique states
             ]
 
             improved_policy_value = self.compute_improved_policy_value(
@@ -54,5 +55,6 @@ class Dataset(data.base.Dataset):
             )
         return metrics, outputs
 
-    def make_mdp(self, *args, **kwargs):
+    @classmethod
+    def make_mdp(cls, *args, **kwargs):
         return MDP.make(*args, **kwargs)

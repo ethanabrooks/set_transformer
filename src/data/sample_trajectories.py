@@ -27,6 +27,8 @@ class MDP(data.base.MDP):
         )
 
 
+@dataclass(frozen=True)
 class Dataset(data.base.Dataset):
-    def make_mdp(self, *args, **kwargs):
+    @classmethod
+    def make_mdp(cls, *args, **kwargs):
         return MDP.make(*args, **kwargs)
