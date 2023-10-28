@@ -114,9 +114,6 @@ class RLData(Dataset, ABC):
             self.Q[-1]
         ).cuda()
 
-    def __len__(self):
-        return len(self.discrete)
-
     def __getitem__(self, idx):
         return (
             idx,
@@ -126,6 +123,9 @@ class RLData(Dataset, ABC):
             self._q_values[:, idx],
             self._values[:, idx],
         )
+
+    def __len__(self):
+        return len(self.discrete)
 
     @property
     def discrete(self) -> torch.Tensor:
