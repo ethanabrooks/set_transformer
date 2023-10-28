@@ -59,9 +59,58 @@ class MDP(ABC):
         )
 
 
+def compute_improved_policy_value(
+    grid_world: GridWorld,
+    stop_at_rmse: float,
+    values: torch.Tensor,
+    idxs: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    Pi = grid_world.improve_policy(values, idxs=idxs)
+    values: torch.Tensor
+    *_, values = grid_world.evaluate_policy_iteratively(
+        Pi=Pi, stop_at_rmse=stop_at_rmse, idxs=idxs
+    )
+    return values
+
+
+def permute(
+    permutation: torch.Tensor,
+    x: torch.Tensor,
+    i: int,
+    idxs: Optional[torch.Tensor] = None,
+):
+    p = permutation.to(x.device)
+    if idxs is not None:
+        p = p[idxs]
+    for _ in range(i - 1):
+        p = p[None]
+    while p.dim() < x.dim():
+        p = p[..., None]
+
+    return torch.gather(x, i, p.expand_as(x))
+
+
+@dataclass(frozen=True)
 class Dataset(torch.utils.data.Dataset, ABC):
-    def __init__(
-        self,
+    continuous: torch.Tensor
+    discrete: torch.Tensor
+    input_bellman: torch.Tensor
+    max_n_bellman: int
+    mdp: MDP
+    omit_states_actions: int
+    optimally_improved_policy_values: torch.Tensor
+    q_values: torch.Tensor
+    stop_at_rmse: float
+    values: torch.Tensor
+
+    @classmethod
+    @abstractmethod
+    def make_mdp(cls, *args, **kwargs) -> MDP:
+        raise NotImplementedError
+
+    @classmethod
+    def make(
+        cls,
         grid_world_args: dict,
         max_initial_bellman: Optional[int],
         n_data: int,
@@ -70,34 +119,30 @@ class Dataset(torch.utils.data.Dataset, ABC):
         stop_at_rmse: float,
         **kwargs,
     ):
-        self.n_data = n_data
-        self.omit_states_actions = omit_states_actions
-        self.stop_at_rmse = stop_at_rmse
-
-        self.mdp_data = mdp_data = self.make_mdp(
-            grid_world_args=grid_world_args, n_data=n_data, seed=seed, **kwargs
+        mdp = cls.make_mdp(
+            grid_world_args=grid_world_args,
+            n_data=n_data,
+            seed=seed,
+            **kwargs,
         )
 
-        transitions = mdp_data.transitions
+        transitions = mdp.transitions
         states = transitions.states
         action_probs = transitions.action_probs
-        self._action_probs = action_probs.cuda()
 
         B = n_data
-        S = mdp_data.grid_world.n_states
-        A = len(mdp_data.grid_world.deltas)
+        S = mdp.grid_world.n_states
+        A = len(mdp.grid_world.deltas)
         Q = torch.stack(
-            mdp_data.grid_world.evaluate_policy_iteratively(
-                Pi=mdp_data.Pi, stop_at_rmse=stop_at_rmse
+            mdp.grid_world.evaluate_policy_iteratively(
+                Pi=mdp.Pi, stop_at_rmse=stop_at_rmse
             )
         )
-        self.Q = Q
 
         # sample n_bellman -- number of steps of policy evaluation
-        self._max_n_bellman = len(Q) - 1
         if max_initial_bellman is None:
-            max_initial_bellman = self._max_n_bellman
-        self._input_bellman = input_bellman = torch.randint(0, max_initial_bellman, [B])
+            max_initial_bellman = len(Q) - 1
+        input_bellman = torch.randint(0, max_initial_bellman, [B])
         n_bellman = torch.arange(len(Q))[:, None] + input_bellman[None, :]
         n_bellman = torch.clamp(n_bellman, 0, len(Q) - 1)
 
@@ -107,8 +152,8 @@ class Dataset(torch.utils.data.Dataset, ABC):
         )
         q_mesh = q_mesh + input_bellman[None, :]
         q_mesh = torch.clamp(q_mesh, 0, len(Q) - 1)
-        Q_indexed = Q[q_mesh, b_mesh]
-        Q_indexed = Q_indexed[
+        q_values = Q[q_mesh, b_mesh]
+        q_values = q_values[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
@@ -116,69 +161,69 @@ class Dataset(torch.utils.data.Dataset, ABC):
         for b in range(10):
             for i, s in enumerate(states[b]):
                 for nb in range(len(Q)):
-                    left = Q_indexed[nb, b, i]
+                    left = q_values[nb, b, i]
                     right = Q[min(len(Q) - 1, nb + input_bellman[b]), b, s]
                     assert torch.all(left == right), (nb, b, s, left, right)
-        self._q_values = Q_indexed
 
-        self.V = (Q * mdp_data.Pi[None]).sum(-1)
-        V_indexed = self.V[q_mesh, b_mesh]
-        V_indexed = V_indexed[
+        V = (Q * mdp.Pi[None]).sum(-1)
+        values = V[q_mesh, b_mesh]
+        values = values[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
         ]
-        self._values = V_indexed
 
-        self._continuous = torch.Tensor(action_probs)
+        continuous = torch.Tensor(action_probs)
         discrete = [
             transitions.states[..., None],
             transitions.actions[..., None],
             transitions.next_states[..., None],
             transitions.rewards[..., None],
         ]
-        self._discrete = torch.cat(discrete, -1).long()
+        discrete = torch.cat(discrete, -1).long()
 
-        self.perm = torch.rand(B, S * A).argsort(dim=1)
+        permutation = torch.rand(B, S * A).argsort(dim=1)
 
         if omit_states_actions > 0:
-            self._q_values, self._values = [
-                self.shuffle(x, 2)[:, :, omit_states_actions:]
-                for x in [self._q_values, self._values]
+            q_values, values = [
+                permute(permutation, x, 2)[:, :, omit_states_actions:]
+                for x in [q_values, values]
             ]
-            self._continuous, self._discrete, self._action_probs = [
-                self.shuffle(x, 1)[:, omit_states_actions:]
-                for x in [self._continuous, self._discrete, self._action_probs]
+            continuous, discrete, action_probs = [
+                permute(permutation, x, 1)[:, omit_states_actions:]
+                for x in [continuous, discrete, action_probs]
             ]
 
-        self.optimally_improved_policy_values = self.compute_improved_policy_value(
-            self.Q[-1]
+        optimally_improved_policy_values = compute_improved_policy_value(
+            grid_world=mdp.grid_world,
+            stop_at_rmse=stop_at_rmse,
+            values=Q[-1],
         ).cuda()
-
-    @abstractmethod
-    def make_mdp(self, *args, **kwargs) -> MDP:
-        raise NotImplementedError
-
-    @property
-    def discrete(self) -> torch.Tensor:
-        return self._discrete
-
-    @property
-    def max_n_bellman(self):
-        return self._max_n_bellman
+        return cls(
+            continuous=continuous,
+            discrete=discrete,
+            input_bellman=input_bellman,
+            max_n_bellman=len(Q) - 1,
+            mdp=mdp,
+            omit_states_actions=omit_states_actions,
+            optimally_improved_policy_values=optimally_improved_policy_values,
+            q_values=q_values,
+            stop_at_rmse=stop_at_rmse,
+            values=values,
+        )
 
     @property
     def n_actions(self):
-        return len(self.mdp_data.grid_world.deltas)
+        return len(self.mdp.grid_world.deltas)
 
     def __getitem__(self, idx):
         return (
             idx,
-            self._input_bellman[idx],
-            self._continuous[idx],
-            self._discrete[idx],
-            self._q_values[:, idx],
-            self._values[:, idx],
+            self.input_bellman[idx],
+            self.continuous[idx],
+            self.discrete[idx],
+            self.q_values[:, idx],
+            self.values[:, idx],
         )
 
     def __len__(self):
@@ -187,12 +232,12 @@ class Dataset(torch.utils.data.Dataset, ABC):
     def compute_improved_policy_value(
         self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
     ):
-        grid_world = self.mdp_data.grid_world
-        Pi = grid_world.improve_policy(values, idxs=idxs)
-        *_, values = grid_world.evaluate_policy_iteratively(
-            Pi=Pi, stop_at_rmse=self.stop_at_rmse, idxs=idxs
+        return compute_improved_policy_value(
+            grid_world=self.mdp.grid_world,
+            stop_at_rmse=self.stop_at_rmse,
+            values=values,
+            idxs=idxs,
         )
-        return values
 
     def get_n_metrics(
         self,
@@ -212,14 +257,15 @@ class Dataset(torch.utils.data.Dataset, ABC):
         q1 = q_values[:, 0]
         final_outputs = torch.zeros_like(q1)
         all_outputs = []
+        Pi = self.mdp.transitions.action_probs.cuda()[idxs]
         for j in range(iterations):
             outputs: torch.Tensor
             loss: torch.Tensor
             targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
             with torch.no_grad():
                 outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
-            Pi = self._action_probs[idxs]
-            v1 = (outputs * Pi).sum(-1)
+            v1: torch.Tensor = outputs * Pi
+            v1 = v1.sum(-1)
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
             final_outputs[mask] = outputs[mask]
             all_outputs.append(torch.stack([final_outputs, targets]))
@@ -262,7 +308,7 @@ class Dataset(torch.utils.data.Dataset, ABC):
                 all_outputs.append(outputs)
                 all_idxs.append(idxs)
         metrics = {k: v / len(loader) for k, v in counter.items()}
-        A = len(self.mdp_data.grid_world.deltas)
+        A = len(self.mdp.grid_world.deltas)
 
         # add values plots to metrics
         outputs = torch.cat(all_outputs, 2)
@@ -271,27 +317,16 @@ class Dataset(torch.utils.data.Dataset, ABC):
         values = outputs[:, :, :, ::A]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
-        Pi = self.mdp_data.Pi[idxs][None, None].cuda()
+        Pi = self.mdp.Pi[idxs][None, None].cuda()
         plot_values = values[:, :, mask]
         plot_values: torch.Tensor = plot_values * Pi
         plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
         for i, plot_value in zip(idxs, plot_values):
-            fig = self.mdp_data.grid_world.visualize_values(plot_value)
+            fig = self.mdp.grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
-
-    def shuffle(self, x: torch.Tensor, i: int, idxs: Optional[torch.Tensor] = None):
-        p = self.perm.to(x.device)
-        if idxs is not None:
-            p = p[idxs]
-        for _ in range(i - 1):
-            p = p[None]
-        while p.dim() < x.dim():
-            p = p[..., None]
-
-        return torch.gather(x, i, p.expand_as(x))
 
 
 def make(path: "str | Path", *args, **kwargs) -> Dataset:
@@ -299,5 +334,5 @@ def make(path: "str | Path", *args, **kwargs) -> Dataset:
     name = path.stem
     name = ".".join(path.parts)
     module = importlib.import_module(name)
-    data: Dataset = module.Dataset(*args, **kwargs)
+    data: Dataset = module.Dataset.make(*args, **kwargs)
     return data
