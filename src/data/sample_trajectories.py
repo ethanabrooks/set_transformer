@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import data.base
 from data.utils import Transition
 from tabular.grid_world import GridWorld
@@ -25,6 +26,4 @@ class MDP(data.base.MDP):
 
 @dataclass(frozen=True)
 class Dataset(data.base.Dataset):
-    @classmethod
-    def make_mdp(cls, *args, **kwargs):
-        return MDP.make(*args, **kwargs)
+    pass

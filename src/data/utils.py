@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Generic, TypeVar
 
 T = TypeVar("T")
@@ -12,3 +13,8 @@ class Transition(Generic[T]):
     next_states: T
     rewards: T
     done: T
+
+
+class MDPType(Enum):
+    TRAJECTORIES = auto()
+    UNIFORM = auto()

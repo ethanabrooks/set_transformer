@@ -1,8 +1,6 @@
-import importlib
 from abc import ABC, abstractmethod
 from collections import Counter
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Optional
 
 import torch
@@ -91,7 +89,7 @@ def permute(
 
 
 @dataclass(frozen=True)
-class Dataset(torch.utils.data.Dataset, ABC):
+class Dataset(torch.utils.data.Dataset):
     continuous: torch.Tensor
     discrete: torch.Tensor
     input_bellman: torch.Tensor
@@ -102,11 +100,6 @@ class Dataset(torch.utils.data.Dataset, ABC):
     q_values: torch.Tensor
     stop_at_rmse: float
     values: torch.Tensor
-
-    @classmethod
-    @abstractmethod
-    def make_mdp(cls, *args, **kwargs) -> MDP:
-        raise NotImplementedError
 
     @classmethod
     def make(
@@ -317,18 +310,3 @@ class Dataset(torch.utils.data.Dataset, ABC):
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
-
-
-def make(
-    dataset_args: dict,
-    mdp_args: dict,
-    path: "str | Path",
-    seed: int,
-) -> Dataset:
-    path = Path(path)
-    name = path.stem
-    name = ".".join(path.parts)
-    module = importlib.import_module(name)
-    mdp: MDP = module.MDP.make(**mdp_args, seed=seed)
-    data: Dataset = module.Dataset.make(**dataset_args, mdp=mdp)
-    return data
