@@ -44,7 +44,7 @@ test_data_args:
     max_initial_bellman: 1
   mdp_args:
     n_data: 200
-test_data_name: "uniform"
+  name: "uniform"
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:
@@ -54,4 +54,4 @@ train_data_args:
     episode_length: 20
     n_data: 80_000
     n_episodes: 10
-train_data_name: "trajectories"
+  name: "trajectories"
