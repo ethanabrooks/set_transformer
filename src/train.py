@@ -63,11 +63,9 @@ def train(
     seed: int,
     test_1_interval: int,
     test_data_args: dict,
-    test_data_name: str,
     test_n_interval: int,
     train_1_interval: int,
     train_data_args: dict,
-    train_data_name: str,
     commit: str = None,
     config: str = None,
     config_name: str = None,
@@ -96,8 +94,8 @@ def train(
     train_data_args = OmegaConf.merge(data_args, train_data_args)
     test_data_args = OmegaConf.create(test_data_args)
     test_data_args = OmegaConf.merge(data_args, test_data_args)
-    train_data = data.make(name=train_data_name, seed=seed, **train_data_args)
-    test_data = data.make(name=test_data_name, seed=seed + 1, **test_data_args)
+    train_data = data.make(seed=seed, **train_data_args)
+    test_data = data.make(seed=seed + 1, **test_data_args)
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
