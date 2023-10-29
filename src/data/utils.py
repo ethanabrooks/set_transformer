@@ -15,6 +15,6 @@ class Transition(Generic[T]):
     done: T
 
 
-class MDPType(Enum):
+class SampleFrom(Enum):
     TRAJECTORIES = auto()
     UNIFORM = auto()

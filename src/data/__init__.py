@@ -1,7 +1,7 @@
 import data.sample_trajectories
 import data.sample_uniform
 from data.base import MDP, Dataset
-from data.utils import MDPType
+from data.utils import SampleFrom
 
 
 def make(
@@ -10,14 +10,14 @@ def make(
     name: str,
     seed: int,
 ) -> Dataset:
-    mdp_type = MDPType[name.upper()]
+    sample_from = SampleFrom[name.upper()]
     mdp_args.update(seed=seed)
-    if mdp_type == MDPType.TRAJECTORIES:
+    if sample_from == SampleFrom.TRAJECTORIES:
         mdp: MDP = data.sample_trajectories.MDP.make(**mdp_args)
         dataset: Dataset = data.sample_trajectories.Dataset.make(
             **dataset_args, mdp=mdp
         )
-    elif mdp_type == MDPType.UNIFORM:
+    elif sample_from == SampleFrom.UNIFORM:
         mdp: MDP = data.sample_uniform.MDP.make(**mdp_args)
         dataset: Dataset = data.sample_uniform.Dataset.make(**dataset_args, mdp=mdp)
     return dataset
