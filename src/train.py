@@ -112,6 +112,8 @@ def train(
     test_1_log = {}
     test_n_log = {}
     tick = time.time()
+    if bellman_delta is None:
+        bellman_delta = test_data.max_n_bellman
     iterations = int(math.ceil(test_data.max_n_bellman / bellman_delta))
     plot_indices = torch.randint(0, len(test_data), [n_plot]).cuda()
 
