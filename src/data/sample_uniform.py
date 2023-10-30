@@ -34,16 +34,15 @@ class MDP(data.mdp.MDP):
 @dataclass(frozen=True)
 class Dataset(data.dataset.Dataset):
     def get_metrics(self, *args, idxs: torch.Tensor, **kwargs):
-        metrics, outputs = super().get_metrics(*args, idxs=idxs, **kwargs)
+        metrics, outputs, targets = super().get_metrics(*args, idxs=idxs, **kwargs)
         grid_world = self.mdp.grid_world
         S = grid_world.n_states
         A = len(grid_world.deltas)
-        _, _, _, L, _ = outputs.shape
+        _, _, L, _ = outputs.shape
 
         if L == S * A:
             values = outputs[
                 -1,  # last iteration of policy evaluation
-                0,  # output, not target
                 :,
                 ::A,  # index into unique states
             ]
@@ -59,4 +58,4 @@ class Dataset(data.dataset.Dataset):
                 improved_policy_value=improved_policy_value.mean().item(),
                 regret=regret.mean().item(),
             )
-        return metrics, outputs
+        return metrics, outputs, targets
