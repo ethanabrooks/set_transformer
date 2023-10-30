@@ -177,11 +177,12 @@ class Dataset(torch.utils.data.Dataset):
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
         all_outputs = []
         all_idxs = []
+        all_targets = []
         with torch.no_grad():
             x: torch.Tensor
             for x in loader:
                 x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
-                metrics, outputs = self.get_metrics(
+                metrics, outputs, targets = self.get_metrics(
                     idxs=x.idx,
                     input_n_bellman=x.input_bellman,
                     net=net,
@@ -194,14 +195,16 @@ class Dataset(torch.utils.data.Dataset):
                 counter.update(metrics)
                 all_outputs.append(outputs)
                 all_idxs.append(x.idx)
+                all_targets.append(targets)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         A = len(self.mdp.grid_world.deltas)
 
         # add values plots to metrics
-        outputs = torch.cat(all_outputs, 2)
         idxs = torch.cat(all_idxs)
-        values: torch.Tensor
-        values = outputs[:, :, :, ::A]
+        outputs = torch.cat(all_outputs, 1)
+        targets = torch.cat(all_targets, 1)
+        stacked = torch.stack([outputs, targets], 1)
+        values = stacked[..., ::A, :]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
         Pi = self.mdp.Pi[idxs][None, None].cuda()
@@ -235,6 +238,7 @@ class Dataset(torch.utils.data.Dataset):
         assert torch.all(q1 == 0)
         final_outputs = torch.zeros_like(q1)
         all_outputs = []
+        all_targets = []
         Pi = self.mdp.transitions.action_probs.cuda()[idxs]
         for j in range(iterations):
             outputs: torch.Tensor
@@ -246,7 +250,8 @@ class Dataset(torch.utils.data.Dataset):
             v1 = v1.sum(-1)
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
             final_outputs[mask] = outputs[mask]
-            all_outputs.append(torch.stack([final_outputs, targets]))
+            all_outputs.append(final_outputs)
+            all_targets.append(targets)
 
         metrics = get_metrics(
             loss=loss,
@@ -256,4 +261,5 @@ class Dataset(torch.utils.data.Dataset):
         )
         metrics = asdict(metrics)
         outputs = torch.stack(all_outputs)
-        return metrics, outputs
+        targets = torch.stack(all_targets)
+        return metrics, outputs, targets
