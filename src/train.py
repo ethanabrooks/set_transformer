@@ -156,7 +156,7 @@ def train(
             loss: torch.Tensor
             outputs, loss = net.forward(
                 v1=x.values[:, 0],
-                action_probs=x.action_probs,
+                continuous=x.continuous,
                 discrete=x.discrete,
                 targets=x.q_values[:, targets_index],
             )
