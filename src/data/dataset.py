@@ -175,31 +175,29 @@ class Dataset(torch.utils.data.Dataset):
         net.eval()
         counter = Counter()
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
-        all_outputs = []
-        all_idxs = []
-        all_targets = []
-        with torch.no_grad():
-            x: torch.Tensor
-            for x in loader:
-                x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
-                metrics, outputs, targets = self.get_metrics(
-                    idxs=x.idx,
-                    input_n_bellman=x.input_bellman,
-                    net=net,
-                    q_values=x.q_values,
-                    values=x.values,
-                    continuous=x.continuous,
-                    discrete=x.discrete,
-                    **kwargs,
-                )
-                counter.update({k: v for k, v in metrics.items() if v is not None})
-                all_outputs.append(outputs)
-                all_idxs.append(x.idx)
-                all_targets.append(targets)
-        metrics = {k: v / len(loader) for k, v in counter.items()}
+
+        def generate():
+            with torch.no_grad():
+                x: torch.Tensor
+                for x in loader:
+                    x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
+                    metrics, outputs, targets = self.get_metrics(
+                        idxs=x.idx,
+                        input_n_bellman=x.input_bellman,
+                        net=net,
+                        q_values=x.q_values,
+                        values=x.values,
+                        continuous=x.continuous,
+                        discrete=x.discrete,
+                        **kwargs,
+                    )
+                    counter.update({k: v for k, v in metrics.items() if v is not None})
+                    yield x.idx, outputs, targets
+
         A = len(self.mdp.grid_world.deltas)
 
         # add values plots to metrics
+        all_idxs, all_outputs, all_targets = zip(*generate())
         idxs = torch.cat(all_idxs)
         outputs = torch.cat(all_outputs, 1)
         targets = torch.cat(all_targets, 1)
@@ -212,6 +210,7 @@ class Dataset(torch.utils.data.Dataset):
         plot_values: torch.Tensor = plot_values * Pi
         plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
+        metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, plot_value in zip(idxs, plot_values):
             fig = self.mdp.grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
@@ -237,28 +236,29 @@ class Dataset(torch.utils.data.Dataset):
         q1 = q_values[:, 0]
         assert torch.all(q1 == 0)
         final_outputs = torch.zeros_like(q1)
-        all_outputs = []
-        all_targets = []
         Pi = self.mdp.transitions.action_probs.cuda()[idxs]
-        for j in range(iterations):
-            outputs: torch.Tensor
-            targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
-            with torch.no_grad():
-                outputs, _ = net.forward(v1=v1, **kwargs, targets=targets)
-            v1: torch.Tensor = outputs * Pi
-            v1 = v1.sum(-1)
-            mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
-            final_outputs[mask] = outputs[mask]
-            all_outputs.append(final_outputs)
-            all_targets.append(targets)
+
+        def generate(v1: torch.Tensor):
+            for j in range(iterations):
+                outputs: torch.Tensor
+                targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
+                with torch.no_grad():
+                    outputs, _ = net.forward(v1=v1, **kwargs, targets=targets)
+                v1: torch.Tensor = outputs * Pi
+                v1 = v1.sum(-1)
+                mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
+                final_outputs[mask] = outputs[mask]
+                yield final_outputs, targets
+
+        all_outputs, all_targets = zip(*generate(v1))
+        outputs = torch.stack(all_outputs)
+        targets = torch.stack(all_targets)
 
         metrics = get_metrics(
             loss=None,
             outputs=final_outputs,
-            targets=targets,
+            targets=targets[-1],
             accuracy_threshold=accuracy_threshold,
         )
         metrics = asdict(metrics)
-        outputs = torch.stack(all_outputs)
-        targets = torch.stack(all_targets)
         return metrics, outputs, targets
