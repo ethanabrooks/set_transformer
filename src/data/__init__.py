@@ -1,6 +1,7 @@
 import data.sample_trajectories
 import data.sample_uniform
-from data.dataset import MDP, Dataset
+from data.dataset import Dataset
+from data.mdp import MDP
 from data.utils import SampleFrom
 
 
