@@ -4,6 +4,7 @@ import torch
 
 import data.dataset
 import data.mdp
+import data.values
 from data.utils import Transition
 from tabular.grid_world import GridWorld
 
@@ -32,9 +33,14 @@ class MDP(data.mdp.MDP):
 
 
 @dataclass(frozen=True)
-class Dataset(data.dataset.Dataset):
-    def get_metrics(self, *args, idxs: torch.Tensor, **kwargs):
-        metrics, outputs, targets = super().get_metrics(*args, idxs=idxs, **kwargs)
+class Values(data.values.Values):
+    def get_metrics(
+        self,
+        idxs: torch.Tensor,
+        metrics: dict,
+        outputs: torch.Tensor,
+        targets: torch.Tensor,
+    ):
         grid_world = self.mdp.grid_world
         S = grid_world.n_states
         A = len(grid_world.deltas)
@@ -47,15 +53,18 @@ class Dataset(data.dataset.Dataset):
                 ::A,  # index into unique states
             ]
 
-            improved_policy_value = self.compute_improved_policy_value(
-                idxs=idxs, values=values
+            improved_policy_value = grid_world.evaluate_improved_policy(
+                idxs=idxs, Q=values, stop_at_rmse=self.stop_at_rmse
             )
             optimally_improved_policy_values = self.optimally_improved_policy_values[
                 idxs
             ]
-            regret = optimally_improved_policy_values - improved_policy_value
-            metrics.update(
+            regret: torch.Tensor = (
+                optimally_improved_policy_values - improved_policy_value
+            )
+            return dict(
                 improved_policy_value=improved_policy_value.mean().item(),
                 regret=regret.mean().item(),
             )
-        return metrics, outputs, targets
+        else:
+            return dict()

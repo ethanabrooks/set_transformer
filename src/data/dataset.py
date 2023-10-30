@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from data.mdp import MDP
+from data.values import Values
 from metrics import get_metrics
 
 
@@ -29,10 +30,9 @@ class Dataset(torch.utils.data.Dataset):
     max_n_bellman: int
     mdp: MDP
     omit_states_actions: int
-    optimally_improved_policy_values: torch.Tensor
     Q: torch.Tensor
-    stop_at_rmse: float
     V: torch.Tensor
+    values: Values
 
     @classmethod
     def make(
@@ -40,7 +40,7 @@ class Dataset(torch.utils.data.Dataset):
         max_initial_bellman: Optional[int],
         mdp: MDP,
         omit_states_actions: int,
-        stop_at_rmse: float,
+        values: Values,
     ):
         transitions = mdp.transitions
         states = transitions.states
@@ -49,11 +49,7 @@ class Dataset(torch.utils.data.Dataset):
         B = mdp.grid_world.n_tasks
         S = mdp.grid_world.n_states
         A = len(mdp.grid_world.deltas)
-        Q = torch.stack(
-            mdp.grid_world.evaluate_policy_iteratively(
-                Pi=mdp.Pi, stop_at_rmse=stop_at_rmse
-            )
-        )
+        Q = values.Q
 
         # sample n_bellman -- number of steps of policy evaluation
         if max_initial_bellman is None:
@@ -125,10 +121,6 @@ class Dataset(torch.utils.data.Dataset):
                 for x in [continuous, discrete, action_probs]
             ]
 
-        optimally_improved_policy_values = mdp.grid_world.evaluate_improved_policy(
-            stop_at_rmse=stop_at_rmse,
-            Q=Q[-1],
-        ).cuda()
         return cls(
             continuous=continuous,
             discrete=discrete,
@@ -136,10 +128,9 @@ class Dataset(torch.utils.data.Dataset):
             max_n_bellman=len(Q) - 1,
             mdp=mdp,
             omit_states_actions=omit_states_actions,
-            optimally_improved_policy_values=optimally_improved_policy_values,
             Q=Q_indexed,
-            stop_at_rmse=stop_at_rmse,
             V=V_indexed,
+            values=values,
         )
 
     @property
@@ -159,15 +150,6 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.discrete)
-
-    def compute_improved_policy_value(
-        self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
-    ):
-        return self.mdp.grid_world.evaluate_improved_policy(
-            stop_at_rmse=self.stop_at_rmse,
-            Q=values,
-            idxs=idxs,
-        )
 
     def evaluate(
         self, n_batch: int, net: nn.Module, plot_indices: torch.Tensor, **kwargs
@@ -191,7 +173,17 @@ class Dataset(torch.utils.data.Dataset):
                         discrete=x.discrete,
                         **kwargs,
                     )
-                    counter.update({k: v for k, v in metrics.items() if v is not None})
+                    metrics.update(
+                        self.values.get_metrics(
+                            idxs=x.idx,
+                            metrics=metrics,
+                            outputs=outputs,
+                            targets=targets,
+                        )
+                    )
+                    for k, v in metrics.items():
+                        if v is not None:
+                            counter.update({k: v})
                     yield x.idx, outputs, targets
 
         A = len(self.mdp.grid_world.deltas)

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import data.dataset
 import data.mdp
+import data.values
 from data.utils import Transition
 from tabular.grid_world import GridWorld
 
@@ -26,5 +27,5 @@ class MDP(data.mdp.MDP):
 
 
 @dataclass(frozen=True)
-class Dataset(data.dataset.Dataset):
+class Values(data.values.Values):
     pass
