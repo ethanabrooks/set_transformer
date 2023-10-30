@@ -33,8 +33,8 @@ class MDP(data.mdp.MDP):
 
 @dataclass(frozen=True)
 class Dataset(data.dataset.Dataset):
-    def get_n_metrics(self, *args, idxs: torch.Tensor, **kwargs):
-        metrics, outputs = super().get_n_metrics(*args, idxs=idxs, **kwargs)
+    def get_metrics(self, *args, idxs: torch.Tensor, **kwargs):
+        metrics, outputs = super().get_metrics(*args, idxs=idxs, **kwargs)
         if self.omit_states_actions == 0:
             values = outputs[
                 -1,  # last iteration of policy evaluation
