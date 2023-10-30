@@ -12,23 +12,6 @@ from data.mdp import MDP
 from metrics import get_metrics
 
 
-def permute(
-    permutation: torch.Tensor,
-    x: torch.Tensor,
-    i: int,
-    idxs: Optional[torch.Tensor] = None,
-):
-    p = permutation.to(x.device)
-    if idxs is not None:
-        p = p[idxs]
-    for _ in range(i - 1):
-        p = p[None]
-    while p.dim() < x.dim():
-        p = p[..., None]
-
-    return torch.gather(x, i, p.expand_as(x))
-
-
 @dataclass(frozen=True)
 class Dataset(torch.utils.data.Dataset):
     continuous: torch.Tensor
@@ -108,13 +91,27 @@ class Dataset(torch.utils.data.Dataset):
 
         permutation = torch.rand(B, S * A).argsort(dim=1)
 
+        def permute(
+            x: torch.Tensor,
+            i: int,
+            idxs: Optional[torch.Tensor] = None,
+        ):
+            p = permutation.to(x.device)
+            if idxs is not None:
+                p = p[idxs]
+            for _ in range(i - 1):
+                p = p[None]
+            while p.dim() < x.dim():
+                p = p[..., None]
+
+            return torch.gather(x, i, p.expand_as(x))
+
         if omit_states_actions > 0:
             q_values, values = [
-                permute(permutation, x, 2)[:, :, omit_states_actions:]
-                for x in [q_values, values]
+                permute(x, 2)[:, :, omit_states_actions:] for x in [q_values, values]
             ]
             continuous, discrete, action_probs = [
-                permute(permutation, x, 1)[:, omit_states_actions:]
+                permute(x, 1)[:, omit_states_actions:]
                 for x in [continuous, discrete, action_probs]
             ]
 
