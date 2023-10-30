@@ -16,6 +16,7 @@ from wandb.sdk.wandb_run import Run
 
 import data
 import wandb
+from data.dataset import DataPoint
 from metrics import get_metrics
 from models import SetTransformer
 from pretty import print_row
@@ -122,9 +123,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            (idxs, input_n_bellman, action_probs, discrete, q_values, values) = [
-                x.cuda() for x in x
-            ]
+            x = DataPoint[torch.Tensor](*[x.cuda() for x in x])
             step = e * len(train_loader) + t
             if step % test_1_interval == 0:
                 log = test_data.evaluate(
@@ -156,12 +155,12 @@ def train(
             outputs: torch.Tensor
             loss: torch.Tensor
             outputs, loss = net.forward(
-                v1=values[:, 0],
-                action_probs=action_probs,
-                discrete=discrete,
-                targets=q_values[:, targets_index],
+                v1=x.values[:, 0],
+                action_probs=x.action_probs,
+                discrete=x.discrete,
+                targets=x.q_values[:, targets_index],
             )
-            targets = q_values[:, targets_index]
+            targets = x.q_values[:, targets_index]
 
             metrics = get_metrics(
                 loss=loss,
