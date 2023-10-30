@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 import torch
 
@@ -20,7 +21,7 @@ def compute_mae(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 
 def get_metrics(
-    loss: torch.Tensor,
+    loss: Optional[torch.Tensor],
     outputs: torch.Tensor,
     targets: torch.Tensor,
     accuracy_threshold: float,
@@ -49,7 +50,7 @@ def get_metrics(
     pair_wise_accuracy = (diff_diffs.abs() < accuracy_threshold).float().mean().item()
 
     metrics = Metrics(
-        loss=loss.item(),
+        loss=None if loss is None else loss.item(),
         mae=mae,
         pair_wise_accuracy=pair_wise_accuracy,
         rmse=rmse,
