@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -92,8 +93,8 @@ class SetTransformer(nn.Module):
         v1: torch.Tensor,
         continuous: torch.Tensor,
         discrete: torch.Tensor,
-        targets: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        targets: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         discrete = self.embedding(discrete)
         _, _, _, D = discrete.shape
         continuous = torch.cat([continuous, v1[..., None]], dim=-1)
@@ -111,5 +112,5 @@ class SetTransformer(nn.Module):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        loss: torch.Tensor = F.mse_loss(outputs, targets.float())
+        loss = None if targets is None else F.mse_loss(outputs, targets.float())
         return outputs, loss
