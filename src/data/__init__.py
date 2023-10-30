@@ -9,15 +9,19 @@ def make(
     mdp_args: dict,
     name: str,
     seed: int,
+    stop_at_rmse: float,
 ) -> Dataset:
     sample_from = SampleFrom[name.upper()]
     mdp_args.update(seed=seed)
     if sample_from == SampleFrom.TRAJECTORIES:
         mdp: MDP = data.sample_trajectories.MDP.make(**mdp_args)
-        dataset: Dataset = data.sample_trajectories.Dataset.make(
-            **dataset_args, mdp=mdp
+        values = data.sample_trajectories.Values.make(
+            mdp=mdp, stop_at_rmse=stop_at_rmse
         )
     elif sample_from == SampleFrom.UNIFORM:
         mdp: MDP = data.sample_uniform.MDP.make(**mdp_args)
-        dataset: Dataset = data.sample_uniform.Dataset.make(**dataset_args, mdp=mdp)
+        values: Dataset = data.sample_uniform.Values.make(
+            mdp=mdp, stop_at_rmse=stop_at_rmse
+        )
+    dataset: Dataset = Dataset.make(**dataset_args, mdp=mdp, values=values)
     return dataset

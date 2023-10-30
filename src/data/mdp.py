@@ -16,7 +16,7 @@ class MDP(ABC):
 
     @classmethod
     @abstractmethod
-    def collect_data(cls, *args, **kwargs):
+    def collect_data(cls, **kwargs):
         raise NotImplementedError
 
     @classmethod
@@ -48,4 +48,11 @@ class MDP(ABC):
             grid_world=grid_world,
             Pi=Pi,
             transitions=transitions,
+        )
+
+    def compute_values(self, stop_at_rmse: float):
+        return torch.stack(
+            self.grid_world.evaluate_policy_iteratively(
+                Pi=self.Pi, stop_at_rmse=stop_at_rmse
+            )
         )

@@ -1,7 +1,6 @@
 data_args:
   dataset_args:
     omit_states_actions: 0
-    stop_at_rmse: 0.005
   mdp_args:
     grid_world_args:
       absorbing_state: true
@@ -11,6 +10,7 @@ data_args:
       heldout_goals: []
       terminate_on_goal: true
       use_heldout_goals: false
+  stop_at_rmse: 0.005
 decay_args:
   final_step: 500_000
   warmup_steps: 10_000
