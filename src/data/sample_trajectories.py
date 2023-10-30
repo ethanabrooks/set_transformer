@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 
-import data.base
+import data.dataset
+import data.mdp
 from data.utils import Transition
 from tabular.grid_world import GridWorld
 
 
 @dataclass(frozen=True)
-class MDP(data.base.MDP):
+class MDP(data.mdp.MDP):
     @classmethod
     def collect_data(cls, grid_world: GridWorld, **kwargs):
         steps = grid_world.get_trajectories(**kwargs)
@@ -25,5 +26,5 @@ class MDP(data.base.MDP):
 
 
 @dataclass(frozen=True)
-class Dataset(data.base.Dataset):
+class Dataset(data.dataset.Dataset):
     pass

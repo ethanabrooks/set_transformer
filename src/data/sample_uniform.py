@@ -2,13 +2,14 @@ from dataclasses import dataclass
 
 import torch
 
-import data.base
+import data.dataset
+import data.mdp
 from data.utils import Transition
 from tabular.grid_world import GridWorld
 
 
 @dataclass(frozen=True)
-class MDP(data.base.MDP):
+class MDP(data.mdp.MDP):
     @classmethod
     def collect_data(cls, grid_world: GridWorld, Pi: torch.Tensor):
         A = len(grid_world.deltas)
@@ -31,7 +32,7 @@ class MDP(data.base.MDP):
 
 
 @dataclass(frozen=True)
-class Dataset(data.base.Dataset):
+class Dataset(data.dataset.Dataset):
     def get_n_metrics(self, *args, idxs: torch.Tensor, **kwargs):
         metrics, outputs = super().get_n_metrics(*args, idxs=idxs, **kwargs)
         if self.omit_states_actions == 0:
