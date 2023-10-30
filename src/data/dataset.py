@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections import Counter
 from dataclasses import asdict, dataclass
 from typing import Optional
@@ -9,52 +8,9 @@ import torch.utils.data
 from torch.utils.data import DataLoader
 
 import wandb
-from data.utils import Transition
+from data.mdp import MDP
 from metrics import get_metrics
 from tabular.grid_world import GridWorld
-
-
-@dataclass(frozen=True)
-class MDP(ABC):
-    grid_world: GridWorld
-    Pi: torch.Tensor
-    transitions: Transition[torch.Tensor]
-
-    @classmethod
-    @abstractmethod
-    def collect_data(cls, *args, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def make(
-        cls,
-        grid_world_args: dict,
-        n_data: int,
-        seed: int,
-        **kwargs,
-    ):
-        # 2D deltas for up, down, left, right
-        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
-        A = len(grid_world.deltas)
-        S = grid_world.n_states
-        B = n_data
-
-        alpha = torch.ones(A)
-        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
-            (B, S)
-        )  # random policies
-        assert [*Pi.shape] == [B, S, A]
-
-        print("Policy evaluation...")
-        # states, actions, next_states, rewards = self.collect_data(**kwargs, Pi=Pi)
-        transitions: Transition[torch.Tensor] = cls.collect_data(
-            **kwargs, grid_world=grid_world, Pi=Pi
-        )
-        return cls(
-            grid_world=grid_world,
-            Pi=Pi,
-            transitions=transitions,
-        )
 
 
 def compute_improved_policy_value(
