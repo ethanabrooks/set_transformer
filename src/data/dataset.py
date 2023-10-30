@@ -15,7 +15,7 @@ from metrics import get_metrics
 class DataPoint(NamedTuple):
     idx: torch.Tensor
     input_bellman: torch.Tensor
-    action_probs: torch.Tensor
+    continuous: torch.Tensor
     discrete: torch.Tensor
     q_values: torch.Tensor
     values: torch.Tensor
@@ -30,9 +30,9 @@ class Dataset(torch.utils.data.Dataset):
     mdp: MDP
     omit_states_actions: int
     optimally_improved_policy_values: torch.Tensor
-    q_values: torch.Tensor
+    Q: torch.Tensor
     stop_at_rmse: float
-    values: torch.Tensor
+    V: torch.Tensor
 
     @classmethod
     def make(
@@ -68,8 +68,8 @@ class Dataset(torch.utils.data.Dataset):
         )
         q_mesh = q_mesh + input_bellman[None, :]
         q_mesh = torch.clamp(q_mesh, 0, len(Q) - 1)
-        q_values = Q[q_mesh, b_mesh]
-        q_values = q_values[
+        Q_indexed = Q[q_mesh, b_mesh]
+        Q_indexed = Q_indexed[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
@@ -77,13 +77,13 @@ class Dataset(torch.utils.data.Dataset):
         for b in range(10):
             for i, s in enumerate(states[b]):
                 for nb in range(len(Q)):
-                    left = q_values[nb, b, i]
+                    left = Q_indexed[nb, b, i]
                     right = Q[min(len(Q) - 1, nb + input_bellman[b]), b, s]
                     assert torch.all(left == right), (nb, b, s, left, right)
 
         V = (Q * mdp.Pi[None]).sum(-1)
-        values = V[q_mesh, b_mesh]
-        values = values[
+        V_indexed = V[q_mesh, b_mesh]
+        V_indexed = V_indexed[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
@@ -116,15 +116,16 @@ class Dataset(torch.utils.data.Dataset):
             return torch.gather(x, i, p.expand_as(x))
 
         if omit_states_actions > 0:
-            q_values, values = [
-                permute(x, 2)[:, :, omit_states_actions:] for x in [q_values, values]
+            Q_indexed, V_indexed = [
+                permute(x, 2)[:, :, omit_states_actions:]
+                for x in [Q_indexed, V_indexed]
             ]
             continuous, discrete, action_probs = [
                 permute(x, 1)[:, omit_states_actions:]
                 for x in [continuous, discrete, action_probs]
             ]
 
-        optimally_improved_policy_values = mdp.grid_world.compute_improved_policy_value(
+        optimally_improved_policy_values = mdp.grid_world.evaluate_improved_policy(
             stop_at_rmse=stop_at_rmse,
             Q=Q[-1],
         ).cuda()
@@ -136,9 +137,9 @@ class Dataset(torch.utils.data.Dataset):
             mdp=mdp,
             omit_states_actions=omit_states_actions,
             optimally_improved_policy_values=optimally_improved_policy_values,
-            q_values=q_values,
+            Q=Q_indexed,
             stop_at_rmse=stop_at_rmse,
-            values=values,
+            V=V_indexed,
         )
 
     @property
@@ -150,10 +151,10 @@ class Dataset(torch.utils.data.Dataset):
         return DataPoint(
             idx=idx,
             input_bellman=input_bellman,
-            action_probs=self.continuous[idx],
+            continuous=self.continuous[idx],
             discrete=self.discrete[idx],
-            q_values=self.q_values[:, idx],
-            values=self.values[:, idx],
+            q_values=self.Q[:, idx],
+            values=self.V[:, idx],
         )
 
     def __len__(self):
@@ -162,7 +163,7 @@ class Dataset(torch.utils.data.Dataset):
     def compute_improved_policy_value(
         self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
     ):
-        return self.mdp.grid_world.compute_improved_policy_value(
+        return self.mdp.grid_world.evaluate_improved_policy(
             stop_at_rmse=self.stop_at_rmse,
             Q=values,
             idxs=idxs,
@@ -180,13 +181,13 @@ class Dataset(torch.utils.data.Dataset):
             x: torch.Tensor
             for x in loader:
                 x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
-                metrics, outputs = self.get_n_metrics(
+                metrics, outputs = self.get_metrics(
                     idxs=x.idx,
                     input_n_bellman=x.input_bellman,
                     net=net,
                     q_values=x.q_values,
                     values=x.values,
-                    action_probs=x.action_probs,
+                    continuous=x.continuous,
                     discrete=x.discrete,
                     **kwargs,
                 )
@@ -214,7 +215,7 @@ class Dataset(torch.utils.data.Dataset):
 
         return metrics
 
-    def get_n_metrics(
+    def get_metrics(
         self,
         accuracy_threshold: float,
         bellman_delta: int,

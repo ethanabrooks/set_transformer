@@ -150,20 +150,6 @@ class GridWorld:
     #     N = self.n_states
     #     assert [*V.shape] == [B, N]
 
-    def compute_improved_policy_value(
-        self,
-        stop_at_rmse: float,
-        Q: torch.Tensor,
-        idxs: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        Pi = torch.zeros_like(Q)
-        Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
-        Q: torch.Tensor
-        *_, Q = self.evaluate_policy_iteratively(
-            Pi=Pi, stop_at_rmse=stop_at_rmse, idxs=idxs
-        )
-        return Q
-
     def create_exploration_policy(self):
         N = self.grid_size
         A = len(self.deltas)
@@ -211,6 +197,20 @@ class GridWorld:
             policy[-1, 0] = 1  # last state is terminal
         # self.visualize_policy(policy[None].tile(self.n_tasks, 1, 1))
         return policy
+
+    def evaluate_improved_policy(
+        self,
+        stop_at_rmse: float,
+        Q: torch.Tensor,
+        idxs: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        Pi = torch.zeros_like(Q)
+        Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
+        Q: torch.Tensor
+        *_, Q = self.evaluate_policy_iteratively(
+            Pi=Pi, stop_at_rmse=stop_at_rmse, idxs=idxs
+        )
+        return Q
 
     def evaluate_policy(
         self,
