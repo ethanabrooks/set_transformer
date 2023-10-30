@@ -10,21 +10,6 @@ from torch.utils.data import DataLoader
 import wandb
 from data.mdp import MDP
 from metrics import get_metrics
-from tabular.grid_world import GridWorld
-
-
-def compute_improved_policy_value(
-    grid_world: GridWorld,
-    stop_at_rmse: float,
-    values: torch.Tensor,
-    idxs: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
-    Pi = grid_world.improve_policy(values, idxs=idxs)
-    values: torch.Tensor
-    *_, values = grid_world.evaluate_policy_iteratively(
-        Pi=Pi, stop_at_rmse=stop_at_rmse, idxs=idxs
-    )
-    return values
 
 
 def permute(
@@ -133,10 +118,9 @@ class Dataset(torch.utils.data.Dataset):
                 for x in [continuous, discrete, action_probs]
             ]
 
-        optimally_improved_policy_values = compute_improved_policy_value(
-            grid_world=mdp.grid_world,
+        optimally_improved_policy_values = mdp.grid_world.compute_improved_policy_value(
             stop_at_rmse=stop_at_rmse,
-            values=Q[-1],
+            Q=Q[-1],
         ).cuda()
         return cls(
             continuous=continuous,
@@ -171,10 +155,9 @@ class Dataset(torch.utils.data.Dataset):
     def compute_improved_policy_value(
         self, values: torch.Tensor, idxs: Optional[torch.Tensor] = None
     ):
-        return compute_improved_policy_value(
-            grid_world=self.mdp.grid_world,
+        return self.mdp.grid_world.compute_improved_policy_value(
             stop_at_rmse=self.stop_at_rmse,
-            values=values,
+            Q=values,
             idxs=idxs,
         )
 
