@@ -1,6 +1,6 @@
 from collections import Counter
 from dataclasses import asdict, dataclass
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import torch
 import torch.nn as nn
@@ -10,6 +10,15 @@ from torch.utils.data import DataLoader
 import wandb
 from data.mdp import MDP
 from metrics import get_metrics
+
+
+class DataPoint(NamedTuple):
+    idx: torch.Tensor
+    input_bellman: torch.Tensor
+    action_probs: torch.Tensor
+    discrete: torch.Tensor
+    q_values: torch.Tensor
+    values: torch.Tensor
 
 
 @dataclass(frozen=True)
@@ -136,14 +145,15 @@ class Dataset(torch.utils.data.Dataset):
     def n_actions(self):
         return len(self.mdp.grid_world.deltas)
 
-    def __getitem__(self, idx):
-        return (
-            idx,
-            self.input_bellman[idx],
-            self.continuous[idx],
-            self.discrete[idx],
-            self.q_values[:, idx],
-            self.values[:, idx],
+    def __getitem__(self, idx) -> DataPoint[int]:
+        input_bellman = self.input_bellman[idx]
+        return DataPoint(
+            idx=idx,
+            input_bellman=input_bellman,
+            action_probs=self.continuous[idx],
+            discrete=self.discrete[idx],
+            q_values=self.q_values[:, idx],
+            values=self.values[:, idx],
         )
 
     def __len__(self):
@@ -169,22 +179,20 @@ class Dataset(torch.utils.data.Dataset):
         with torch.no_grad():
             x: torch.Tensor
             for x in loader:
-                (idxs, input_n_bellman, action_probs, discrete, q_values, values) = [
-                    x.cuda() for x in x
-                ]
+                x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
                 metrics, outputs = self.get_n_metrics(
-                    idxs=idxs,
-                    input_n_bellman=input_n_bellman,
+                    idxs=x.idx,
+                    input_n_bellman=x.input_bellman,
                     net=net,
-                    q_values=q_values,
-                    values=values,
-                    action_probs=action_probs,
-                    discrete=discrete,
+                    q_values=x.q_values,
+                    values=x.values,
+                    action_probs=x.action_probs,
+                    discrete=x.discrete,
                     **kwargs,
                 )
                 counter.update(metrics)
                 all_outputs.append(outputs)
-                all_idxs.append(idxs)
+                all_idxs.append(x.idx)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         A = len(self.mdp.grid_world.deltas)
 
