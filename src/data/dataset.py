@@ -192,7 +192,7 @@ class Dataset(torch.utils.data.Dataset):
                     discrete=x.discrete,
                     **kwargs,
                 )
-                counter.update(metrics)
+                counter.update({k: v for k, v in metrics.items() if v is not None})
                 all_outputs.append(outputs)
                 all_idxs.append(x.idx)
                 all_targets.append(targets)
@@ -242,10 +242,9 @@ class Dataset(torch.utils.data.Dataset):
         Pi = self.mdp.transitions.action_probs.cuda()[idxs]
         for j in range(iterations):
             outputs: torch.Tensor
-            loss: torch.Tensor
             targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
             with torch.no_grad():
-                outputs, loss = net.forward(v1=v1, **kwargs, targets=targets)
+                outputs, _ = net.forward(v1=v1, **kwargs, targets=targets)
             v1: torch.Tensor = outputs * Pi
             v1 = v1.sum(-1)
             mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
@@ -254,7 +253,7 @@ class Dataset(torch.utils.data.Dataset):
             all_targets.append(targets)
 
         metrics = get_metrics(
-            loss=loss,
+            loss=None,
             outputs=final_outputs,
             targets=targets,
             accuracy_threshold=accuracy_threshold,
