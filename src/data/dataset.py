@@ -228,7 +228,7 @@ class Dataset(torch.utils.data.Dataset):
                 outputs: torch.Tensor
                 targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
                 with torch.no_grad():
-                    outputs, _ = net.forward(v1=v1, **kwargs, targets=targets)
+                    outputs, _ = net.forward(v1=v1, **kwargs)
                 v1: torch.Tensor = outputs * Pi
                 v1 = v1.sum(-1)
                 mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
