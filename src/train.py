@@ -91,12 +91,14 @@ def train(
 
     # create data
     data_args = OmegaConf.create(data_args)
-    train_data_args = OmegaConf.create(train_data_args)
-    train_data_args = OmegaConf.merge(data_args, train_data_args)
-    test_data_args = OmegaConf.create(test_data_args)
-    test_data_args = OmegaConf.merge(data_args, test_data_args)
-    train_data = data.make(seed=seed, **train_data_args)
-    test_data = data.make(seed=seed + 1, **test_data_args)
+
+    def make_data(seed: int, **kwargs: dict):
+        kwargs = OmegaConf.create(kwargs)
+        kwargs = OmegaConf.merge(data_args, kwargs)
+        return data.make(seed=seed, **kwargs)
+
+    train_data = make_data(seed=seed, **train_data_args)
+    test_data = make_data(seed=seed + 1, **test_data_args)
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
