@@ -163,16 +163,7 @@ class Dataset(torch.utils.data.Dataset):
                 x: torch.Tensor
                 for x in loader:
                     x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
-                    metrics, outputs, targets = self.get_metrics(
-                        idxs=x.idx,
-                        input_n_bellman=x.input_bellman,
-                        net=net,
-                        q_values=x.q_values,
-                        values=x.values,
-                        continuous=x.continuous,
-                        discrete=x.discrete,
-                        **kwargs,
-                    )
+                    metrics, outputs, targets = self.get_metrics(net=net, **kwargs, x=x)
                     metrics.update(self.values.get_metrics(idxs=x.idx, outputs=outputs))
                     for k, v in metrics.items():
                         if v is not None:
@@ -206,32 +197,30 @@ class Dataset(torch.utils.data.Dataset):
         self,
         accuracy_threshold: float,
         bellman_delta: int,
-        idxs: torch.Tensor,
-        input_n_bellman: torch.Tensor,
         iterations: int,
         net: nn.Module,
-        q_values: torch.Tensor,
-        values: torch.Tensor,
-        **kwargs,
+        x: DataPoint[torch.Tensor],
     ):
-        _, max_n_bellman, _, _ = q_values.shape
+        _, max_n_bellman, _, _ = x.q_values.shape
         max_n_bellman -= 1
-        v1 = values[:, 0]
+        v1 = x.values[:, 0]
         assert torch.all(v1 == 0)
-        q1 = q_values[:, 0]
+        q1 = x.q_values[:, 0]
         assert torch.all(q1 == 0)
         final_outputs = torch.zeros_like(q1)
-        Pi = self.mdp.transitions.action_probs.cuda()[idxs]
+        Pi = self.mdp.transitions.action_probs.cuda()[x.idx]
 
         def generate(v1: torch.Tensor):
             for j in range(iterations):
                 outputs: torch.Tensor
-                targets = q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
+                targets = x.q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
                 with torch.no_grad():
-                    outputs, _ = net.forward(v1=v1, **kwargs)
+                    outputs, _ = net.forward(
+                        continuous=x.continuous, discrete=x.discrete, v1=v1
+                    )
                 v1: torch.Tensor = outputs * Pi
                 v1 = v1.sum(-1)
-                mask = (input_n_bellman + j * bellman_delta) < max_n_bellman
+                mask = (x.input_bellman + j * bellman_delta) < max_n_bellman
                 final_outputs[mask] = outputs[mask]
                 yield final_outputs, targets
 
