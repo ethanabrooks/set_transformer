@@ -188,11 +188,8 @@ class Dataset(torch.utils.data.Dataset):
         x: DataPoint[torch.Tensor],
     ):
         v1 = self.index_values(x.values, x.input_bellman)
-        q1 = self.index_values(x.q_values, x.input_bellman)
 
         assert torch.all(v1 == 0)
-        assert torch.all(q1 == 0)
-        final_outputs = torch.zeros_like(q1)
         Pi = self.mdp.transitions.action_probs.cuda()[x.idx]
 
         def generate(v1: torch.Tensor):
@@ -206,9 +203,7 @@ class Dataset(torch.utils.data.Dataset):
                     )
                 v1: torch.Tensor = outputs * Pi
                 v1 = v1.sum(-1)
-                mask = (x.input_bellman + j * bellman_delta) < self.max_n_bellman
-                final_outputs[mask] = outputs[mask]
-                yield final_outputs, targets
+                yield outputs, targets
 
         all_outputs, all_targets = zip(*generate(v1))
         outputs = torch.stack(all_outputs)
@@ -216,7 +211,7 @@ class Dataset(torch.utils.data.Dataset):
 
         metrics = get_metrics(
             loss=None,
-            outputs=final_outputs,
+            outputs=outputs[-1],
             targets=targets[-1],
             accuracy_threshold=accuracy_threshold,
         )
