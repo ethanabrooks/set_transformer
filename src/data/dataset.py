@@ -59,27 +59,14 @@ class Dataset(torch.utils.data.Dataset):
         n_bellman = torch.clamp(n_bellman, 0, len(Q) - 1)
 
         # create Q_indexed/self.q_values
-        q_mesh, b_mesh = torch.meshgrid(
-            torch.arange(len(Q)), torch.arange(B), indexing="ij"
-        )
-        q_mesh = q_mesh + input_bellman[None, :]
-        q_mesh = torch.clamp(q_mesh, 0, len(Q) - 1)
-        Q_indexed = Q[q_mesh, b_mesh]
-        Q_indexed = Q_indexed[
+        Q_indexed = Q[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
         ]
-        for b in range(10):
-            for i, s in enumerate(states[b]):
-                for nb in range(len(Q)):
-                    left = Q_indexed[nb, b, i]
-                    right = Q[min(len(Q) - 1, nb + input_bellman[b]), b, s]
-                    assert torch.all(left == right), (nb, b, s, left, right)
 
         V = (Q * mdp.Pi[None]).sum(-1)
-        V_indexed = V[q_mesh, b_mesh]
-        V_indexed = V_indexed[
+        V_indexed = V[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
             states[None],
@@ -138,10 +125,9 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.mdp.grid_world.deltas)
 
     def __getitem__(self, idx) -> DataPoint[int]:
-        input_bellman = self.input_bellman[idx]
         return DataPoint(
             idx=idx,
-            input_bellman=input_bellman,
+            input_bellman=self.input_bellman[idx],
             continuous=self.continuous[idx],
             discrete=self.discrete[idx],
             q_values=self.Q[:, idx],
@@ -201,11 +187,10 @@ class Dataset(torch.utils.data.Dataset):
         net: nn.Module,
         x: DataPoint[torch.Tensor],
     ):
-        _, max_n_bellman, _, _ = x.q_values.shape
-        max_n_bellman -= 1
-        v1 = x.values[:, 0]
+        v1 = self.index_values(x.values, x.input_bellman)
+        q1 = self.index_values(x.q_values, x.input_bellman)
+
         assert torch.all(v1 == 0)
-        q1 = x.q_values[:, 0]
         assert torch.all(q1 == 0)
         final_outputs = torch.zeros_like(q1)
         Pi = self.mdp.transitions.action_probs.cuda()[x.idx]
@@ -213,14 +198,15 @@ class Dataset(torch.utils.data.Dataset):
         def generate(v1: torch.Tensor):
             for j in range(iterations):
                 outputs: torch.Tensor
-                targets = x.q_values[:, min((j + 1) * bellman_delta, max_n_bellman)]
+                target_idxs = x.input_bellman + (j + 1) * bellman_delta
+                targets = self.index_values(x.q_values, target_idxs)
                 with torch.no_grad():
                     outputs, _ = net.forward(
                         continuous=x.continuous, discrete=x.discrete, v1=v1
                     )
                 v1: torch.Tensor = outputs * Pi
                 v1 = v1.sum(-1)
-                mask = (x.input_bellman + j * bellman_delta) < max_n_bellman
+                mask = (x.input_bellman + j * bellman_delta) < self.max_n_bellman
                 final_outputs[mask] = outputs[mask]
                 yield final_outputs, targets
 
@@ -236,3 +222,7 @@ class Dataset(torch.utils.data.Dataset):
         )
         metrics = asdict(metrics)
         return metrics, outputs, targets
+
+    def index_values(self, values: torch.Tensor, idxs: torch.Tensor):
+        idxs = torch.clamp(idxs, 0, self.max_n_bellman)
+        return values[torch.arange(len(values)), idxs]

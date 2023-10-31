@@ -153,16 +153,19 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            targets_index = min(bellman_delta, train_data.max_n_bellman)
+            v1 = train_data.index_values(x.values, x.input_bellman)
+            targets = train_data.index_values(
+                x.q_values, x.input_bellman + bellman_delta
+            )
+
             outputs: torch.Tensor
             loss: torch.Tensor
             outputs, loss = net.forward(
-                v1=x.values[:, 0],
+                v1=v1,
                 continuous=x.continuous,
                 discrete=x.discrete,
-                targets=x.q_values[:, targets_index],
+                targets=targets,
             )
-            targets = x.q_values[:, targets_index]
 
             metrics = get_metrics(
                 loss=loss,
