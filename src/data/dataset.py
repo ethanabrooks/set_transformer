@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader
 
 import wandb
 from data.mdp import MDP
-from data.values import Values
 from metrics import get_metrics
+from values.base import Values
 
 
 class DataPoint(NamedTuple):
