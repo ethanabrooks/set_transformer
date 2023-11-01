@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from data.utils import Transition
+from dataset.utils import Transition
 from metrics import compute_rmse
 from tabular.maze import generate_maze, maze_to_state_action
 
