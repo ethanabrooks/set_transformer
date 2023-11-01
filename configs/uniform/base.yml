@@ -1,6 +1,7 @@
 data_args:
   dataset_args:
     omit_states_actions: 0
+  sample_from_trajectories: false
   sequence_args:
     grid_world_args:
       absorbing_state: true
@@ -40,7 +41,6 @@ test_1_interval: ${train_1_interval}
 test_data_args:
   dataset_args:
     max_initial_bellman: 1
-  name: "uniform"
   sequence_args:
     grid_world_args:
       n_maze: 200
@@ -51,7 +51,6 @@ train_1_interval: 1000
 train_data_args:
   dataset_args:
     max_initial_bellman: null
-  name: "uniform"
   sequence_args:
     grid_world_args:
       n_maze: 0

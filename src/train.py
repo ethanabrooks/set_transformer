@@ -28,13 +28,21 @@ MODEL_FNAME = "model.tar"
 def make_data(
     dataset_args: dict,
     sequence_args: dict,
-    name: str,
+    sample_from_trajectories: bool,
     seed: int,
     stop_at_rmse: float,
 ) -> Dataset:
     sequence_args.update(seed=seed)
-    sequence = make_sequence(sequence_args=sequence_args, name=name, seed=seed)
-    values = make_values(sequence=sequence, name=name, stop_at_rmse=stop_at_rmse)
+    sequence = make_sequence(
+        sequence_args=sequence_args,
+        sample_from_trajectories=sample_from_trajectories,
+        seed=seed,
+    )
+    values = make_values(
+        sequence=sequence,
+        sample_from_trajectories=sample_from_trajectories,
+        stop_at_rmse=stop_at_rmse,
+    )
     dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
     return dataset
 
