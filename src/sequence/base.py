@@ -28,7 +28,7 @@ class Sequence(ABC):
         **kwargs,
     ):
         # 2D deltas for up, down, left, right
-        grid_world = GridWorld(**grid_world_args, n_tasks=n_data, seed=seed)
+        grid_world = GridWorld.make(**grid_world_args, n_tasks=n_data, seed=seed)
         A = len(grid_world.deltas)
         S = grid_world.n_states
         B = n_data
