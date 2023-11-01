@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
-import values.base
 from data.mdp import MDP
+from values.base import Values as BaseValues
 
 
 @dataclass(frozen=True)
-class Values(values.base.Values):
+class Values(BaseValues):
     @classmethod
     def compute_values(cls, mdp: MDP, stop_at_rmse: float):
         return mdp.compute_values(stop_at_rmse)
