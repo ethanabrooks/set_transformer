@@ -3,10 +3,9 @@ from sequence.sample_trajectories import Sequence as SampleTrajectoriesSequence
 from sequence.sample_uniform import Sequence as SampleUniformSequence
 
 
-def make(sequence_args: dict, sample_from_trajectories: bool, seed: int) -> Sequence:
-    sequence_args.update(seed=seed)
+def make(sample_from_trajectories: bool, **kwargs: dict) -> Sequence:
     return (
-        SampleTrajectoriesSequence.make(**sequence_args)
+        SampleTrajectoriesSequence.make(**kwargs)
         if sample_from_trajectories
-        else SampleUniformSequence.make(**sequence_args)
+        else SampleUniformSequence.make(**kwargs)
     )
