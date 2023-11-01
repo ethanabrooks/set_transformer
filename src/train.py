@@ -32,11 +32,8 @@ def make_data(
     seed: int,
     stop_at_rmse: float,
 ) -> Dataset:
-    sequence_args.update(seed=seed)
     sequence = make_sequence(
-        sequence_args=sequence_args,
-        sample_from_trajectories=sample_from_trajectories,
-        seed=seed,
+        sample_from_trajectories=sample_from_trajectories, seed=seed, **sequence_args
     )
     values = make_values(
         sequence=sequence,
