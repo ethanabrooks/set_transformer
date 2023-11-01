@@ -120,9 +120,8 @@ def train(
     test_data = make_data(**make_data_args(seed=seed + 1, **test_data_args))
 
     print("Create net... ", end="", flush=True)
-    n_tokens = train_data.discrete.max().item() + 1
     net = SetTransformer(
-        **model_args, n_actions=train_data.n_actions, n_tokens=n_tokens
+        **model_args, n_actions=train_data.n_actions, n_tokens=train_data.n_tokens
     )
     if load_path is not None:
         load(load_path, net, run)
