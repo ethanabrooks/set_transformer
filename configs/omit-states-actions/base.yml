@@ -18,7 +18,6 @@ decay_args:
 evaluate_args:
   accuracy_threshold: 0.01
 load_path: null
-loss: "mse"
 lr: 0.0002
 model_args:
   isab_args:
