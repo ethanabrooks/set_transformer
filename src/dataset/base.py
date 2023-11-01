@@ -69,13 +69,17 @@ class Dataset(BaseDataset):
     def n_actions(self):
         return len(self.sequence.grid_world.deltas)
 
-    def __getitem__(self, idx) -> DataPoint[int]:
+    def __getitem__(self, idx) -> DataPoint:
+        transitions = self.sequence.transitions[idx]
         return DataPoint(
+            action_probs=transitions.action_probs,
+            actions=transitions.actions,
             idx=idx,
             input_bellman=self.input_bellman[idx],
-            continuous=self.continuous[idx],
-            discrete=self.discrete[idx],
+            next_states=transitions.next_states,
             q_values=self.Q[:, idx],
+            rewards=transitions.rewards,
+            states=transitions.states,
             values=self.V[:, idx],
         )
 
@@ -94,7 +98,7 @@ class Dataset(BaseDataset):
             with torch.no_grad():
                 x: torch.Tensor
                 for x in loader:
-                    x: DataPoint[torch.Tensor] = DataPoint(*[x.cuda() for x in x])
+                    x: DataPoint = DataPoint(*[x.cuda() for x in x])
                     metrics, outputs, targets = self.get_metrics(net=net, **kwargs, x=x)
                     metrics.update(self.values.get_metrics(idxs=x.idx, outputs=outputs))
                     for k, v in metrics.items():
@@ -131,25 +135,23 @@ class Dataset(BaseDataset):
         bellman_delta: int,
         iterations: int,
         net: nn.Module,
-        x: DataPoint[torch.Tensor],
+        x: DataPoint,
     ):
         v1 = self.index_values(x.values, x.input_bellman)
 
         assert torch.all(v1 == 0)
         Pi = self.sequence.transitions.action_probs.cuda()[x.idx]
 
-        def generate(v1: torch.Tensor):
+        def generate(values: torch.Tensor):
             for j in range(iterations):
                 outputs: torch.Tensor
                 target_idxs = x.input_bellman + (j + 1) * bellman_delta
-                targets = self.index_values(x.q_values, target_idxs)
+                q_values = self.index_values(x.q_values, target_idxs)
                 with torch.no_grad():
-                    outputs, _ = net.forward(
-                        continuous=x.continuous, discrete=x.discrete, v1=v1
-                    )
-                v1: torch.Tensor = outputs * Pi
-                v1 = v1.sum(-1)
-                yield outputs, targets
+                    outputs, _ = net.forward(x, values=values, q_values=q_values)
+                values: torch.Tensor = outputs * Pi
+                values = values.sum(-1)
+                yield outputs, q_values
 
         all_outputs, all_targets = zip(*generate(v1))
         outputs = torch.stack(all_outputs)

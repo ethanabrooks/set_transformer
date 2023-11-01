@@ -8,11 +8,14 @@ import torch.nn.functional as F
 
 
 class DataPoint(NamedTuple):
+    action_probs: torch.Tensor
+    actions: torch.Tensor
     idx: torch.Tensor
     input_bellman: torch.Tensor
-    continuous: torch.Tensor
-    discrete: torch.Tensor
+    next_states: torch.Tensor
     q_values: torch.Tensor
+    rewards: torch.Tensor
+    states: torch.Tensor
     values: torch.Tensor
 
 
@@ -160,15 +163,20 @@ class SetTransformer(nn.Module):
         self.dec = nn.Linear(n_hidden, n_actions)
 
     def forward(
-        self,
-        v1: torch.Tensor,
-        continuous: torch.Tensor,
-        discrete: torch.Tensor,
-        targets: Optional[torch.Tensor] = None,
+        self, x: DataPoint, values: torch.Tensor, q_values: torch.Tensor
     ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
-        discrete = self.embedding(discrete)
+        discrete = torch.stack(
+            [
+                x.states,
+                x.actions,
+                x.next_states,
+                x.rewards,
+            ],
+            dim=-1,
+        )
+        discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        continuous = torch.cat([continuous, v1[..., None]], dim=-1)
+        continuous = torch.cat([x.action_probs, values[..., None]], dim=-1)
         continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
@@ -183,5 +191,5 @@ class SetTransformer(nn.Module):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        loss = None if targets is None else F.mse_loss(outputs, targets.float())
+        loss = F.mse_loss(outputs, q_values.float())
         return outputs, loss
