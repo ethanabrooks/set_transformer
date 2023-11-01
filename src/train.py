@@ -144,7 +144,7 @@ def train(
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         for t, x in enumerate(train_loader):
-            x = DataPoint[torch.Tensor](*[x.cuda() for x in x])
+            x = DataPoint(*[x.cuda() for x in x])
             step = e * len(train_loader) + t
             if step % test_1_interval == 0:
                 log = test_data.evaluate(
@@ -172,24 +172,19 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            v1 = train_data.index_values(x.values, x.input_bellman)
-            targets = train_data.index_values(
+            values = train_data.index_values(x.values, x.input_bellman)
+            q_values = train_data.index_values(
                 x.q_values, x.input_bellman + bellman_delta
             )
 
             outputs: torch.Tensor
             loss: torch.Tensor
-            outputs, loss = net.forward(
-                v1=v1,
-                continuous=x.continuous,
-                discrete=x.discrete,
-                targets=targets,
-            )
+            outputs, loss = net.forward(x, values=values, q_values=q_values)
 
             metrics = get_metrics(
                 loss=loss,
                 outputs=outputs,
-                targets=targets,
+                targets=q_values,
                 **evaluate_args,
             )
 
