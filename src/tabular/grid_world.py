@@ -1,4 +1,5 @@
 import itertools
+from dataclasses import dataclass
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -12,9 +13,33 @@ from tabular.maze import generate_maze, maze_to_state_action
 from utils import Transition
 
 
+def convert_2d_to_1d(grid_size: int, x: torch.Tensor):
+    return grid_size * x[..., 0] + x[..., 1]
+
+
+def convert_1d_to_2d(grid_size: int, x: torch.Tensor):
+    return torch.stack([x // grid_size, x % grid_size], dim=1)
+
+
+@dataclass
 class GridWorld:
-    def __init__(
-        self,
+    deltas: torch.Tensor
+    dense_reward: bool
+    gamma: float
+    goals: torch.Tensor
+    grid_size: int
+    heldout_goals: list[tuple[int, int]]
+    is_wall: torch.Tensor
+    n_tasks: int
+    random: np.random.Generator
+    states: torch.Tensor
+    terminate_on_goal: bool
+    use_absorbing_state: bool
+    use_heldout_goals: bool
+
+    @classmethod
+    def make(
+        cls,
         absorbing_state: bool,
         dense_reward: bool,
         gamma: float,
@@ -28,29 +53,21 @@ class GridWorld:
         use_heldout_goals: bool,
     ):
         # transition to absorbing state instead of goal
-        self.deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
-        A = len(self.deltas)
+        deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
+        A = len(deltas)
         G = grid_size**2  # number of goals
         M = n_maze
-        T = n_tasks
+        transition_matrix = n_tasks
 
         # add absorbing state for goals
-        self.use_absorbing_state = absorbing_state
-        self.dense_reward = dense_reward
-        self.gamma = gamma
-        self.grid_size = grid_size
-        self.heldout_goals = heldout_goals
-        self.random = np.random.default_rng(seed)
-        self.terminate_on_goal = terminate_on_goal
-        self.use_heldout_goals = use_heldout_goals
+        random = np.random.default_rng(seed)
 
-        self.states = torch.tensor(
+        states = torch.tensor(
             [[i, j] for i in range(grid_size) for j in range(grid_size)]
         )
-        self.n_tasks = n_tasks
 
         # generate walls
-        is_wall = torch.rand(T, G, A) < p_wall
+        is_wall = torch.rand(transition_matrix, G, A) < p_wall
         if n_maze:
             mazes = [
                 maze_to_state_action(generate_maze(grid_size)).view(G, A)
@@ -58,56 +75,34 @@ class GridWorld:
             ]
             mazes = torch.stack(mazes)
             assert [*mazes.shape] == [M, G, A]
-            maze_idx = torch.randint(0, M, (T,))
+            maze_idx = torch.randint(0, M, (transition_matrix,))
             is_wall = mazes[maze_idx] & is_wall
-            assert [*is_wall.shape] == [T, G, A]
-        is_wall = is_wall[..., None]
+            assert [*is_wall.shape] == [transition_matrix, G, A]
+        goals = torch.randint(0, G, (transition_matrix,))
 
-        # Compute next states for each action and state for each batch (goal)
-        next_states = self.states[:, None] + self.deltas[None, :]
-        assert [*next_states.shape] == [G, A, 2]
-        states = self.states[None, :, None].tile(T, 1, A, 1)
-        next_states = next_states[None].tile(T, 1, 1, 1)
-        next_states = states * is_wall + next_states * (~is_wall)
-        next_states = torch.clamp(next_states, 0, grid_size - 1)  # stay in bounds
-        next_state_indices = self.convert_2d_to_1d(next_states)  # Convert to indices
-
-        # Determine if next_state is the goal for each batch (goal)
-        # is_goal = (self.goals[:, None] == self.states[None]).all(-1)
-        # create walls and goals
-        self.goal_idxs = torch.randint(0, G, (T,))
-        is_goal = self.goal_idxs[:, None, None] == next_state_indices
-
-        # Modify transition to go to absorbing state if the next state is a goal
-        absorbing_state_idx = self.n_states - 1
-        if self.use_absorbing_state:
-            # S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
-            next_state_indices[is_goal[:, :G]] = absorbing_state_idx
-
-            # Insert row for absorbing state
-            padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
-            next_state_indices = F.pad(
-                next_state_indices, padding, value=absorbing_state_idx
-            )
-        self.T: torch.Tensor = F.one_hot(next_state_indices, num_classes=self.n_states)
-        self.T = self.T.float()
-
-        if dense_reward:
-            distance = (self.goals[:, None] - self.states[None]).abs().sum(-1)
-            R = -distance.float()[..., None].tile(1, 1, len(self.deltas))
-        else:
-            R = is_goal.float()
-        self.R = R
-        if self.use_absorbing_state:
-            self.R = F.pad(R, padding, value=0)  # Insert row for absorbing state
+        return cls(
+            deltas=deltas,
+            dense_reward=dense_reward,
+            gamma=gamma,
+            goals=goals,
+            grid_size=grid_size,
+            heldout_goals=heldout_goals,
+            is_wall=is_wall,
+            n_tasks=n_tasks,
+            random=random,
+            states=states,
+            terminate_on_goal=terminate_on_goal,
+            use_absorbing_state=absorbing_state,
+            use_heldout_goals=use_heldout_goals,
+        )
 
     @property
     def absorbing_state(self):
         return self.n_states - 1
 
     @property
-    def goals(self):
-        return self.convert_1d_to_2d(self.goal_idxs)
+    def n_actions(self):
+        return len(self.deltas)
 
     @property
     def n_states(self):
@@ -116,43 +111,99 @@ class GridWorld:
             n_states += 1
         return n_states
 
+    @property
+    def next_state_no_absorbing(self):
+        A = self.n_actions
+        G = self.n_states - 1
+        T = self.n_tasks
+        # Compute next states for each action and state for each batch (goal)
+        next_states = self.states[:, None] + self.deltas[None, :]
+        assert [*next_states.shape] == [G, A, 2]
+        states = self.states[None, :, None].tile(T, 1, A, 1)
+        next_states = next_states[None].tile(T, 1, 1, 1)
+        is_wall = self.is_wall[..., None]
+        next_states = states * is_wall + next_states * (~is_wall)
+        next_states = torch.clamp(next_states, 0, self.grid_size - 1)  # stay in bounds
+        return self.convert_2d_to_1d(next_states)
+
+    @property
+    def next_states(self):
+        G = self.n_states - 1
+        next_state = self.next_state_no_absorbing.clone()
+        is_goal: torch.Tensor = self.goals[:, None, None] == next_state
+        if self.use_absorbing_state:
+            # S_[is_goal[..., None].expand_as(S_)] = absorbing_state_idx
+            next_state[is_goal[:, :G]] = self.absorbing_state
+
+            # Insert row for absorbing state
+            padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
+            next_state = F.pad(next_state, padding, value=self.absorbing_state)
+        return next_state
+
+    @property
+    def is_goal(self):
+        return self.goals[:, None, None] == self.next_state_no_absorbing
+
+    @property
+    def rewards(self):
+        goals = self.goals
+        if self.dense_reward:
+            distance = (goals[:, None] - self.states[None]).abs().sum(-1)
+            R = -distance.float()[..., None].tile(1, 1, self.n_actions)
+        else:
+            R = self.is_goal.float()
+        R = R
+        if self.use_absorbing_state:
+            padding = (0, 0, 0, 1)  # left 0, right 0, top 0, bottom 1
+            R = F.pad(R, padding, value=0)  # Insert row for absorbing state
+        return R
+
+    @property
+    def transition_matrix(self):
+        matrix: torch.Tensor = F.one_hot(self.next_states, num_classes=self.n_states)
+        return matrix.float()
+
+    def __getitem__(self, idx):
+        if isinstance(idx, torch.Tensor):
+            deltas = self.deltas.to(idx.device)
+            goals = self.goals.to(idx.device)
+            is_wall = self.is_wall.to(idx.device)
+            states = self.states.to(idx.device)
+        else:
+            deltas = self.deltas
+            goals = self.goals
+            is_wall = self.is_wall
+            states = self.states
+        goals = goals[idx]
+        is_wall = is_wall[idx]
+        return type(self)(
+            deltas=deltas,
+            dense_reward=self.dense_reward,
+            gamma=self.gamma,
+            goals=goals,
+            grid_size=self.grid_size,
+            heldout_goals=self.heldout_goals,
+            is_wall=is_wall,
+            n_tasks=goals.numel(),
+            random=self.random,
+            states=states,
+            terminate_on_goal=self.terminate_on_goal,
+            use_absorbing_state=self.use_absorbing_state,
+            use_heldout_goals=self.use_heldout_goals,
+        )
+
+    def __len__(self):
+        return self.n_tasks
+
     def convert_1d_to_2d(self, x: torch.Tensor):
-        return torch.stack([x // self.grid_size, x % self.grid_size], dim=1)
+        return convert_1d_to_2d(self.grid_size, x)
 
     def convert_2d_to_1d(self, x: torch.Tensor):
-        return self.grid_size * x[..., 0] + x[..., 1]
-
-    # def check_actions(self, actions: torch.Tensor):
-    #     B = self.n_tasks
-    #     A = len(self.deltas)
-    #     assert [*actions.shape] == [B]
-    #     assert actions.max() < A
-    #     assert 0 <= actions.min()
-
-    # def check_pi(self, Pi: torch.Tensor):
-    #     B = self.n_tasks
-    #     N = self.n_states
-    #     A = len(self.deltas)
-    #     assert [*Pi.shape] == [B, N, A]
-
-    # def check_states(self, states: torch.Tensor):
-    #     B = self.n_tasks
-    #     assert [*states.shape] == [B]
-    #     assert states.max() < self.n_states
-    #     assert 0 <= states.min()
-
-    # def check_time_step(self, time_step: torch.Tensor):
-    #     B = self.n_tasks
-    #     assert [*time_step.shape] == [B]
-
-    # def check_V(self, V: torch.Tensor):
-    #     B = self.n_tasks
-    #     N = self.n_states
-    #     assert [*V.shape] == [B, N]
+        return convert_2d_to_1d(self.grid_size, x)
 
     def create_exploration_policy(self):
         N = self.grid_size
-        A = len(self.deltas)
+        A = self.n_actions
 
         def odd(n):
             return bool(n % 2)
@@ -202,35 +253,31 @@ class GridWorld:
         self,
         stop_at_rmse: float,
         Q: torch.Tensor,
-        idxs: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         Pi = torch.zeros_like(Q)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         Q: torch.Tensor
-        *_, Q = self.evaluate_policy_iteratively(
-            Pi=Pi, stop_at_rmse=stop_at_rmse, idxs=idxs
-        )
+        *_, Q = self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
         return Q
 
     def evaluate_policy(
         self,
         Pi: torch.Tensor,
         Q: torch.Tensor = None,
-        idxs: Optional[torch.Tensor] = None,
     ):
         # self.check_pi(Pi)
 
-        B = self.n_tasks if idxs is None else len(idxs)
+        B = self.n_tasks
         N = self.n_states
-        A = len(self.deltas)
+        A = self.n_actions
 
         # Compute the policy conditioned transition function
-        T = self.get_transitions(idxs).to(Pi.device)
+        T = self.transition_matrix.to(Pi.device)
 
         # Initialize Q_0
         if Q is None:
             Q = torch.zeros((B, N, A), dtype=torch.float32, device=Pi.device)
-        R = self.get_rewards(idxs).to(Pi.device)
+        R = self.rewards.to(Pi.device)
         assert [*R.shape] == [B, N, A]
         EQ = (Pi * Q).sum(-1)
         assert [*EQ.shape] == [B, N]
@@ -243,16 +290,15 @@ class GridWorld:
         self,
         Pi: torch.Tensor,
         stop_at_rmse: float,
-        idxs: Optional[torch.Tensor] = None,
     ):
-        B = self.n_tasks if idxs is None else len(idxs)
+        B = self.n_tasks
         S = self.n_states
-        A = len(self.deltas)
+        A = self.n_actions
 
         Q = [torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)]
         for _ in itertools.count(1):  # n_rounds of policy evaluation
             Vk = Q[-1]
-            Vk1 = self.evaluate_policy(Pi, Vk, idxs=idxs)
+            Vk1 = self.evaluate_policy(Pi, Vk)
             Q.append(Vk1)
             rmse = compute_rmse(Vk1, Vk)
             # print("Iteration:", k, "RMSE:", rmse)
@@ -268,7 +314,7 @@ class GridWorld:
     ):
         B = self.n_tasks
         N = self.n_states
-        A = len(self.deltas)
+        A = self.n_actions
         assert [*Pi.shape] == [B, N, A]
 
         trajectory_length = episode_length * n_episodes
@@ -328,16 +374,6 @@ class GridWorld:
             done=done,
         )
 
-    def get_rewards(self, idxs: Optional[torch.Tensor] = None):
-        if idxs is None:
-            return self.R
-        return self.R.to(idxs.device)[idxs]
-
-    def get_transitions(self, idxs: Optional[torch.Tensor] = None):
-        if idxs is None:
-            return self.T
-        return self.T.to(idxs.device)[idxs]
-
     def reset_fn(self):
         array = self.random.choice(self.grid_size, size=(self.n_tasks, 2))
         return torch.tensor(array)
@@ -363,10 +399,12 @@ class GridWorld:
         states = states.flatten()
         actions = actions.flatten()
 
-        rewards = self.R[arange, states, actions]
+        rewards = self.rewards[arange, states, actions]
 
         # Compute next state indices
-        next_states = torch.argmax(self.T[arange, states, actions], dim=1)
+        next_states = torch.argmax(
+            self.transition_matrix[arange, states, actions], dim=1
+        )
 
         if time_step is None:
             done = torch.zeros_like(states, dtype=torch.bool)
@@ -378,6 +416,7 @@ class GridWorld:
             done = done | (states == self.absorbing_state)
         next_states = next_states.reshape(shape)
         rewards = rewards.reshape(shape)
+        done = done.reshape(shape)
         return next_states, rewards, done, {}
 
     def visualize_policy(self, Pi: torch.Tensor):

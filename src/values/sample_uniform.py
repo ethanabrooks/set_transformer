@@ -20,8 +20,8 @@ class Values(BaseValues):
                 ::A,  # index into unique states
             ]
 
-            improved_policy_value = grid_world.evaluate_improved_policy(
-                idxs=idxs, Q=values, stop_at_rmse=self.stop_at_rmse
+            improved_policy_value = grid_world[idxs].evaluate_improved_policy(
+                Q=values, stop_at_rmse=self.stop_at_rmse
             )
             optimally_improved_policy_values = self.optimally_improved_policy_values[
                 idxs
