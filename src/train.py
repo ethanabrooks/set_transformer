@@ -16,9 +16,9 @@ from wandb.sdk.wandb_run import Run
 
 import dataset
 import wandb
-from dataset.dataset import DataPoint
+from dataset.base import DataPoint
 from metrics import get_metrics
-from models import SetTransformer
+from models.set_transformer import SetTransformer
 from pretty import print_row
 
 MODEL_FNAME = "model.tar"
