@@ -14,14 +14,42 @@ from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
-import dataset
 import wandb
-from dataset.base import DataPoint
+from dataset.base import DataPoint, Dataset
+from dataset.sample_trajectories import Sequence as SampleTrajectoriesSequence
+from dataset.sample_trajectories import Values as SampleTrajectoriesValues
+from dataset.sample_uniform import Sequence as SampleUniformSequence
+from dataset.sample_uniform import Values as SampleUniformValues
 from metrics import get_metrics
 from models.set_transformer import SetTransformer
 from pretty import print_row
+from sequence.base import Sequence
+from utils import SampleFrom
 
 MODEL_FNAME = "model.tar"
+
+
+def make_data(
+    dataset_args: dict,
+    sequence_args: dict,
+    name: str,
+    seed: int,
+    stop_at_rmse: float,
+) -> Dataset:
+    sample_from = SampleFrom[name.upper()]
+    sequence_args.update(seed=seed)
+    if sample_from == SampleFrom.TRAJECTORIES:
+        sequence: Sequence = SampleTrajectoriesSequence.make(**sequence_args)
+        values = SampleTrajectoriesValues.make(
+            sequence=sequence, stop_at_rmse=stop_at_rmse
+        )
+    elif sample_from == SampleFrom.UNIFORM:
+        sequence: Sequence = SampleUniformSequence.make(**sequence_args)
+        values: Dataset = SampleUniformValues.make(
+            sequence=sequence, stop_at_rmse=stop_at_rmse
+        )
+    dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
+    return dataset
 
 
 def load(
@@ -92,13 +120,13 @@ def train(
     # create data
     data_args = OmegaConf.create(data_args)
 
-    def make_data(seed: int, **kwargs: dict):
+    def make_data_args(**kwargs: dict):
         kwargs = OmegaConf.create(kwargs)
         kwargs = OmegaConf.merge(data_args, kwargs)
-        return dataset.make(seed=seed, **kwargs)
+        return kwargs
 
-    train_data = make_data(seed=seed, **train_data_args)
-    test_data = make_data(seed=seed + 1, **test_data_args)
+    train_data = make_data(**make_data_args(seed=seed, **train_data_args))
+    test_data = make_data(**make_data_args(seed=seed + 1, **test_data_args))
 
     print("Create net... ", end="", flush=True)
     n_tokens = train_data.discrete.max().item() + 1
