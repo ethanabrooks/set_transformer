@@ -1,6 +1,6 @@
 from collections import Counter
 from dataclasses import asdict, dataclass
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -10,17 +10,9 @@ from torch.utils.data import Dataset as BaseDataset
 
 import wandb
 from metrics import get_metrics
+from models.set_transformer import DataPoint
 from sequence.base import Sequence
 from values.base import Values
-
-
-class DataPoint(NamedTuple):
-    idx: torch.Tensor
-    input_bellman: torch.Tensor
-    continuous: torch.Tensor
-    discrete: torch.Tensor
-    q_values: torch.Tensor
-    values: torch.Tensor
 
 
 @dataclass(frozen=True)
