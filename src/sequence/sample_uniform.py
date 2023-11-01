@@ -11,7 +11,7 @@ from utils import Transition
 class Sequence(BaseSequence):
     @classmethod
     def collect_data(cls, grid_world: GridWorld, Pi: torch.Tensor):
-        A = len(grid_world.deltas)
+        A = grid_world.n_actions
         S = grid_world.n_states
         B = grid_world.n_tasks
         states = torch.arange(S).repeat_interleave(A)
