@@ -7,9 +7,9 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from dataset.utils import Transition
 from metrics import compute_rmse
 from tabular.maze import generate_maze, maze_to_state_action
+from utils import Transition
 
 
 class GridWorld:
