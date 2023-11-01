@@ -2,15 +2,14 @@ from dataclasses import dataclass
 
 import torch
 
-import data.dataset
-import data.mdp
-import values.tabular
+from data.mdp import MDP as BaseMDP
 from data.utils import Transition
 from tabular.grid_world import GridWorld
+from values.tabular import Values as BaseValues
 
 
 @dataclass(frozen=True)
-class MDP(data.mdp.MDP):
+class MDP(BaseMDP):
     @classmethod
     def collect_data(cls, grid_world: GridWorld, Pi: torch.Tensor, **kwargs):
         steps = grid_world.get_trajectories(**kwargs, Pi=Pi)
@@ -30,5 +29,5 @@ class MDP(data.mdp.MDP):
 
 
 @dataclass(frozen=True)
-class Values(values.tabular.Values):
+class Values(BaseValues):
     pass
