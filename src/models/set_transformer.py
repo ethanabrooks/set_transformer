@@ -1,10 +1,19 @@
 import math
 from functools import lru_cache
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+class DataPoint(NamedTuple):
+    idx: torch.Tensor
+    input_bellman: torch.Tensor
+    continuous: torch.Tensor
+    discrete: torch.Tensor
+    q_values: torch.Tensor
+    values: torch.Tensor
 
 
 class MAB(nn.Module):

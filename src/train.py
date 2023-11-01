@@ -15,9 +15,9 @@ from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
 import wandb
-from dataset.base import DataPoint, Dataset
+from dataset.base import Dataset
 from metrics import get_metrics
-from models.set_transformer import SetTransformer
+from models.set_transformer import DataPoint, SetTransformer
 from pretty import print_row
 from sequence import make as make_sequence
 from values import make as make_values
