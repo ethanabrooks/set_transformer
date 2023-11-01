@@ -70,7 +70,6 @@ def train(
     data_args: dict,
     decay_args: dict,
     load_path: str,
-    loss: str,
     lr: float,
     model_args: dict,
     n_batch: int,
