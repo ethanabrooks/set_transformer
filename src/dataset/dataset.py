@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as BaseDataset
 
 import wandb
-from data.mdp import MDP
+from dataset.mdp import MDP
 from metrics import get_metrics
 from values.base import Values
 

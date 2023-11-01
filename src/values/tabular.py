@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from data.mdp import MDP
+from dataset.mdp import MDP
 from values.base import Values as BaseValues
 
 
