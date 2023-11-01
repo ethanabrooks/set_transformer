@@ -14,9 +14,9 @@ from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
-import data
+import dataset
 import wandb
-from data.dataset import DataPoint
+from dataset.dataset import DataPoint
 from metrics import get_metrics
 from models import SetTransformer
 from pretty import print_row
@@ -95,7 +95,7 @@ def train(
     def make_data(seed: int, **kwargs: dict):
         kwargs = OmegaConf.create(kwargs)
         kwargs = OmegaConf.merge(data_args, kwargs)
-        return data.make(seed=seed, **kwargs)
+        return dataset.make(seed=seed, **kwargs)
 
     train_data = make_data(seed=seed, **train_data_args)
     test_data = make_data(seed=seed + 1, **test_data_args)

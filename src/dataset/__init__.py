@@ -1,10 +1,10 @@
-from data.dataset import Dataset
-from data.mdp import MDP
-from data.sample_trajectories import MDP as SampleTrajectoriesMDP
-from data.sample_trajectories import Values as SampleTrajectoriesValues
-from data.sample_uniform import MDP as SampleUniformMDP
-from data.sample_uniform import Values as SampleUniformValues
-from data.utils import SampleFrom
+from dataset.dataset import Dataset
+from dataset.mdp import MDP
+from dataset.sample_trajectories import MDP as SampleTrajectoriesMDP
+from dataset.sample_trajectories import Values as SampleTrajectoriesValues
+from dataset.sample_uniform import MDP as SampleUniformMDP
+from dataset.sample_uniform import Values as SampleUniformValues
+from dataset.utils import SampleFrom
 
 
 def make(
