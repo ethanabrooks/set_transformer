@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as BaseDataset
 
 import wandb
 from data.mdp import MDP
@@ -23,7 +24,7 @@ class DataPoint(NamedTuple):
 
 
 @dataclass(frozen=True)
-class Dataset(torch.utils.data.Dataset):
+class Dataset(BaseDataset):
     continuous: torch.Tensor
     discrete: torch.Tensor
     input_bellman: torch.Tensor
