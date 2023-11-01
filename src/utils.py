@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import Generic, TypeVar
 import numpy as np
 
@@ -16,11 +15,6 @@ class Transition(Generic[T]):
     next_states: T
     rewards: T
     done: T
-
-
-class SampleFrom(Enum):
-    TRAJECTORIES = auto()
-    UNIFORM = auto()
 
 
 def tensor_hash(tensor: torch.Tensor):
