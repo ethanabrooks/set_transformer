@@ -1,5 +1,5 @@
-from dataset.sample_trajectories import Sequence as SampleTrajectoriesSequence
-from dataset.sample_uniform import Sequence as SampleUniformSequence
+from sequence.sample_trajectories import Sequence as SampleTrajectoriesSequence
+from sequence.sample_uniform import Sequence as SampleUniformSequence
 from sequence.base import Sequence
 from utils import SampleFrom
 
