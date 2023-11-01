@@ -4,12 +4,12 @@ from dataclasses import dataclass
 import torch
 import torch.utils.data
 
-from dataset.utils import Transition
 from tabular.grid_world import GridWorld
+from utils import Transition
 
 
 @dataclass(frozen=True)
-class MDP(ABC):
+class Sequence(ABC):
     grid_world: GridWorld
     Pi: torch.Tensor
     transitions: Transition[torch.Tensor]

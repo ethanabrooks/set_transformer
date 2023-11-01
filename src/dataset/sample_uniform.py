@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 import torch
 
-from dataset.mdp import MDP as BaseMDP
-from dataset.utils import Transition
+from sequence.base import Sequence as BaseSequence
 from tabular.grid_world import GridWorld
+from utils import Transition
 from values.tabular import Values as BaseValues
 
 
 @dataclass(frozen=True)
-class MDP(BaseMDP):
+class Sequence(BaseSequence):
     @classmethod
     def collect_data(cls, grid_world: GridWorld, Pi: torch.Tensor):
         A = len(grid_world.deltas)
@@ -34,7 +34,7 @@ class MDP(BaseMDP):
 @dataclass(frozen=True)
 class Values(BaseValues):
     def get_metrics(self, idxs: torch.Tensor, outputs: torch.Tensor):
-        grid_world = self.mdp.grid_world
+        grid_world = self.sequence.grid_world
         S = grid_world.n_states
         A = len(grid_world.deltas)
         _, _, L, _ = outputs.shape

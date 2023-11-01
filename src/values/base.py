@@ -3,29 +3,29 @@ from dataclasses import dataclass
 
 import torch
 
-from dataset.mdp import MDP
+from sequence.base import Sequence
 
 
 @dataclass(frozen=True)
 class Values(ABC):
-    mdp: MDP
+    sequence: Sequence
     optimally_improved_policy_values: torch.Tensor
     Q: torch.Tensor
     stop_at_rmse: float
 
     @classmethod
     @abstractmethod
-    def compute_values(cls, mdp: MDP, stop_at_rmse: float):
+    def compute_values(cls, sequence: Sequence, stop_at_rmse: float):
         raise NotImplementedError
 
     @classmethod
-    def make(cls, mdp: MDP, stop_at_rmse: float):
-        Q = cls.compute_values(mdp, stop_at_rmse)
-        optimally_improved_policy_values = mdp.grid_world.evaluate_improved_policy(
+    def make(cls, sequence: Sequence, stop_at_rmse: float):
+        Q = cls.compute_values(sequence, stop_at_rmse)
+        optimally_improved_policy_values = sequence.grid_world.evaluate_improved_policy(
             Q=Q[-1], stop_at_rmse=stop_at_rmse
         ).cuda()
         return cls(
-            mdp=mdp,
+            sequence=sequence,
             optimally_improved_policy_values=optimally_improved_policy_values,
             Q=Q,
             stop_at_rmse=stop_at_rmse,
