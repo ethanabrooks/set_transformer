@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from data.mdp import MDP as BaseMDP
-from data.utils import Transition
+from dataset.mdp import MDP as BaseMDP
+from dataset.utils import Transition
 from tabular.grid_world import GridWorld
 from values.tabular import Values as BaseValues
 

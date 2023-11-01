@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import torch
 
-from data.mdp import MDP
+from dataset.mdp import MDP
 
 
 @dataclass(frozen=True)
