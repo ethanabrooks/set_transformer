@@ -16,15 +16,11 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from dataset.base import DataPoint, Dataset
-from dataset.sample_trajectories import Sequence as SampleTrajectoriesSequence
-from dataset.sample_trajectories import Values as SampleTrajectoriesValues
-from dataset.sample_uniform import Sequence as SampleUniformSequence
-from dataset.sample_uniform import Values as SampleUniformValues
 from metrics import get_metrics
 from models.set_transformer import SetTransformer
 from pretty import print_row
-from sequence.base import Sequence
-from utils import SampleFrom
+from sequence import make as make_sequence
+from values import make as make_values
 
 MODEL_FNAME = "model.tar"
 
@@ -36,18 +32,9 @@ def make_data(
     seed: int,
     stop_at_rmse: float,
 ) -> Dataset:
-    sample_from = SampleFrom[name.upper()]
     sequence_args.update(seed=seed)
-    if sample_from == SampleFrom.TRAJECTORIES:
-        sequence: Sequence = SampleTrajectoriesSequence.make(**sequence_args)
-        values = SampleTrajectoriesValues.make(
-            sequence=sequence, stop_at_rmse=stop_at_rmse
-        )
-    elif sample_from == SampleFrom.UNIFORM:
-        sequence: Sequence = SampleUniformSequence.make(**sequence_args)
-        values: Dataset = SampleUniformValues.make(
-            sequence=sequence, stop_at_rmse=stop_at_rmse
-        )
+    sequence = make_sequence(sequence_args=sequence_args, name=name, seed=seed)
+    values = make_values(sequence=sequence, name=name, stop_at_rmse=stop_at_rmse)
     dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
     return dataset
 
