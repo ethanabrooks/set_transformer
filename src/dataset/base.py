@@ -17,8 +17,6 @@ from values.base import Values
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
-    continuous: torch.Tensor
-    discrete: torch.Tensor
     input_bellman: torch.Tensor
     max_n_bellman: int
     sequence: Sequence
@@ -45,18 +43,7 @@ class Dataset(BaseDataset):
         n_bellman = torch.arange(len(Q))[:, None] + input_bellman[None, :]
         n_bellman = torch.clamp(n_bellman, 0, len(Q) - 1)
 
-        continuous = torch.Tensor(transitions.action_probs)
-        discrete = [
-            transitions.states[..., None],
-            transitions.actions[..., None],
-            transitions.next_states[..., None],
-            transitions.rewards[..., None],
-        ]
-        discrete = torch.cat(discrete, -1).long()
-
         return cls(
-            continuous=continuous,
-            discrete=discrete,
             input_bellman=input_bellman,
             max_n_bellman=len(Q) - 1,
             sequence=sequence,
@@ -68,6 +55,16 @@ class Dataset(BaseDataset):
     @property
     def n_actions(self):
         return len(self.sequence.grid_world.deltas)
+
+    @property
+    def n_tokens(self):
+        transitions = self.sequence.transitions
+        return 1 + max(
+            transitions.actions.max(),
+            transitions.next_states.max(),
+            transitions.rewards.max(),
+            transitions.states.max(),
+        )
 
     def __getitem__(self, idx) -> DataPoint:
         transitions = self.sequence.transitions[idx]
@@ -84,7 +81,7 @@ class Dataset(BaseDataset):
         )
 
     def __len__(self):
-        return len(self.discrete)
+        return len(self.sequence)
 
     def evaluate(
         self, n_batch: int, net: nn.Module, plot_indices: torch.Tensor, **kwargs
