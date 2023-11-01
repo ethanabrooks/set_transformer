@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from sequence.base import Sequence as BaseSequence
 from tabular.grid_world import GridWorld
 from utils import Transition
-from values.tabular import Values as BaseValues
 
 
 @dataclass(frozen=True)
@@ -23,8 +22,3 @@ class Sequence(BaseSequence):
             rewards=rewards,
             done=steps.done,
         )
-
-
-@dataclass(frozen=True)
-class Values(BaseValues):
-    pass
