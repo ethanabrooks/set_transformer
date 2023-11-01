@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as BaseDataset
 
 import wandb
-from dataset.mdp import MDP
 from metrics import get_metrics
+from sequence.base import Sequence
 from values.base import Values
 
 
@@ -29,7 +29,7 @@ class Dataset(BaseDataset):
     discrete: torch.Tensor
     input_bellman: torch.Tensor
     max_n_bellman: int
-    mdp: MDP
+    sequence: Sequence
     omit_states_actions: int
     Q: torch.Tensor
     V: torch.Tensor
@@ -39,17 +39,17 @@ class Dataset(BaseDataset):
     def make(
         cls,
         max_initial_bellman: Optional[int],
-        mdp: MDP,
+        sequence: Sequence,
         omit_states_actions: int,
         values: Values,
     ):
-        transitions = mdp.transitions
+        transitions = sequence.transitions
         states = transitions.states
         action_probs = transitions.action_probs
 
-        B = mdp.grid_world.n_tasks
-        S = mdp.grid_world.n_states
-        A = len(mdp.grid_world.deltas)
+        B = sequence.grid_world.n_tasks
+        S = sequence.grid_world.n_states
+        A = len(sequence.grid_world.deltas)
         Q = values.Q
 
         # sample n_bellman -- number of steps of policy evaluation
@@ -66,7 +66,7 @@ class Dataset(BaseDataset):
             states[None],
         ]
 
-        V = (Q * mdp.Pi[None]).sum(-1)
+        V = (Q * sequence.Pi[None]).sum(-1)
         V_indexed = V[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
@@ -114,7 +114,7 @@ class Dataset(BaseDataset):
             discrete=discrete,
             input_bellman=input_bellman,
             max_n_bellman=len(Q) - 1,
-            mdp=mdp,
+            sequence=sequence,
             omit_states_actions=omit_states_actions,
             Q=Q_indexed,
             V=V_indexed,
@@ -123,7 +123,7 @@ class Dataset(BaseDataset):
 
     @property
     def n_actions(self):
-        return len(self.mdp.grid_world.deltas)
+        return len(self.sequence.grid_world.deltas)
 
     def __getitem__(self, idx) -> DataPoint[int]:
         return DataPoint(
@@ -164,7 +164,7 @@ class Dataset(BaseDataset):
                             counter.update({k: v})
                     yield x.idx, outputs, targets
 
-        A = len(self.mdp.grid_world.deltas)
+        A = len(self.sequence.grid_world.deltas)
 
         # add values plots to metrics
         all_idxs, all_outputs, all_targets = zip(*generate())
@@ -175,14 +175,14 @@ class Dataset(BaseDataset):
         values = stacked[..., ::A, :]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
-        Pi = self.mdp.Pi[idxs][None, None].cuda()
+        Pi = self.sequence.Pi[idxs][None, None].cuda()
         plot_values = values[:, :, mask]
         plot_values: torch.Tensor = plot_values * Pi
         plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, plot_value in zip(idxs, plot_values):
-            fig = self.mdp.grid_world.visualize_values(plot_value)
+            fig = self.sequence.grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
@@ -198,7 +198,7 @@ class Dataset(BaseDataset):
         v1 = self.index_values(x.values, x.input_bellman)
 
         assert torch.all(v1 == 0)
-        Pi = self.mdp.transitions.action_probs.cuda()[x.idx]
+        Pi = self.sequence.transitions.action_probs.cuda()[x.idx]
 
         def generate(v1: torch.Tensor):
             for j in range(iterations):
