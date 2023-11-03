@@ -1,0 +1,60 @@
+data_args:
+  stop_at_rmse: 0.005
+decay_args:
+  final_step: 500_000
+  warmup_steps: 10_000
+evaluate_args:
+  accuracy_threshold: 0.01
+load_path: null
+loss: "mse"
+lr: 0.0002
+model_args:
+  isab_args:
+    n_inds: 32
+  n_hidden: 512
+  n_isab: 0
+  n_sab: 3
+  positional_encoding_args:
+    log_term: 10000.0
+    scale_term: 1000
+  sab_args:
+    ln: true
+    n_heads: 8
+n_batch: 50
+n_epochs: 2000
+n_plot: 3
+save_interval: 40000
+seed: 0
+test_1_interval: ${train_1_interval}
+test_data_args:
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 0.99
+    grid_size: 5
+    heldout_goals: []
+    n_maze: 200
+    p_wall: 0
+    terminate_on_goal: true
+    use_heldout_goals: false
+  max_initial_bellman: 1
+  n_data: 200
+  omit_states_actions: 0
+test_data_path: "data/sample_uniform"
+test_n_interval: ${train_1_interval}
+train_1_interval: 1000
+train_data_args:
+  grid_world_args:
+    absorbing_state: true
+    dense_reward: false
+    gamma: 0.99
+    grid_size: 5
+    heldout_goals: []
+    n_maze: 0
+    p_wall: 0
+    terminate_on_goal: true
+    use_heldout_goals: false
+  max_initial_bellman: null
+  n_data: 80_000
+  omit_states_actions: 52
+train_data_path: "data/sample_uniform"
