@@ -10,9 +10,9 @@ data_args:
       heldout_goals: []
       n_maze: 0
       p_wall: 0
+      stop_at_rmse: 0.005
       terminate_on_goal: true
       use_heldout_goals: false
-  stop_at_rmse: 0.005
 decay_args:
   final_step: 200_000
   warmup_steps: 10_000

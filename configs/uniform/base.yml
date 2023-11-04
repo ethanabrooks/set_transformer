@@ -9,9 +9,9 @@ data_args:
       gamma: 0.99
       grid_size: 4
       heldout_goals: []
+      stop_at_rmse: 0.005
       terminate_on_goal: true
       use_heldout_goals: false
-  stop_at_rmse: 0.005
 decay_args:
   final_step: 500_000
   warmup_steps: 10_000
