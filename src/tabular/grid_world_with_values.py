@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import torch
+from tqdm import tqdm
 
 from tabular.grid_world import GridWorld
 
@@ -42,8 +43,11 @@ class GridWorldWithValues(GridWorld):
         )
         Q = torch.stack(
             list(
-                grid_world.evaluate_policy_iteratively(
-                    Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
+                tqdm(
+                    grid_world.evaluate_policy_iteratively(
+                        Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
+                    ),
+                    desc="Computing values",
                 )
             )
         )
