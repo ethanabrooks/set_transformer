@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import torch
+
 from sequence.base import Sequence
 from values.base import Values as BaseValues
 
@@ -8,4 +10,8 @@ from values.base import Values as BaseValues
 class Values(BaseValues):
     @classmethod
     def compute_values(cls, sequence: Sequence, stop_at_rmse: float):
-        return sequence.compute_values(stop_at_rmse)
+        return torch.stack(
+            sequence.grid_world.evaluate_policy_iteratively(
+                Pi=sequence.Pi, stop_at_rmse=stop_at_rmse
+            )
+        )

@@ -49,10 +49,3 @@ class Sequence(ABC):
             Pi=Pi,
             transitions=transitions,
         )
-
-    def compute_values(self, stop_at_rmse: float):
-        return torch.stack(
-            self.grid_world.evaluate_policy_iteratively(
-                Pi=self.Pi, stop_at_rmse=stop_at_rmse
-            )
-        )
