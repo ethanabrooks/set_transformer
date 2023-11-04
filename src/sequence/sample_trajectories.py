@@ -10,8 +10,8 @@ from utils import Transition
 @dataclass(frozen=True)
 class Sequence(BaseSequence):
     @classmethod
-    def collect_data(cls, grid_world: GridWorld, Pi: torch.Tensor, **kwargs):
-        steps = grid_world.get_trajectories(**kwargs, Pi=Pi)
+    def collect_data(cls, grid_world: GridWorld, **kwargs):
+        steps = grid_world.get_trajectories(**kwargs)
         states = grid_world.convert_2d_to_1d(steps.states).long()
         actions = steps.actions.squeeze(-1).long()
         next_states = grid_world.convert_2d_to_1d(steps.next_states).long()
