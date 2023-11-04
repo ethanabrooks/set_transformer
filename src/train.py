@@ -34,10 +34,11 @@ def make_data(
     sequence = make_sequence(
         sample_from_trajectories=sample_from_trajectories, seed=seed, **sequence_args
     )
+
     values = make_values(
-        sequence=sequence,
-        sample_from_trajectories=sample_from_trajectories,
+        sequence=sequence, sample_from_trajectories=sample_from_trajectories
     )
+
     dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
     return dataset
 

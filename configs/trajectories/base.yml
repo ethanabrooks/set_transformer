@@ -1,6 +1,4 @@
 data_args:
-  dataset_args:
-    omit_states_actions: 0
   sequence_args:
     grid_world_args:
       absorbing_state: true
@@ -45,6 +43,7 @@ test_data_args:
   sample_from_trajectories: false
   sequence_args:
     n_data: 200
+    omit_states_actions: 0
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:

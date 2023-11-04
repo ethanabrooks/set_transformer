@@ -22,7 +22,6 @@ class Dataset(BaseDataset):
     input_bellman: torch.Tensor
     max_n_bellman: int
     sequence: Sequence
-    omit_states_actions: int
     Q: torch.Tensor
     V: torch.Tensor
     values: Values
@@ -32,18 +31,12 @@ class Dataset(BaseDataset):
         cls,
         max_initial_bellman: Optional[int],
         sequence: Sequence,
-        omit_states_actions: int,
         values: Values,
     ):
         transitions = sequence.transitions
-        states = transitions.states
-        action_probs = transitions.action_probs
-
-        grid_world = sequence.grid_world
-        B = grid_world.n_tasks
-        S = grid_world.n_states
-        A = len(grid_world.deltas)
+        B = sequence.grid_world.n_tasks
         Q = values.Q
+        V = (Q * transitions.action_probs[None]).sum(-1)
 
         # sample n_bellman -- number of steps of policy evaluation
         if max_initial_bellman is None:
@@ -52,21 +45,7 @@ class Dataset(BaseDataset):
         n_bellman = torch.arange(len(Q))[:, None] + input_bellman[None, :]
         n_bellman = torch.clamp(n_bellman, 0, len(Q) - 1)
 
-        # create Q_indexed/self.q_values
-        Q_indexed = Q[
-            torch.arange(len(Q))[:, None, None],
-            torch.arange(B)[None, :, None],
-            states[None],
-        ]
-
-        V = (Q * grid_world.Pi[None]).sum(-1)
-        V_indexed = V[
-            torch.arange(len(Q))[:, None, None],
-            torch.arange(B)[None, :, None],
-            states[None],
-        ]
-
-        continuous = torch.Tensor(action_probs)
+        continuous = torch.Tensor(transitions.action_probs)
         discrete = [
             transitions.states[..., None],
             transitions.actions[..., None],
@@ -75,42 +54,14 @@ class Dataset(BaseDataset):
         ]
         discrete = torch.cat(discrete, -1).long()
 
-        permutation = torch.rand(B, S * A).argsort(dim=1)
-
-        def permute(
-            x: torch.Tensor,
-            i: int,
-            idxs: Optional[torch.Tensor] = None,
-        ):
-            p = permutation.to(x.device)
-            if idxs is not None:
-                p = p[idxs]
-            for _ in range(i - 1):
-                p = p[None]
-            while p.dim() < x.dim():
-                p = p[..., None]
-
-            return torch.gather(x, i, p.expand_as(x))
-
-        if omit_states_actions > 0:
-            Q_indexed, V_indexed = [
-                permute(x, 2)[:, :, omit_states_actions:]
-                for x in [Q_indexed, V_indexed]
-            ]
-            continuous, discrete, action_probs = [
-                permute(x, 1)[:, omit_states_actions:]
-                for x in [continuous, discrete, action_probs]
-            ]
-
         return cls(
             continuous=continuous,
             discrete=discrete,
             input_bellman=input_bellman,
             max_n_bellman=len(Q) - 1,
             sequence=sequence,
-            omit_states_actions=omit_states_actions,
-            Q=Q_indexed,
-            V=V_indexed,
+            Q=Q,
+            V=V,
             values=values,
         )
 
