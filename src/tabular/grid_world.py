@@ -339,7 +339,10 @@ class GridWorld:
         Pi = torch.zeros_like(Q)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         Q: torch.Tensor
-        *_, Q = self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
+        *_, Q = tqdm(
+            self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse),
+            desc="Evaluating improved policy",
+        )
         return Q
 
     def evaluate_policy(
