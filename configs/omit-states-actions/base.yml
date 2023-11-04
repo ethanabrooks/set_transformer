@@ -41,14 +41,14 @@ test_1_interval: ${train_1_interval}
 test_data_args:
   dataset_args:
     max_initial_bellman: 1
-    omit_states_actions: 0
   sequence_args:
     n_data: 200
+    omit_states_actions: 0
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:
   dataset_args:
     max_initial_bellman: null
-    omit_states_actions: 52
   sequence_args:
     n_data: 80_000
+    omit_states_actions: 52
