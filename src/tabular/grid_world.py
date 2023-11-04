@@ -297,16 +297,16 @@ class GridWorld:
         S = self.n_states
         A = self.n_actions
 
-        Q = [torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)]
+        Q = torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)
+        rmse = float("inf")
         for _ in itertools.count(1):  # n_rounds of policy evaluation
-            Vk = Q[-1]
-            Vk1 = self.evaluate_policy(Pi, Vk)
-            Q.append(Vk1)
-            rmse = compute_rmse(Vk1, Vk)
-            # print("Iteration:", k, "RMSE:", rmse)
+            yield Q
             if rmse < stop_at_rmse:
                 break
-        return Q
+            Q1 = self.evaluate_policy(Pi, Q)
+            rmse = compute_rmse(Q1, Q)
+            # print("Iteration:", k, "RMSE:", rmse)
+            Q = Q1
 
     def get_trajectories(
         self,
