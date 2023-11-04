@@ -177,7 +177,7 @@ class GridWorld:
             return x.to(idx.device) if isinstance(idx, torch.Tensor) else x
 
         goals = to_device(self.goals)[idx]
-        return type(self)(
+        return GridWorld(
             deltas=to_device(self.deltas),
             dense_reward=self.dense_reward,
             gamma=self.gamma,

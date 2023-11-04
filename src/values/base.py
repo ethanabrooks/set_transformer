@@ -15,18 +15,16 @@ class Values(ABC):
 
     @classmethod
     @abstractmethod
-    def compute_values(cls, sequence: Sequence, stop_at_rmse: float):
+    def compute_values(cls, sequence: Sequence):
         raise NotImplementedError
 
     @classmethod
-    def make(cls, sequence: Sequence, stop_at_rmse: float):
-        Q = cls.compute_values(sequence, stop_at_rmse)
-        optimally_improved_policy_values = sequence.grid_world.evaluate_improved_policy(
-            Q=Q[-1], stop_at_rmse=stop_at_rmse
-        ).cuda()
+    def make(cls, sequence: Sequence):
+        Q = cls.compute_values(sequence)
+        stop_at_rmse = sequence.grid_world.stop_at_rmse
         return cls(
             sequence=sequence,
-            optimally_improved_policy_values=optimally_improved_policy_values,
+            optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             Q=Q,
             stop_at_rmse=stop_at_rmse,
         )
