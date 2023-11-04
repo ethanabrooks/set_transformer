@@ -30,7 +30,6 @@ def make_data(
     sequence_args: dict,
     sample_from_trajectories: bool,
     seed: int,
-    stop_at_rmse: float,
 ) -> Dataset:
     sequence = make_sequence(
         sample_from_trajectories=sample_from_trajectories, seed=seed, **sequence_args
@@ -38,7 +37,6 @@ def make_data(
     values = make_values(
         sequence=sequence,
         sample_from_trajectories=sample_from_trajectories,
-        stop_at_rmse=stop_at_rmse,
     )
     dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
     return dataset

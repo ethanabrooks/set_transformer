@@ -231,8 +231,8 @@ class GridWorld:
         def to_device(x: torch.Tensor):
             return x.to(idx.device) if isinstance(idx, torch.Tensor) else x
 
-        goals = to_device(self.goals)[idx]
         deltas = to_device(self.deltas)
+        goals = to_device(self.goals)[idx]
         is_wall = to_device(self.is_wall)[idx]
         n_tasks = goals.numel()
         Pi = to_device(self.Pi)[idx]
@@ -250,8 +250,8 @@ class GridWorld:
             terminate_on_goal=self.terminate_on_goal,
             use_heldout_goals=self.use_heldout_goals,
         )
-        return type(self)(
-            deltas=deltas,
+        return GridWorld(
+            deltas=to_device(self.deltas),
             dense_reward=self.dense_reward,
             gamma=self.gamma,
             goals=goals,
@@ -377,16 +377,16 @@ class GridWorld:
         S = self.n_states
         A = self.n_actions
 
-        Q = [torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)]
+        Q = torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)
+        rmse = float("inf")
         for _ in itertools.count(1):  # n_rounds of policy evaluation
-            Vk = Q[-1]
-            Vk1 = self.evaluate_policy(Pi, Vk)
-            Q.append(Vk1)
-            rmse = compute_rmse(Vk1, Vk)
-            # print("Iteration:", k, "RMSE:", rmse)
+            yield Q
             if rmse < stop_at_rmse:
                 break
-        return Q
+            Q1 = self.evaluate_policy(Pi, Q)
+            rmse = compute_rmse(Q1, Q)
+            # print("Iteration:", k, "RMSE:", rmse)
+            Q = Q1
 
     def get_trajectories(
         self,
