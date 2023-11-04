@@ -20,7 +20,13 @@ class Values(ABC):
 
     @classmethod
     def make(cls, sequence: Sequence):
-        Q = cls.compute_values(sequence)
+        Q: torch.Tensor = cls.compute_values(sequence)
+        q, b, _, _ = Q.shape
+        Q = Q[
+            torch.arange(q)[:, None, None],
+            torch.arange(b)[None, :, None],
+            sequence.transitions.states[None],
+        ]
         stop_at_rmse = sequence.grid_world.stop_at_rmse
         return cls(
             sequence=sequence,

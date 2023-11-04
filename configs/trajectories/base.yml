@@ -11,7 +11,7 @@ data_args:
       stop_at_rmse: 0.005
       terminate_on_goal: true
       use_heldout_goals: false
-  omit_states_actions: 0
+    omit_states_actions: 0
 decay_args:
   final_step: 200_000
   warmup_steps: 10_000
