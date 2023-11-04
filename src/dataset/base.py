@@ -39,9 +39,10 @@ class Dataset(BaseDataset):
         states = transitions.states
         action_probs = transitions.action_probs
 
-        B = sequence.grid_world.n_tasks
-        S = sequence.grid_world.n_states
-        A = len(sequence.grid_world.deltas)
+        grid_world = sequence.grid_world
+        B = grid_world.n_tasks
+        S = grid_world.n_states
+        A = len(grid_world.deltas)
         Q = values.Q
 
         # sample n_bellman -- number of steps of policy evaluation
@@ -58,7 +59,7 @@ class Dataset(BaseDataset):
             states[None],
         ]
 
-        V = (Q * sequence.Pi[None]).sum(-1)
+        V = (Q * grid_world.Pi[None]).sum(-1)
         V_indexed = V[
             torch.arange(len(Q))[:, None, None],
             torch.arange(B)[None, :, None],
@@ -136,6 +137,7 @@ class Dataset(BaseDataset):
         net.eval()
         counter = Counter()
         loader = DataLoader(self, batch_size=n_batch, shuffle=False)
+        grid_world = self.sequence.grid_world
 
         def generate():
             with torch.no_grad():
@@ -156,7 +158,7 @@ class Dataset(BaseDataset):
                             counter.update({k: v})
                     yield x.idx, outputs, targets
 
-        A = len(self.sequence.grid_world.deltas)
+        A = len(grid_world.deltas)
 
         # add values plots to metrics
         all_idxs, all_outputs, all_targets = zip(*generate())
@@ -167,14 +169,14 @@ class Dataset(BaseDataset):
         values = stacked[..., ::A, :]
         mask = torch.isin(idxs, plot_indices)
         idxs = idxs[mask].cpu()
-        Pi = self.sequence.Pi[idxs][None, None].cuda()
+        Pi = grid_world.Pi[idxs][None, None].cuda()
         plot_values = values[:, :, mask]
         plot_values: torch.Tensor = plot_values * Pi
         plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
         metrics = {k: v / len(loader) for k, v in counter.items()}
         for i, plot_value in zip(idxs, plot_values):
-            fig = self.sequence.grid_world.visualize_values(plot_value)
+            fig = grid_world.visualize_values(plot_value)
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics

@@ -31,6 +31,7 @@ class GridWorld:
     heldout_goals: list[tuple[int, int]]
     is_wall: torch.Tensor
     n_tasks: int
+    Pi: torch.Tensor
     random: np.random.Generator
     states: torch.Tensor
     terminate_on_goal: bool
@@ -56,8 +57,9 @@ class GridWorld:
         deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
         A = len(deltas)
         G = grid_size**2  # number of goals
+        S = G + 1
         M = n_maze
-        transition_matrix = n_tasks
+        B = n_tasks
 
         # add absorbing state for goals
         random = np.random.default_rng(seed)
@@ -67,7 +69,7 @@ class GridWorld:
         )
 
         # generate walls
-        is_wall = torch.rand(transition_matrix, G, A) < p_wall
+        is_wall = torch.rand(B, G, A) < p_wall
         if n_maze:
             mazes = [
                 maze_to_state_action(generate_maze(grid_size)).view(G, A)
@@ -75,10 +77,16 @@ class GridWorld:
             ]
             mazes = torch.stack(mazes)
             assert [*mazes.shape] == [M, G, A]
-            maze_idx = torch.randint(0, M, (transition_matrix,))
+            maze_idx = torch.randint(0, M, (B,))
             is_wall = mazes[maze_idx] & is_wall
-            assert [*is_wall.shape] == [transition_matrix, G, A]
-        goals = torch.randint(0, G, (transition_matrix,))
+            assert [*is_wall.shape] == [B, G, A]
+        goals = torch.randint(0, G, (B,))
+
+        alpha = torch.ones(A)
+        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
+            (B, S)
+        )  # random policies
+        assert [*Pi.shape] == [B, S, A]
 
         return cls(
             deltas=deltas,
@@ -89,6 +97,7 @@ class GridWorld:
             heldout_goals=heldout_goals,
             is_wall=is_wall,
             n_tasks=n_tasks,
+            Pi=Pi,
             random=random,
             states=states,
             terminate_on_goal=terminate_on_goal,
@@ -163,30 +172,23 @@ class GridWorld:
         matrix: torch.Tensor = F.one_hot(self.next_states, num_classes=self.n_states)
         return matrix.float()
 
-    def __getitem__(self, idx):
-        if isinstance(idx, torch.Tensor):
-            deltas = self.deltas.to(idx.device)
-            goals = self.goals.to(idx.device)
-            is_wall = self.is_wall.to(idx.device)
-            states = self.states.to(idx.device)
-        else:
-            deltas = self.deltas
-            goals = self.goals
-            is_wall = self.is_wall
-            states = self.states
-        goals = goals[idx]
-        is_wall = is_wall[idx]
+    def __getitem__(self, idx: torch.Tensor):
+        def to_device(x: torch.Tensor):
+            return x.to(idx.device) if isinstance(idx, torch.Tensor) else x
+
+        goals = to_device(self.goals)[idx]
         return type(self)(
-            deltas=deltas,
+            deltas=to_device(self.deltas),
             dense_reward=self.dense_reward,
             gamma=self.gamma,
             goals=goals,
             grid_size=self.grid_size,
             heldout_goals=self.heldout_goals,
-            is_wall=is_wall,
+            is_wall=to_device(self.is_wall)[idx],
             n_tasks=goals.numel(),
+            Pi=to_device(self.Pi)[idx],
             random=self.random,
-            states=states,
+            states=to_device(self.states),
             terminate_on_goal=self.terminate_on_goal,
             use_absorbing_state=self.use_absorbing_state,
             use_heldout_goals=self.use_heldout_goals,
@@ -313,13 +315,12 @@ class GridWorld:
     def get_trajectories(
         self,
         episode_length: int,
-        Pi: torch.Tensor,
         n_episodes: int = 1,
     ):
         B = self.n_tasks
         N = self.n_states
         A = self.n_actions
-        assert [*Pi.shape] == [B, N, A]
+        assert [*self.Pi.shape] == [B, N, A]
 
         trajectory_length = episode_length * n_episodes
         states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
@@ -338,7 +339,7 @@ class GridWorld:
 
             # Sample actions from the policy
             A = (
-                torch.multinomial(Pi[arange, current_state_indices], 1)
+                torch.multinomial(self.Pi[arange, current_state_indices], 1)
                 .squeeze(1)
                 .long()
             )
@@ -357,7 +358,7 @@ class GridWorld:
             # Store the current current_states and rewards
             states[:, t] = S1
             actions[:, t] = A
-            action_probs[:, t] = Pi[arange, current_state_indices]
+            action_probs[:, t] = self.Pi[arange, current_state_indices]
             next_states[:, t] = S2
             rewards[:, t] = R
             done[:, t] = D
