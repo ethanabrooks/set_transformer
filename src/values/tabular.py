@@ -12,7 +12,9 @@ class Values(BaseValues):
     def compute_values(cls, sequence: Sequence, stop_at_rmse: float):
         grid_world = sequence.grid_world
         return torch.stack(
-            grid_world.evaluate_policy_iteratively(
-                Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
+            list(
+                grid_world.evaluate_policy_iteratively(
+                    Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
+                )
             )
         )
