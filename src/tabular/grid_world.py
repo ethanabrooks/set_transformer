@@ -259,9 +259,7 @@ class GridWorld:
         Pi = torch.zeros_like(Q)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         Q: torch.Tensor
-        *pre, Q = self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
-        *_pre, _Q = self._evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
-        assert torch.all(Q == _Q)
+        *_, Q = self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
         return Q
 
     def evaluate_policy(
@@ -294,7 +292,7 @@ class GridWorld:
         Q = R + self.gamma * EQ
         return Q
 
-    def _evaluate_policy_iteratively(
+    def evaluate_policy_iteratively(
         self,
         Pi: torch.Tensor,
         stop_at_rmse: float,
@@ -313,26 +311,6 @@ class GridWorld:
             rmse = compute_rmse(Q1, Q)
             # print("Iteration:", k, "RMSE:", rmse)
             Q = Q1
-
-    def evaluate_policy_iteratively(
-        self,
-        Pi: torch.Tensor,
-        stop_at_rmse: float,
-    ):
-        B = self.n_tasks
-        S = self.n_states
-        A = self.n_actions
-
-        Q = [torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)]
-        for _ in itertools.count(1):  # n_rounds of policy evaluation
-            Vk = Q[-1]
-            Vk1 = self.evaluate_policy(Pi, Vk)
-            Q.append(Vk1)
-            rmse = compute_rmse(Vk1, Vk)
-            # print("Iteration:", k, "RMSE:", rmse)
-            if rmse < stop_at_rmse:
-                break
-        return Q
 
     def get_trajectories(
         self,
