@@ -35,4 +35,4 @@ class Sequence(ABC):
         return cls(grid_world=grid_world, transitions=transitions)
 
     def __len__(self):
-        return len(self.transitions.states)
+        return len(self.transitions)
