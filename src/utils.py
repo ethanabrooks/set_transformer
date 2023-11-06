@@ -28,3 +28,6 @@ class Transition(Generic[T]):
             rewards=index(self.rewards),
             done=index(self.done),
         )
+
+    def __len__(self):
+        return len(self.states)
