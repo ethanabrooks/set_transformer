@@ -32,6 +32,9 @@ class Transition(Generic[T]):
             done=index(self.done),
         )
 
+    def __len__(self):
+        return len(self.states)
+
 
 def tensor_hash(tensor: torch.Tensor):
     # Ensure that the tensor is on the CPU and converted to 1D
