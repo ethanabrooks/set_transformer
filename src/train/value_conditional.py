@@ -1,12 +1,10 @@
 import math
 import os
-import random
 import time
 from collections import Counter
 from dataclasses import asdict
 from typing import Optional
 
-import numpy as np
 import torch
 import torch.optim as optim
 from matplotlib import pyplot as plt
@@ -16,28 +14,34 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from dataset.value_conditional import Dataset
 from metrics import get_metrics
-from models.set_transformer import DataPoint, SetTransformer
+from models.value_conditional import DataPoint, SetTransformer
 from pretty import print_row
 from sequence import make as make_sequence
+from utils import decay_lr, set_seed
 from values import make as make_values
+from values.neural import Values as NeuralValues
 
 MODEL_FNAME = "model.tar"
 
 
 def make_data(
     dataset_args: dict,
+    neural_values: bool,
+    run: Run,
     sequence_args: dict,
     sample_from_trajectories: bool,
     seed: int,
+    value_args: dict,
 ) -> Dataset:
     sequence = make_sequence(
         sample_from_trajectories=sample_from_trajectories, seed=seed, **sequence_args
     )
-
-    values = make_values(
-        sequence=sequence, sample_from_trajectories=sample_from_trajectories
-    )
-
+    if neural_values:
+        values = NeuralValues.make(run=run, sequence=sequence, **value_args)
+    else:
+        values = make_values(
+            sequence=sequence, sample_from_trajectories=sample_from_trajectories
+        )
     dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
     return dataset
 
@@ -51,18 +55,6 @@ def load(
     wandb.restore(MODEL_FNAME, run_path=load_path, root=root)
     state = torch.load(os.path.join(root, MODEL_FNAME))
     net.load_state_dict(state, strict=True)
-
-
-def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
-    if step < warmup_steps:
-        # linear warmup
-        lr_mult = float(step) / float(max(1, warmup_steps))
-    else:
-        # cosine learning rate decay
-        progress = float(step - warmup_steps) / float(max(1, final_step - warmup_steps))
-        progress = np.clip(progress, 0.0, 1.0)
-        lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
-    return lr * lr_mult
 
 
 def train(
@@ -91,23 +83,11 @@ def train(
     del config
     del config_name
 
-    # Set the seed for PyTorch
-    torch.manual_seed(seed)
-
-    # If you are using CUDA (GPU), you also need to set the seed for the CUDA device
-    # This ensures reproducibility for GPU calculations as well
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-    # Set the seed for NumPy
-    np.random.seed(seed)
-
-    # Set the seed for Python's random module
-    random.seed(seed)
-
+    set_seed(seed)
     # create data
-    train_data = make_data(**dict(seed=seed, **train_data_args))
-    test_data = make_data(**dict(seed=seed + 1, **test_data_args))
+
+    train_data = make_data(**dict(run=run, seed=seed, **train_data_args))
+    test_data = make_data(**dict(run=run, seed=seed + 1, **test_data_args))
 
     print("Create net... ", end="", flush=True)
     net = SetTransformer(

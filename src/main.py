@@ -18,7 +18,8 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from param_space import param_space
-from train import train
+from train.value_conditional import train as train_value_conditional
+from train.value_unconditional import train as train_value_unconditional
 
 tree = CommandTree()
 
@@ -69,9 +70,10 @@ def get_config(config_name: str):
 
     parents = reversed(list(get_parents(config)))
     merged = OmegaConf.merge(*parents, config)
-    for key in ("train_data_args", "test_data_args"):
-        merged[key] = OmegaConf.merge(merged["data_args"], merged[key])
-    del merged["data_args"]
+    if merged["value_conditional"]:
+        for key in ("train_data_args", "test_data_args"):
+            merged[key] = OmegaConf.merge(merged["data_args"], merged[key])
+        del merged["data_args"]
     resolved = OmegaConf.to_container(merged, resolve=True)
     return resolved
 
@@ -224,6 +226,14 @@ def sweep(
         tune_config=None if num_samples is None else dict(num_samples=num_samples),
         param_space=param_space,
     ).fit()
+
+
+def train(*args, value_conditional: bool, **kwargs):
+    return (
+        train_value_conditional(*args, **kwargs)
+        if value_conditional
+        else train_value_unconditional(*args, **kwargs)
+    )
 
 
 if __name__ == "__main__":

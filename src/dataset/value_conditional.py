@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
-from models.set_transformer import DataPoint, SetTransformer
+from models.value_conditional import DataPoint, SetTransformer
 from sequence.base import Sequence
 from values.base import Values
 
