@@ -26,9 +26,7 @@ class Values(BaseValues):
 
     @classmethod
     def make(cls, sequence: Sequence, stop_at_rmse: float, **kwargs):
-        Q: torch.Tensor = cls.compute_values(
-            sequence=sequence, stop_at_rmse=stop_at_rmse, **kwargs
-        )
+        Q: torch.Tensor = cls.compute_values(sequence=sequence, **kwargs)
         q, b, _, _ = Q.shape
         Q = Q[
             torch.arange(q)[:, None, None],
@@ -38,6 +36,6 @@ class Values(BaseValues):
         return cls(
             optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             sequence=sequence,
-            Q=Q,
             stop_at_rmse=stop_at_rmse,
+            Q=Q,
         )
