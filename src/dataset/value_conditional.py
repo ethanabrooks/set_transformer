@@ -3,14 +3,13 @@ from dataclasses import asdict, dataclass
 from typing import Optional
 
 import torch
-import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import DataLoader
 
 import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
-from models.set_transformer import DataPoint
+from models.set_transformer import DataPoint, SetTransformer
 from sequence.base import Sequence
 from values.base import Values
 
@@ -64,7 +63,7 @@ class Dataset(BaseDataset):
         )
 
     def evaluate(
-        self, n_batch: int, net: nn.Module, plot_indices: torch.Tensor, **kwargs
+        self, n_batch: int, net: SetTransformer, plot_indices: torch.Tensor, **kwargs
     ):
         net.eval()
         counter = Counter()
@@ -111,7 +110,7 @@ class Dataset(BaseDataset):
         accuracy_threshold: float,
         bellman_delta: int,
         iterations: int,
-        net: nn.Module,
+        net: SetTransformer,
         x: DataPoint,
     ):
         v1 = self.index_values(x.values, x.input_bellman)
