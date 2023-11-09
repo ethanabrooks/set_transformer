@@ -1,3 +1,4 @@
+bellman_delta: 2
 data_args:
   sample_from_trajectories: false
   sequence_args:
@@ -10,7 +11,6 @@ data_args:
       stop_at_rmse: 0.005
       terminate_on_goal: true
       use_heldout_goals: false
-    omit_states_actions: 0
 decay_args:
   final_step: 500_000
   warmup_steps: 10_000
