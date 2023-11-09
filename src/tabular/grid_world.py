@@ -541,9 +541,10 @@ class GridWorld:
         global_max = V.max().item()
 
         def imshow(values: torch.Tensor, ax: plt.Axes):
+            n, _ = values.shape
             values = values[..., :-1]
             im = ax.imshow(
-                values.reshape((2 * self.grid_size, self.grid_size)),
+                values.reshape((n * self.grid_size, self.grid_size)),
                 cmap="hot",
                 interpolation="nearest",
                 vmin=global_min,
