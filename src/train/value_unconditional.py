@@ -120,7 +120,9 @@ def train_bellman_iteration(
 
             mask = torch.isin(x.idx, plot_indices)
             if mask.any():
-                stacked = torch.stack([outputs.detach(), q_values], 1)
+                stacked = torch.stack(
+                    [outputs.detach(), q_values, ground_truth_targets], 1
+                )
                 grid_world = sequence.grid_world
                 values = stacked[..., :: grid_world.n_actions, :].swapaxes(0, 1)
                 idxs = x.idx[mask].cpu()
