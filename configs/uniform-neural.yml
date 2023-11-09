@@ -1,0 +1,42 @@
+data_args:
+  value_args:
+    lr: 0.001
+    model_args:
+      isab_args:
+        n_inds: 32
+      n_hidden: 256
+      n_isab: 0
+      n_sab: 3
+      positional_encoding_args:
+        log_term: 10000.0
+        scale_term: 1000
+      sab_args:
+        ln: true
+        n_heads: 8
+    n_plot: 3
+    stop_at_rmse: 0.005
+    test_size: 200
+    train_args:
+      decay_args:
+        final_step: 500_000
+        warmup_steps: 10_000
+      evaluate_args:
+        accuracy_threshold: 0.01
+      log_interval: 200
+      n_batch: 50
+      stop_at_rmse: 0.005
+      test_interval: 1000
+inherit_from: value-conditional
+seed: 3
+test_data_args:
+  neural_values: false
+  sequence_args:
+    grid_world_args:
+      n_maze: 200
+      p_wall: 1
+train_data_args:
+  neural_values: true
+  sequence_args:
+    grid_world_args:
+      n_maze: 0
+      p_wall: 0.25

@@ -21,6 +21,24 @@ def convert_1d_to_2d(grid_size: int, x: torch.Tensor):
     return torch.stack([x // grid_size, x % grid_size], dim=1)
 
 
+def evaluate_policy(
+    gamma: float,
+    Pi: torch.Tensor,
+    Q: torch.Tensor,
+    R: torch.Tensor,
+    T: torch.Tensor,
+):
+    B, N, A = Pi.shape
+
+    assert [*R.shape] == [B, N, A]
+    EQ = (Pi * Q).sum(-1)
+    assert [*EQ.shape] == [B, N]
+    EQ = (T * EQ[:, None, None]).sum(-1)
+    assert [*EQ.shape] == [B, N, A]
+    Q = R + gamma * EQ
+    return Q
+
+
 @dataclass
 class GridWorld:
     deltas: torch.Tensor
@@ -270,26 +288,18 @@ class GridWorld:
         Pi: torch.Tensor,
         Q: torch.Tensor = None,
     ):
-        # self.check_pi(Pi)
-
         B = self.n_tasks
         N = self.n_states
         A = self.n_actions
-
-        # Compute the policy conditioned transition function
-        T = self.transition_matrix.to(Pi.device)
-
-        # Initialize Q_0
         if Q is None:
             Q = torch.zeros((B, N, A), dtype=torch.float32, device=Pi.device)
-        R = self.rewards.to(Pi.device)
-        assert [*R.shape] == [B, N, A]
-        EQ = (Pi * Q).sum(-1)
-        assert [*EQ.shape] == [B, N]
-        EQ = (T * EQ[:, None, None]).sum(-1)
-        assert [*EQ.shape] == [B, N, A]
-        Q = R + self.gamma * EQ
-        return Q
+        return evaluate_policy(
+            gamma=self.gamma,
+            Pi=Pi,
+            Q=Q,
+            R=self.rewards.to(Pi.device),
+            T=self.transition_matrix.to(Pi.device),
+        )
 
     def evaluate_policy_iteratively(
         self,
