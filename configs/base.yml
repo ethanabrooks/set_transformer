@@ -1,3 +1,4 @@
+bellman_delta: 2
 data_args:
   sample_from_trajectories: false
   sequence_args:

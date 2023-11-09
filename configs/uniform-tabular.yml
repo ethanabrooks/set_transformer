@@ -1,0 +1,11 @@
+inherit_from: base
+test_data_args:
+  sequence_args:
+    grid_world_args:
+      n_maze: 200
+      p_wall: 1
+train_data_args:
+  sequence_args:
+    grid_world_args:
+      n_maze: 0
+      p_wall: 0.25

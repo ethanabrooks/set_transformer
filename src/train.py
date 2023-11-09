@@ -10,7 +10,6 @@ import numpy as np
 import torch
 import torch.optim as optim
 from matplotlib import pyplot as plt
-from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
@@ -67,7 +66,6 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
 
 
 def train(
-    data_args: dict,
     decay_args: dict,
     load_path: str,
     lr: float,
@@ -108,15 +106,8 @@ def train(
     random.seed(seed)
 
     # create data
-    data_args = OmegaConf.create(data_args)
-
-    def make_data_args(**kwargs: dict):
-        kwargs = OmegaConf.create(kwargs)
-        kwargs = OmegaConf.merge(data_args, kwargs)
-        return kwargs
-
-    train_data = make_data(**make_data_args(seed=seed, **train_data_args))
-    test_data = make_data(**make_data_args(seed=seed + 1, **test_data_args))
+    train_data = make_data(**dict(seed=seed, **train_data_args))
+    test_data = make_data(**dict(seed=seed + 1, **test_data_args))
 
     print("Create net... ", end="", flush=True)
     net = SetTransformer(
