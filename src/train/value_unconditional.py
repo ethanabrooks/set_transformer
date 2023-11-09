@@ -68,7 +68,13 @@ def train_bellman_iteration(
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)
         assert Q.shape == ground_truth.shape
-        epoch_rmse = compute_rmse(Q, ground_truth)
+        Q_k1 = train_data.values.Q
+        q, b, _, _ = Q_k1.shape
+        states = train_data.sequence.transitions.states
+        Q_k = Q[
+            torch.arange(q)[:, None, None], torch.arange(b)[None, :, None], states[None]
+        ]
+        epoch_rmse = compute_rmse(Q_k, Q_k1)
         if updated is not None:
             assert torch.all(updated)
         updated = torch.zeros_like(Q)
