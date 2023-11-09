@@ -1,7 +1,4 @@
-inherit_from: base
-data_args:
-  sequence_args:
-    omit_states_actions: 0
+inherit_from: value-conditional
 test_data_args:
   sequence_args:
     grid_world_args:

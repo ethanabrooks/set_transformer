@@ -19,8 +19,8 @@ class Values(ABC):
         raise NotImplementedError
 
     @classmethod
-    def make(cls, sequence: Sequence):
-        Q: torch.Tensor = cls.compute_values(sequence)
+    def make(cls, sequence: Sequence, **kwargs):
+        Q: torch.Tensor = cls.compute_values(sequence=sequence, **kwargs)
         q, b, _, _ = Q.shape
         Q = Q[
             torch.arange(q)[:, None, None],
