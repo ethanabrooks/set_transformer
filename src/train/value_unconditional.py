@@ -165,9 +165,11 @@ def compute_values(
     lr: float,
     model_args: dict,
     n_plot: int,
+    rmse_bellman: float,
+    rmse_training_final: float,
+    rmse_training_intermediate: float,
     run: Run,
     sequence: Sequence,
-    stop_at_rmse: float,
     test_size: int,
     train_args: dict,
     load_path: Optional[str] = None,
@@ -177,7 +179,7 @@ def compute_values(
     A = sequence.grid_world.n_actions
     Q = torch.zeros(1, B, S, A)
     values = BootstrapValues.make(
-        sequence=sequence, stop_at_rmse=stop_at_rmse, bootstrap_Q=Q
+        sequence=sequence, stop_at_rmse=rmse_bellman, bootstrap_Q=Q
     )
     data = Dataset.make(sequence=sequence, values=values)
     start_step = 0
@@ -189,6 +191,7 @@ def compute_values(
         raise NotImplementedError
     optimizer = optim.Adam(net.parameters(), lr=lr)
     plot_indices = torch.randint(0, B, (n_plot,)).cuda()
+    final = False
 
     for bellman_number in itertools.count(1):
         new_Q, step = train_bellman_iteration(
@@ -201,6 +204,7 @@ def compute_values(
             plot_indices=plot_indices,
             run=run,
             start_step=start_step,
+            stop_at_rmse=rmse_training_final if final else rmse_training_intermediate,
             test_size=test_size,
             **train_args,
         )
@@ -209,7 +213,7 @@ def compute_values(
         Q = F.pad(new_Q, (0, 0, 0, 0, 0, 0, 1, 0))
         if run is not None:
             wandb.log({"Q/rmse": rmse}, step=step)
-        if rmse <= stop_at_rmse:
+        if final:
             if run is not None:
                 artifact = wandb.Artifact(name=run.id, type="Q")
                 path = Path(run.dir) / "Q.pt"
@@ -217,6 +221,8 @@ def compute_values(
                 artifact.add_file(path)
                 run.log_artifact(artifact)
             return Q.cpu()
+        if rmse <= rmse_bellman:
+            final = True
 
 
 def train(*args, seed: int, sequence_args: dict, **kwargs):
