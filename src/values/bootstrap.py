@@ -36,6 +36,6 @@ class Values(BaseValues):
         return cls(
             optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             sequence=sequence,
-            Q=Q,
             stop_at_rmse=stop_at_rmse,
+            Q=Q,
         )

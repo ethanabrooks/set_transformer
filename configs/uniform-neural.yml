@@ -14,7 +14,9 @@ data_args:
         ln: true
         n_heads: 8
     n_plot: 3
-    stop_at_rmse: 0.005
+    rmse_bellman: 0.005
+    rmse_training_final: 0.001
+    rmse_training_intermediate: 0.005
     test_size: 200
     train_args:
       decay_args:
@@ -24,7 +26,6 @@ data_args:
         accuracy_threshold: 0.01
       log_interval: 200
       n_batch: 50
-      stop_at_rmse: 0.005
       test_interval: 1000
 inherit_from: value-conditional
 seed: 3
