@@ -54,10 +54,24 @@ def get_config(config_name):
     config_path = root / f"{config_name}.yml"
     config = OmegaConf.load(config_path)
     check_alphabetical_order(config, str(config_path))
-    base_config_path = config_path.parent / "base.yml"
-    base_config = OmegaConf.load(base_config_path)
-    check_alphabetical_order(base_config, str(base_config_path))
-    merged = OmegaConf.merge(base_config, config)
+
+    def get_parents(config: DictConfig):
+        while True:
+            inherit_from = config.pop("inherit_from", None)
+            if inherit_from is None:
+                break
+            base_config_path = config_path.parent / Path(inherit_from).with_suffix(
+                ".yml"
+            )
+            config = OmegaConf.load(base_config_path)
+            check_alphabetical_order(config, str(base_config_path))
+            yield config
+
+    parents = reversed(list(get_parents(config)))
+    merged = OmegaConf.merge(*parents, config)
+    for key in ("train_data_args", "test_data_args"):
+        merged[key] = OmegaConf.merge(merged["data_args"], merged[key])
+    del merged["data_args"]
     resolved = OmegaConf.to_container(merged, resolve=True)
     return resolved
 

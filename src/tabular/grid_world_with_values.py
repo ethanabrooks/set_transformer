@@ -179,3 +179,6 @@ class GridWorldWithValues(GridWorld):
             Q=Q,
             stop_at_rmse=self.stop_at_rmse,
         )
+
+    def __hash__(self):
+        return self.hashcode
