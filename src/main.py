@@ -49,7 +49,7 @@ def check_alphabetical_order(d: DictConfig, name: str):
         exit(1)
 
 
-def get_config(config_name):
+def get_config(config_name: str):
     root = Path("configs")
     config_path = root / f"{config_name}.yml"
     config = OmegaConf.load(config_path)
@@ -85,10 +85,11 @@ def get_project_name():
 def get_ignored() -> Set[Path]:
     repo = Repo(".")
     src = Path(__file__).parent
-    ignored = repo.git.ls_files(
-        str(src), o=True, i=True, exclude_standard=True
-    ).splitlines()
-    return set(Path(p).absolute() for p in ignored)
+    ignored: str = repo.git.ls_files(str(src), o=True, i=True, exclude_standard=True)
+    return set(Path(p).absolute() for p in ignored.splitlines())
+
+
+get_ignored()
 
 
 def check_dirty():
@@ -146,7 +147,7 @@ def no_log(
     # set signal handler for when resource limit is reached
     signal.signal(signal.SIGXCPU, signal_handler)
 
-    config = get_config(config)
+    config: dict = get_config(config)
     if load_path is not None:
         config = wandb.Api().run(load_path).config
     config.update(load_path=load_path)
@@ -179,8 +180,9 @@ def sweep(
     if not allow_dirty:
         check_dirty()
 
-    def trainable(sweep_params):
+    def trainable(sweep_params: dict):
         sleep_time = 1
+        k: str
         for k, v in sweep_params.items():
             *path, key = k.split("/")
             subconfig = config
