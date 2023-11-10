@@ -28,7 +28,7 @@ sequence_args:
     stop_at_rmse: 0.005
     terminate_on_goal: true
     use_heldout_goals: false
-  n_data: 50
+  n_data: 80_000
   omit_states_actions: 0
   sample_from_trajectories: false
   seed: 0
