@@ -51,7 +51,11 @@ class SetTransformer(BaseSetTransformer):
         outputs: torch.Tensor = self.dec(Z)
         assert [*outputs.shape][:-1] == [B, 2 * S]
         outputs = outputs[:, S:]
-        assert outputs.shape == q_values.shape
+        assert [*outputs.shape][:-1] == [B, S]
+        assert [*q_values.shape] == [B, S]
 
-        loss = F.mse_loss(outputs, q_values.float())
+        loss = F.mse_loss(
+            outputs[torch.arange(B)[:, None], torch.arange(S)[None], x.actions],
+            q_values,
+        )
         return outputs, loss
