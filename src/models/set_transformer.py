@@ -142,7 +142,7 @@ class SetTransformer(nn.Module, ABC):
         )
         self.seq2seq = GRU(n_hidden)
 
-        self.network = nn.Sequential(
+        self.transformer = nn.Sequential(
             *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
             *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
         )
