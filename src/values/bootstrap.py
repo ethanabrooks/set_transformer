@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import torch
 
 from sequence.base import Sequence
-from tabular.grid_world import evaluate_policy
 from values.base import Values as BaseValues
 
 
@@ -13,16 +12,16 @@ class Values(BaseValues):
     def compute_values(cls, bootstrap_Q: torch.Tensor, sequence: Sequence, **_):
         grid_world = sequence.grid_world
         q, b, s, a = bootstrap_Q.shape
-        Pi = grid_world.Pi[None].expand_as(bootstrap_Q).reshape(-1, s, a)
-        Q = bootstrap_Q.reshape(-1, s, a)
-        R = grid_world.rewards[None].expand_as(bootstrap_Q).reshape(-1, s, a)
-        T = (
-            grid_world.transition_matrix[None]
-            .expand(q, b, s, a, s)
-            .reshape(-1, s, a, s)
-        )
-        new_Q = evaluate_policy(gamma=grid_world.gamma, Pi=Pi, Q=Q, R=R, T=T)
-        return new_Q.view(q, b, s, a)
+        Pi = grid_world.Pi[torch.arange(b)[:, None], sequence.transitions.next_states]
+        bootstrap_Q = bootstrap_Q[
+            torch.arange(q)[:, None, None],
+            torch.arange(b)[None, :, None],
+            sequence.transitions.next_states[None],
+        ]
+        Pi = Pi[None].expand_as(bootstrap_Q)
+        R = sequence.transitions.rewards[None, ...]
+        Q = R + grid_world.gamma * (bootstrap_Q * Pi).sum(-1)
+        return Q.view(q, b, s, a)
 
     @classmethod
     def make(cls, sequence: Sequence, stop_at_rmse: float, **kwargs):
