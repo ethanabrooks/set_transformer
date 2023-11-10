@@ -125,7 +125,7 @@ def train_bellman_iteration(
                 versus_metrics = {}
 
             mask = torch.isin(x.idx, plot_indices)
-            if mask.any():
+            if x.n_bellman.max() < len(ground_truth) and mask.any():
                 stacked = torch.stack(
                     [outputs.detach(), q_values, ground_truth_targets], 1
                 )

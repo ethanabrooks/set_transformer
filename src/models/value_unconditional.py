@@ -41,11 +41,17 @@ class SetTransformer(BaseSetTransformer):
         assert [*X.shape] == [B * S, T, D]
         Y: torch.Tensor = self.seq2seq(X)
         assert [*Y.shape] == [B * S, T, D]
-        Y = Y.reshape(B, S, T, D).sum(2)
-        assert [*Y.shape] == [B, S, D]
-        Z: torch.Tensor = self.network(Y)
-        assert [*Z.shape] == [B, S, D]
+        Y1 = Y.reshape(B, S, T, D).sum(2)
+        assert [*Y1.shape] == [B, S, D]
+        Y2: torch.Tensor = self.embedding(x.states)
+        assert [*Y2.shape] == [B, S, D]
+        Y = torch.cat([Y1, Y2], dim=1)
+        Z: torch.Tensor = self.transformer(Y)
+        assert [*Z.shape] == [B, 2 * S, D]
         outputs: torch.Tensor = self.dec(Z)
+        assert [*outputs.shape][:-1] == [B, 2 * S]
+        outputs = outputs[:, S:]
+        assert outputs.shape == q_values.shape
 
         loss = F.mse_loss(outputs, q_values.float())
         return outputs, loss
