@@ -66,16 +66,17 @@ def train_bellman_iteration(
     updated = None
 
     for e in itertools.count():
+        q, b, l, _ = bootstrap_Q.shape
         bootstrap_Q = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0)).cpu()[:-1]
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)
-        assert Q.shape == ground_truth.shape
         Q_k1 = train_data.values.Q
-        q, b, _, _ = Q_k1.shape
-        states = train_data.sequence.transitions.states
         Q_k = Q[
-            torch.arange(q)[:, None, None], torch.arange(b)[None, :, None], states[None]
+            torch.arange(q)[:, None, None],
+            torch.arange(b)[None, :, None],
+            torch.arange(l)[None, None],
+            sequence.transitions.actions[None],
         ]
         epoch_rmse = compute_rmse(Q_k, Q_k1)
         if updated is not None:
@@ -94,7 +95,7 @@ def train_bellman_iteration(
             q_values = x.q_values[torch.arange(len(x.q_values)), x.n_bellman]
             outputs, loss = net.forward(x, q_values=q_values)
 
-            idxs = x.n_bellman[:, None].cpu(), x.idx[:, None].cpu(), x.states.cpu()
+            idxs = x.n_bellman.cpu(), x.idx.cpu()
             Q[idxs] = outputs.detach().cpu()
             updated[idxs] = 1
 
@@ -104,24 +105,27 @@ def train_bellman_iteration(
                 )
                 return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
 
+            b, l, _ = outputs.shape
             metrics: Metrics = get_metrics(
                 loss=loss,
-                outputs=outputs,
+                outputs=outputs[
+                    torch.arange(b)[:, None], torch.arange(l)[None], x.actions
+                ],
                 targets=q_values,
                 **evaluate_args,
             )
 
             if x.n_bellman.max() < len(ground_truth):
-                ground_truth_targets = ground_truth[idxs].cuda()
+                idxs = x.n_bellman[:, None].cpu(), x.idx[:, None].cpu(), x.states.cpu()
                 ground_truth_metrics = _get_metrics(
                     "(ground-truth)",
                     outputs=outputs,
-                    targets=ground_truth_targets,
+                    targets=ground_truth[idxs].cuda(),
                 )
                 versus_metrics = _get_metrics(
                     "(botstrap versus ground-truth)",
-                    outputs=q_values,
-                    targets=ground_truth_targets,
+                    outputs=q_values.cpu(),
+                    targets=ground_truth[[*idxs, x.actions.cpu()]],
                 )
             else:
                 ground_truth_metrics = {}
@@ -130,13 +134,21 @@ def train_bellman_iteration(
             mask = torch.isin(x.idx, plot_indices)
             if mask.any():
                 stacked = torch.stack(
-                    [outputs.detach(), q_values, ground_truth_targets], 1
+                    [
+                        outputs.detach().cpu(),
+                        ground_truth[
+                            x.n_bellman[:, None].cpu(),
+                            x.idx[:, None].cpu(),
+                            x.states.cpu(),
+                        ],
+                    ],
+                    1,
                 )
                 grid_world = sequence.grid_world
                 values = stacked[..., :: grid_world.n_actions, :].swapaxes(0, 1)
                 idxs = x.idx[mask].cpu()
-                Pi = grid_world.Pi[idxs][None, None].cuda()
-                plot_values = values[:, mask]
+                Pi = grid_world.Pi[idxs][None, None]
+                plot_values = values[:, mask.cpu()]
                 plot_values: torch.Tensor = plot_values * Pi
                 plot_values = plot_values.sum(-1).cpu()
                 plot_values = torch.unbind(plot_values, dim=2)
@@ -191,10 +203,9 @@ def compute_values(
     train_args: dict,
     load_path: Optional[str] = None,
 ):
-    B = sequence.grid_world.n_tasks
-    S = sequence.grid_world.n_states
+    B, L = sequence.transitions.rewards.shape
     A = sequence.grid_world.n_actions
-    Q = torch.zeros(1, B, S, A)
+    Q = torch.zeros(1, B, L, A)
     values = BootstrapValues.make(
         sequence=sequence,
         stop_at_rmse=rmse_bellman,
