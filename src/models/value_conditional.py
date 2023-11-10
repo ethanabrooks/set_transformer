@@ -44,7 +44,7 @@ class SetTransformer(BaseSetTransformer):
         assert [*Y.shape] == [B * S, T, D]
         Y = Y.reshape(B, S, T, D).sum(2)
         assert [*Y.shape] == [B, S, D]
-        Z: torch.Tensor = self.network(Y)
+        Z: torch.Tensor = self.transformer(Y)
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
