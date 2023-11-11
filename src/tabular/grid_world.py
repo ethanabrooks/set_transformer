@@ -1,6 +1,5 @@
 import itertools
-from dataclasses import dataclass
-from typing import Generic, Optional, TypeVar
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,20 +7,9 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from data.utils import Transition
 from metrics import compute_rmse
 from tabular.maze import generate_maze, maze_to_state_action
-
-T = TypeVar("T")
-
-
-@dataclass(frozen=True)
-class Step(Generic[T]):
-    states: T
-    actions: T
-    action_probs: T
-    next_states: T
-    rewards: T
-    done: T
 
 
 class GridWorld:
@@ -317,7 +305,7 @@ class GridWorld:
             S_reset = self.reset_fn()
             S1[D] = S_reset[D]
 
-        return Step(
+        return Transition(
             states=states,
             actions=actions[..., None],
             action_probs=action_probs,
