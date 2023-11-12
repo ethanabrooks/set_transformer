@@ -1,3 +1,5 @@
+from copy import deepcopy
+from functools import lru_cache
 import itertools
 from dataclasses import dataclass
 from typing import Optional
@@ -10,7 +12,7 @@ from tqdm import tqdm
 
 from metrics import compute_rmse
 from tabular.maze import generate_maze, maze_to_state_action
-from utils import Transition
+from utils import Transition, tensor_hash
 
 
 def convert_2d_to_1d(grid_size: int, x: torch.Tensor):
@@ -21,13 +23,14 @@ def convert_1d_to_2d(grid_size: int, x: torch.Tensor):
     return torch.stack([x // grid_size, x % grid_size], dim=1)
 
 
-@dataclass
+@dataclass(frozen=True)
 class GridWorld:
     deltas: torch.Tensor
     dense_reward: bool
     gamma: float
     goals: torch.Tensor
     grid_size: int
+    hashcode: int
     heldout_goals: list[tuple[int, int]]
     is_wall: torch.Tensor
     n_tasks: int
@@ -36,6 +39,33 @@ class GridWorld:
     terminate_on_goal: bool
     use_absorbing_state: bool
     use_heldout_goals: bool
+
+    @classmethod
+    def compute_hashcode(
+        cls,
+        deltas: torch.Tensor,
+        gamma: float,
+        goals: torch.Tensor,
+        grid_size: int,
+        is_wall: torch.Tensor,
+        n_tasks: int,
+        random: np.random.Generator,
+        terminate_on_goal: bool,
+        use_heldout_goals: bool,
+    ):
+        return hash(
+            (
+                tensor_hash(deltas),
+                gamma,
+                tensor_hash(goals),
+                grid_size,
+                tensor_hash(is_wall),
+                n_tasks,
+                random,
+                terminate_on_goal,
+                use_heldout_goals,
+            )
+        )
 
     @classmethod
     def make(
@@ -79,6 +109,17 @@ class GridWorld:
             is_wall = mazes[maze_idx] & is_wall
             assert [*is_wall.shape] == [transition_matrix, G, A]
         goals = torch.randint(0, G, (transition_matrix,))
+        hashcode = cls.compute_hashcode(
+            deltas=deltas,
+            gamma=gamma,
+            goals=goals,
+            grid_size=grid_size,
+            is_wall=is_wall,
+            n_tasks=n_tasks,
+            random=random,
+            terminate_on_goal=terminate_on_goal,
+            use_heldout_goals=use_heldout_goals,
+        )
 
         return cls(
             deltas=deltas,
@@ -86,6 +127,7 @@ class GridWorld:
             gamma=gamma,
             goals=goals,
             grid_size=grid_size,
+            hashcode=hashcode,
             heldout_goals=heldout_goals,
             is_wall=is_wall,
             n_tasks=n_tasks,
@@ -145,6 +187,7 @@ class GridWorld:
         return self.goals[:, None, None] == self.next_state_no_absorbing
 
     @property
+    @lru_cache()
     def rewards(self):
         goals = self.goals
         if self.dense_reward:
@@ -159,11 +202,16 @@ class GridWorld:
         return R
 
     @property
+    @lru_cache()
     def transition_matrix(self):
         matrix: torch.Tensor = F.one_hot(self.next_states, num_classes=self.n_states)
         return matrix.float()
 
+    def __hash__(self):
+        return self.hashcode
+
     def __getitem__(self, idx):
+        self = deepcopy(self)
         if isinstance(idx, torch.Tensor):
             deltas = self.deltas.to(idx.device)
             goals = self.goals.to(idx.device)
@@ -176,15 +224,28 @@ class GridWorld:
             states = self.states
         goals = goals[idx]
         is_wall = is_wall[idx]
+        n_tasks = goals.numel()
+        hashcode = self.compute_hashcode(
+            deltas=deltas,
+            gamma=self.gamma,
+            goals=goals,
+            grid_size=self.grid_size,
+            is_wall=is_wall,
+            n_tasks=n_tasks,
+            random=self.random,
+            terminate_on_goal=self.terminate_on_goal,
+            use_heldout_goals=self.use_heldout_goals,
+        )
         return type(self)(
             deltas=deltas,
             dense_reward=self.dense_reward,
             gamma=self.gamma,
             goals=goals,
             grid_size=self.grid_size,
+            hashcode=hashcode,
             heldout_goals=self.heldout_goals,
             is_wall=is_wall,
-            n_tasks=goals.numel(),
+            n_tasks=n_tasks,
             random=self.random,
             states=states,
             terminate_on_goal=self.terminate_on_goal,
@@ -194,6 +255,12 @@ class GridWorld:
 
     def __len__(self):
         return self.n_tasks
+
+    def arange(self, shape: torch.Size):
+        arange = torch.arange(self.n_tasks)
+        while arange.dim() < len(shape):
+            arange = arange[..., None]
+        return arange.expand(shape).flatten()
 
     def convert_1d_to_2d(self, x: torch.Tensor):
         return convert_1d_to_2d(self.grid_size, x)
@@ -392,10 +459,7 @@ class GridWorld:
         assert states.shape == actions.shape
         shape = states.shape
 
-        arange = torch.arange(self.n_tasks)
-        while arange.dim() < states.dim():
-            arange = arange[..., None]
-        arange = arange.expand_as(states).flatten()
+        arange = self.arange(shape)
         states = states.flatten()
         actions = actions.flatten()
 
@@ -582,4 +646,3 @@ def imshow(values: torch.Tensor, ax: plt.Axes, grid_size: int):
 GridWorld.visualize_policy
 GridWorld.visualize_values
 GridWorld.create_exploration_policy
-GridWorld.get_trajectories
