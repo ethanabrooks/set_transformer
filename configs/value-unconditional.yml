@@ -1,4 +1,4 @@
-lr: 0.0005
+lr: 0.002
 model_args:
   isab_args:
     n_inds: 32
