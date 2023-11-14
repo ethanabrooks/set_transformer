@@ -14,7 +14,6 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from metrics import get_metrics
 from models.value_conditional import DataPoint, SetTransformer
-from pretty import print_row
 from train.make_data import make_data
 from utils import decay_lr, set_seed
 
@@ -100,7 +99,6 @@ def train(
                     **evaluate_args,
                 )
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
-                print_row(test_1_log, show_header=True)
             if step % test_n_interval == 0:
                 log = test_data.evaluate(
                     bellman_delta=bellman_delta,
@@ -111,7 +109,6 @@ def train(
                     **evaluate_args,
                 )
                 test_n_log = {f"test-n/{k}": v for k, v in log.items()}
-                print_row(test_n_log, show_header=True)
 
             net.train()
             optimizer.zero_grad()
@@ -149,7 +146,7 @@ def train(
                     epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
                 )
                 counter = Counter()
-                print_row(train_1_log, show_header=(step % train_1_interval == 0))
+                print(".", end="", flush=True)
                 if run is not None:
                     wandb.log(
                         dict(**test_1_log, **test_n_log, **train_1_log),
