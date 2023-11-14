@@ -1,4 +1,5 @@
 import itertools
+import pickle
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -234,17 +235,26 @@ def compute_values(
             wandb.log({"Q/rmse": rmse}, step=step)
         if final:
             if run is not None:
-                artifact = wandb.Artifact(name=run.id, type="Q")
                 path = Path(run.dir) / "Q.pt"
                 torch.save(Q, path)
-                artifact.add_file(path)
-                run.log_artifact(artifact)
+                save_artifact(path=path, run=run, type="Q")
             return Q.cpu()
         if rmse <= rmse_bellman:
             final = True
 
 
-def train(*args, seed: int, sequence_args: dict, **kwargs):
+def save_artifact(path: Path, run: Run, type: str):
+    artifact = wandb.Artifact(name=f"{type}-{run.id}", type=type)
+    artifact.add_file(path)
+    run.log_artifact(artifact)
+
+
+def train(*args, run: Run, seed: int, sequence_args: dict, **kwargs):
     set_seed(seed)
     sequence = make_sequence(**sequence_args)
-    return compute_values(*args, **kwargs, sequence=sequence)
+    if run is not None:
+        path = Path(run.dir) / "sequence.pkl"
+        with path.open("wb") as f:
+            pickle.dump(sequence, f)
+        save_artifact(path=path, run=run, type="sequence")
+    return compute_values(*args, **kwargs, run=run, sequence=sequence)

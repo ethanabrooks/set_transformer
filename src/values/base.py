@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 
 import torch
 
@@ -19,14 +20,15 @@ class Values(ABC):
         raise NotImplementedError
 
     @classmethod
-    def make(cls, sequence: Sequence, **kwargs):
-        Q: torch.Tensor = cls.compute_values(sequence=sequence, **kwargs)
-        q, b, _, _ = Q.shape
-        Q = Q[
-            torch.arange(q)[:, None, None],
-            torch.arange(b)[None, :, None],
-            sequence.transitions.states[None],
-        ]
+    def make(cls, sequence: Sequence, Q: Optional[torch.Tensor] = None, **kwargs):
+        if Q is None:
+            Q: torch.Tensor = cls.compute_values(sequence=sequence, **kwargs)
+            q, b, _, _ = Q.shape
+            Q = Q[
+                torch.arange(q)[:, None, None],
+                torch.arange(b)[None, :, None],
+                sequence.transitions.states[None],
+            ]
         stop_at_rmse = sequence.grid_world.stop_at_rmse
         return cls(
             sequence=sequence,
