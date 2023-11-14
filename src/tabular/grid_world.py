@@ -1,7 +1,7 @@
-from copy import deepcopy
-from functools import lru_cache
 import itertools
+from copy import deepcopy
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -357,10 +357,7 @@ class GridWorld:
         Pi = torch.zeros_like(Q)
         Pi.scatter_(-1, Q.argmax(dim=-1, keepdim=True), 1.0)
         Q: torch.Tensor
-        *_, Q = tqdm(
-            self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse),
-            desc="Evaluating improved policy",
-        )
+        *_, Q = self.evaluate_policy_iteratively(Pi=Pi, stop_at_rmse=stop_at_rmse)
         return Q
 
     def evaluate_policy(

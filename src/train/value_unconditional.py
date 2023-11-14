@@ -15,7 +15,6 @@ import wandb
 from dataset.value_unconditional import DataPoint, Dataset
 from metrics import Metrics, compute_rmse, get_metrics
 from models.value_unconditional import SetTransformer
-from pretty import print_row
 from sequence import make as make_sequence
 from sequence.base import Sequence
 from utils import decay_lr, set_seed
@@ -176,9 +175,10 @@ def train_bellman_iteration(
                 )
                 train_log = {f"train-Q/{k}": v for k, v in train_log.items()}
                 counter = Counter()
-                print_row(train_log, show_header=(step % log_interval == 0))
+                print(".", end="", flush=True)
                 if run is not None:
                     wandb.log(dict(**train_log, **test_log), step=step)
+
                 test_log = {}
 
 
