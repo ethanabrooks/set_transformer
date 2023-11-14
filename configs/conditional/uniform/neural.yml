@@ -1,11 +1,6 @@
-inherit_from: value-conditional
+inherit_from: base
 test_data_args:
   q_load_path: null
-  sequence_args:
-    grid_world_args:
-      n_maze: 200
-      p_wall: 1
-    omit_states_actions: 0
 train_data_args:
   q_load_path: rldl/icvi/q0ukvijf
   sequence_args:
