@@ -27,7 +27,7 @@ data_args:
       log_interval: 200
       n_batch: 50
       test_interval: 1000
-inherit_from: value-conditional
+inherit_from: base
 seed: 3
 test_data_args:
   neural_values: false
