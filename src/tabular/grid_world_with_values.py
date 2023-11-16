@@ -2,6 +2,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import numpy as np
 
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -124,7 +125,7 @@ class GridWorldWithValues(GridWorld):
             random=grid_world.random,
             states=grid_world.states,
             terminate_on_goal=grid_world.terminate_on_goal,
-            use_absorbing_state=grid_world.absorbing_state,
+            use_absorbing_state=grid_world.use_absorbing_state,
             use_heldout_goals=grid_world.use_heldout_goals,
             optimally_improved_policy_values=optimally_improved_policy_values,
             Q=Q,
