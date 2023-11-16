@@ -109,7 +109,9 @@ class GridWorld:
         deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
         A = len(deltas)
         G = grid_size**2  # number of goals
-        S = G + 1
+        S = G
+        if absorbing_state:
+            S += 1
         M = n_maze
         B = n_tasks
 
@@ -189,7 +191,9 @@ class GridWorld:
     @property
     def next_state_no_absorbing(self):
         A = self.n_actions
-        G = self.n_states - 1
+        G = self.n_states
+        if self.use_absorbing_state:
+            G -= 1
         T = self.n_tasks
         # Compute next states for each action and state for each batch (goal)
         next_states = self.states[:, None] + self.deltas[None, :]
@@ -539,7 +543,8 @@ class GridWorld:
 
         def imshow(values: torch.Tensor, ax: plt.Axes):
             n, _ = values.shape
-            values = values[..., :-1]
+            if self.use_absorbing_state:
+                values = values[..., :-1]
             im = ax.imshow(
                 values.reshape((n * self.grid_size, self.grid_size)),
                 cmap="hot",
