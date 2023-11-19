@@ -1,6 +1,7 @@
 from collections import Counter
 from dataclasses import asdict, dataclass
 
+import numpy as np
 import torch
 import torch.utils.data
 from torch.utils.data import DataLoader
@@ -8,7 +9,6 @@ from torch.utils.data import DataLoader
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
 from models.value_unconditional import DataPoint, SetTransformer
-from sequence.base import Sequence
 from values.base import Values
 from values.sample_uniform import Values as GroundTruthValues
 
@@ -18,16 +18,16 @@ class Dataset(BaseDataset):
     max_n_bellman: int
 
     def __getitem__(self, idx) -> DataPoint:
-        n_bellman = idx % self.max_n_bellman
-        idx = idx // self.max_n_bellman
+        idx, n_bellman = np.unravel_index(idx, (len(self.sequence), self.max_n_bellman))
         transitions = self.sequence.transitions[idx]
+
         return DataPoint(
             action_probs=transitions.action_probs,
             actions=transitions.actions,
             idx=idx,
             n_bellman=n_bellman,
             next_states=transitions.next_states,
-            q_values=self.Q[:, idx],
+            q_values=self.Q[idx],
             rewards=transitions.rewards,
             states=transitions.states,
         )
@@ -36,9 +36,9 @@ class Dataset(BaseDataset):
         return len(self.sequence) * self.max_n_bellman
 
     @classmethod
-    def make(cls, sequence: Sequence, values: Values):
+    def make(cls, values: Values, **kwargs):
         Q = values.Q
-        return cls(max_n_bellman=len(Q), Q=Q, sequence=sequence, values=values)
+        return cls(**kwargs, max_n_bellman=len(Q), Q=Q.permute(1, 2, 0), values=values)
 
     def evaluate(
         self,
