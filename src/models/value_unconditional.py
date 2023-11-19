@@ -3,7 +3,7 @@ from typing import NamedTuple
 import torch
 import torch.nn.functional as F
 
-from models.set_transformer import SetTransformer as BaseSetTransformer
+from models.set_transformer import SetTransformer as Base
 
 
 class DataPoint(NamedTuple):
@@ -17,7 +17,7 @@ class DataPoint(NamedTuple):
     states: torch.Tensor
 
 
-class SetTransformer(BaseSetTransformer):
+class SetTransformer(Base):
     def forward(
         self, x: DataPoint, q_values: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -39,14 +39,14 @@ class SetTransformer(BaseSetTransformer):
         X = X.reshape(B * S, T, D)
         _, _, D = X.shape
         assert [*X.shape] == [B * S, T, D]
-        Y: torch.Tensor = self.seq2seq(X)
+        Y: torch.Tensor = self.transition_encoder(X)
         assert [*Y.shape] == [B * S, T, D]
         Y1 = Y.reshape(B, S, T, D).sum(2)
         assert [*Y1.shape] == [B, S, D]
         Y2: torch.Tensor = self.embedding(x.states)
         assert [*Y2.shape] == [B, S, D]
         Y = torch.cat([Y1, Y2], dim=1)
-        Z: torch.Tensor = self.transformer(Y)
+        Z: torch.Tensor = self.sequence_network(Y)
         assert [*Z.shape] == [B, 2 * S, D]
         outputs: torch.Tensor = self.dec(Z)
         assert [*outputs.shape][:-1] == [B, 2 * S]

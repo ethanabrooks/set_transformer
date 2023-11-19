@@ -140,9 +140,9 @@ class SetTransformer(nn.Module, ABC):
         self.positional_encoding = PositionalEncoding(
             n_hidden=n_hidden, **positional_encoding_args
         )
-        self.seq2seq = GRU(n_hidden)
+        self.transition_encoder = GRU(n_hidden)
 
-        self.transformer = nn.Sequential(
+        self.sequence_network = nn.Sequential(
             *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
             *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
         )
