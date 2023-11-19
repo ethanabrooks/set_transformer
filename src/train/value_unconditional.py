@@ -135,6 +135,13 @@ def train_bellman_iteration(
             return Q, epoch_step
         x_orig: DataPoint
         for t, x_orig in enumerate(train_loader):
+            random_tensor = torch.rand(l)
+            shuffle = torch.argsort(random_tensor)
+
+            x_shuffle = DataPoint(
+                *[x if x.ndim == 1 else x[:, shuffle] for x in x_orig]
+            )
+            rng_shuffle = torch.arange(l)[shuffle]
             step = epoch_step + t
             for rotation_index in range(n_rotations):
                 rotation_shift = rotation_index * rotation_unit
@@ -144,9 +151,9 @@ def train_bellman_iteration(
                         return x
                     return torch.roll(x, shifts=rotation_shift, dims=1)
 
-                x_cpu = DataPoint(*[rotate(x) for x in x_orig])
+                x_cpu = DataPoint(*[rotate(x) for x in x_shuffle])
                 x = DataPoint(*[x.cuda() for x in x_cpu])
-                rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
+                rng_rot = torch.roll(rng_shuffle, shifts=rotation_shift)
                 step = epoch_step + t
                 net.train()
                 optimizer.zero_grad()
