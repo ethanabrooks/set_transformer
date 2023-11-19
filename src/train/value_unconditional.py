@@ -79,7 +79,7 @@ def train_bellman_iteration(
 
         Pi = grid_world.Pi[None, plot_indices]
         v_per_state: torch.Tensor = stacked * Pi
-        v_per_state = v_per_state.sum(-1).cpu()
+        v_per_state = v_per_state.sum(-1)
         v_per_state = torch.unbind(v_per_state, dim=1)
         for i, plot_value in enumerate(v_per_state):
             fig = grid_world.visualize_values(plot_value)
@@ -124,10 +124,10 @@ def train_bellman_iteration(
         if epoch_rmse <= stop_at_rmse:
             update_plots()
             save(run, net)
-            return Q.cpu(), epoch_step
-        xs: list[torch.Tensor]
-        for t, xs in enumerate(train_loader):
-            x = DataPoint(*[x.cuda() for x in xs])
+            return Q, epoch_step
+        x_cpu: DataPoint
+        for t, x_cpu in enumerate(train_loader):
+            x = DataPoint(*[x.cuda() for x in x_cpu])
             step = epoch_step + t
             net.train()
             optimizer.zero_grad()
@@ -136,7 +136,7 @@ def train_bellman_iteration(
             q_values = x.q_values[torch.arange(len(x.q_values)), x.n_bellman]
             outputs, loss = net.forward(x, q_values=q_values)
 
-            idxs = x.n_bellman.cpu(), x.idx.cpu()
+            idxs = x_cpu.n_bellman, x_cpu.idx
             Q[idxs] = outputs.detach().cpu()
             updated[idxs] = 1
 
@@ -248,7 +248,7 @@ def compute_values(
                 path = Path(run.dir) / "Q.pt"
                 torch.save(Q, path)
                 save_artifact(path=path, run=run, type="Q")
-            return Q.cpu()
+            return Q
         if rmse <= rmse_bellman:
             final = True
 
