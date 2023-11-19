@@ -1,6 +1,5 @@
 from copy import deepcopy
 from dataclasses import dataclass
-import numpy as np
 
 import numpy as np
 import torch
@@ -66,6 +65,7 @@ class GridWorldWithValues(GridWorld):
         p_wall: float,
         seed: int,
         stop_at_rmse: float,
+        terminal_transitions: torch.Tensor,
         terminate_on_goal: bool,
         use_heldout_goals: bool,
     ):
@@ -79,6 +79,7 @@ class GridWorldWithValues(GridWorld):
             n_tasks=n_tasks,
             p_wall=p_wall,
             seed=seed,
+            terminal_transitions=terminal_transitions,
             terminate_on_goal=terminate_on_goal,
             use_heldout_goals=use_heldout_goals,
         )
@@ -124,6 +125,7 @@ class GridWorldWithValues(GridWorld):
             Pi=grid_world.Pi,
             random=grid_world.random,
             states=grid_world.states,
+            terminal_transitions=grid_world.terminal_transitions,
             terminate_on_goal=grid_world.terminate_on_goal,
             use_absorbing_state=grid_world.use_absorbing_state,
             use_heldout_goals=grid_world.use_heldout_goals,
@@ -173,6 +175,7 @@ class GridWorldWithValues(GridWorld):
             Pi=item.Pi,
             random=item.random,
             states=item.states,
+            terminal_transitions=item.terminal_transitions,
             terminate_on_goal=item.terminate_on_goal,
             use_absorbing_state=item.use_absorbing_state,
             use_heldout_goals=item.use_heldout_goals,

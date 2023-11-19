@@ -1,3 +1,7 @@
+data_args:
+  sequence_args:
+    grid_world_args:
+      absorbing_state: false
 inherit_from: base
 test_data_args:
   sequence_args:

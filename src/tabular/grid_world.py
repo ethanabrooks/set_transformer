@@ -29,6 +29,7 @@ def evaluate_policy(
     Q: torch.Tensor,
     R: torch.Tensor,
     T: torch.Tensor,
+    D: torch.Tensor,
 ):
     B, N, A = Pi.shape
 
@@ -37,7 +38,7 @@ def evaluate_policy(
     assert [*EQ.shape] == [B, N]
     EQ = (T * EQ[:, None, None]).sum(-1)
     assert [*EQ.shape] == [B, N, A]
-    Q = R + gamma * EQ
+    Q = R + gamma * ~D * EQ
     return Q
 
 
@@ -55,6 +56,7 @@ class GridWorld:
     Pi: torch.Tensor
     random: np.random.Generator
     states: torch.Tensor
+    terminal_transitions: Optional[torch.Tensor]
     terminate_on_goal: bool
     use_absorbing_state: bool
     use_heldout_goals: bool
@@ -71,6 +73,7 @@ class GridWorld:
         Pi: torch.Tensor,
         random: np.random.Generator,
         states: torch.Tensor,
+        terminal_transitions: Optional[torch.Tensor],
         terminate_on_goal: bool,
         use_heldout_goals: bool,
     ):
@@ -85,6 +88,9 @@ class GridWorld:
                 tensor_hash(Pi),
                 random,
                 tensor_hash(states),
+                None
+                if terminal_transitions is None
+                else tensor_hash(terminal_transitions),
                 terminate_on_goal,
                 use_heldout_goals,
             )
@@ -102,6 +108,7 @@ class GridWorld:
         n_tasks: int,
         p_wall: float,
         seed: int,
+        terminal_transitions: Optional[torch.Tensor],
         terminate_on_goal: bool,
         use_heldout_goals: bool,
     ):
@@ -151,6 +158,7 @@ class GridWorld:
             Pi=Pi,
             random=random,
             states=states,
+            terminal_transitions=terminal_transitions,
             terminate_on_goal=terminate_on_goal,
             use_heldout_goals=use_heldout_goals,
         )
@@ -168,6 +176,7 @@ class GridWorld:
             Pi=Pi,
             random=random,
             states=states,
+            terminal_transitions=terminal_transitions,
             terminate_on_goal=terminate_on_goal,
             use_absorbing_state=absorbing_state,
             use_heldout_goals=use_heldout_goals,
@@ -240,6 +249,18 @@ class GridWorld:
 
     @property
     @lru_cache()
+    def termination_matrix(self):
+        matrix = (
+            self.rewards.bool()
+            if self.terminate_on_goal
+            else torch.zeros_like(self.rewards, dtype=torch.bool)
+        )
+        if self.terminal_transitions is not None:
+            matrix = matrix | self.terminal_transitions
+        return matrix
+
+    @property
+    @lru_cache()
     def transition_matrix(self):
         matrix: torch.Tensor = F.one_hot(self.next_states, num_classes=self.n_states)
         return matrix.float()
@@ -259,6 +280,11 @@ class GridWorld:
         n_tasks = goals.numel()
         Pi = to_device(self.Pi)[idx]
         states = to_device(self.states)
+        terminal_transitions = (
+            None
+            if self.terminal_transitions is None
+            else to_device(self.terminal_transitions)[idx]
+        )
         hashcode = self.compute_hashcode(
             deltas=deltas,
             gamma=self.gamma,
@@ -269,6 +295,7 @@ class GridWorld:
             Pi=Pi,
             random=self.random,
             states=states,
+            terminal_transitions=terminal_transitions,
             terminate_on_goal=self.terminate_on_goal,
             use_heldout_goals=self.use_heldout_goals,
         )
@@ -285,6 +312,7 @@ class GridWorld:
             Pi=Pi,
             random=self.random,
             states=states,
+            terminal_transitions=terminal_transitions,
             terminate_on_goal=self.terminate_on_goal,
             use_absorbing_state=self.use_absorbing_state,
             use_heldout_goals=self.use_heldout_goals,
@@ -380,6 +408,7 @@ class GridWorld:
             Q=Q,
             R=self.rewards.to(Pi.device),
             T=self.transition_matrix.to(Pi.device),
+            D=self.termination_matrix.to(Pi.device),
         )
 
     def evaluate_policy_iteratively(
@@ -498,14 +527,7 @@ class GridWorld:
             self.transition_matrix[arange, states, actions], dim=1
         )
 
-        if time_step is None:
-            done = torch.zeros_like(states, dtype=torch.bool)
-        elif episode_length is not None:
-            done = time_step + 1 == episode_length
-        else:
-            raise ValueError("Either episode_length or time_step must be provided")
-        if self.terminate_on_goal:
-            done = done | (states == self.absorbing_state)
+        done = self.termination_matrix[arange, states, actions]
         next_states = next_states.reshape(shape)
         rewards = rewards.reshape(shape)
         done = done.reshape(shape)
