@@ -27,7 +27,9 @@ class Sequence(ABC):
         **kwargs,
     ):
         # 2D deltas for up, down, left, right
-        grid_world = GridWorld.make(**grid_world_args, n_tasks=n_data, seed=seed)
+        grid_world = GridWorld.make(
+            **grid_world_args, n_tasks=n_data, seed=seed, terminal_transitions=None
+        )
 
         transitions: Transition[torch.Tensor] = cls.collect_data(
             **kwargs, grid_world=grid_world
