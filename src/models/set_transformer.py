@@ -123,17 +123,15 @@ class PositionalEncoding(nn.Module):
 class SetTransformer(nn.Module, ABC):
     def __init__(
         self,
-        isab_args: dict,
         n_actions: int,
-        n_isab: int,
         n_hidden: int,
-        n_sab: int,
         n_tokens: int,
         positional_encoding_args: dict,
-        sab_args: dict,
+        **transformer_args: dict,
     ):
         super(SetTransformer, self).__init__()
-        self.embedding = nn.Embedding(n_tokens, n_hidden)
+        self.n_tokens = n_tokens
+        self.embedding = nn.Embedding(n_tokens + 1, n_hidden)
         initrange = 0.1
         self.embedding.weight.data.uniform_(-initrange, initrange)
         self.n_hidden = n_hidden
@@ -142,10 +140,22 @@ class SetTransformer(nn.Module, ABC):
         )
         self.transition_encoder = GRU(n_hidden)
 
-        self.sequence_network = nn.Sequential(
-            *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
-            *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
+        self.sequence_network = self.build_sequence_network(
+            n_hidden=n_hidden, **transformer_args
         )
         # PMA(dim_hidden, num_heads, num_outputs, ln=ln),
         # SAB(dim_hidden, dim_hidden, num_heads, ln=ln),
         self.dec = nn.Linear(n_hidden, n_actions)
+
+    def build_sequence_network(
+        self,
+        isab_args: dict,
+        n_hidden: int,
+        n_isab: int,
+        n_sab: int,
+        sab_args: dict,
+    ):
+        return nn.Sequential(
+            *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
+            *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
+        )

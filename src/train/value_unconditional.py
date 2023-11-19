@@ -14,8 +14,8 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from dataset.value_unconditional import DataPoint, Dataset
 from metrics import Metrics, compute_rmse, get_metrics
-from models.value_unconditional import SetTransformer
-from sequence import make_sequence
+from models.value_unconditional import GRU, CausalTransformer, SetTransformer
+from sequence import make as make_sequence
 from sequence.base import Sequence
 from utils import decay_lr, set_seed
 from values.bootstrap import Values as BootstrapValues
@@ -182,6 +182,7 @@ def train_bellman_iteration(
 def compute_values(
     lr: float,
     model_args: dict,
+    model_type: str,
     n_plot: int,
     rmse_bellman: float,
     rmse_training_final: float,
@@ -201,11 +202,30 @@ def compute_values(
     data = Dataset.make(sequence=sequence, values=values)
     start_step = 0
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
-    net = SetTransformer(
-        **model_args, n_actions=data.n_actions, n_tokens=n_tokens
-    ).cuda()
+    if model_type == "gpt2":
+        net = CausalTransformer(
+            **model_args,
+            n_actions=data.n_actions,
+            n_ctx=L,
+            n_tokens=n_tokens,
+        )
+    elif model_type == "set":
+        net = SetTransformer(
+            **model_args,
+            n_actions=data.n_actions,
+            n_tokens=n_tokens,
+        )
+    elif model_type == "gru":
+        net = GRU(
+            **model_args,
+            n_actions=data.n_actions,
+            n_tokens=n_tokens,
+        )
+    else:
+        raise ValueError(f"Unknown model_type {model_type}")
     if load_path is not None:
         raise NotImplementedError
+    net = net.cuda()
     optimizer = optim.Adam(net.parameters(), lr=lr)
     plot_indices = torch.randint(0, B, (n_plot,))
     final = False
