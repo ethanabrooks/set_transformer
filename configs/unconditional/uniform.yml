@@ -11,6 +11,7 @@ model_args:
   sab_args:
     ln: true
     n_heads: 8
+model_type: set
 n_plot: 1
 rmse_bellman: 0.005
 rmse_training_final: 0.002

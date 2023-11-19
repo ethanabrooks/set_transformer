@@ -3,7 +3,8 @@ from typing import Optional
 from wandb.sdk.wandb_run import Run
 
 from dataset.value_conditional import Dataset
-from sequence import load_sequence, make_sequence
+from sequence import load_sequence
+from sequence import make as make_sequence
 from sequence.base import Sequence
 from values import make as make_values
 from values.neural import Values as NeuralValues
