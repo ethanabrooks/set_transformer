@@ -43,5 +43,6 @@ train_args:
     accuracy_threshold: 0.01
   log_interval: 50
   n_batch: 250
+  n_rotations: 1
   test_interval: 1000
 value_conditional: false

@@ -34,6 +34,7 @@ def train_bellman_iteration(
     plot_indices: torch.Tensor,
     sequence: Sequence,
     n_batch: int,
+    n_rotations: int,
     net: SetTransformer,
     run: Run,
     start_step: int,
@@ -54,6 +55,7 @@ def train_bellman_iteration(
     counter = Counter()
     Q = bootstrap_Q.clone()
     _, _, l, _ = bootstrap_Q.shape
+    rotation_unit = l // n_rotations
     updated = None
 
     def make_dataset(bootstrap_Q: torch.Tensor):
@@ -127,38 +129,63 @@ def train_bellman_iteration(
             update_plots()
             save(run, net)
             return Q, epoch_step
-        x_cpu: DataPoint
-        for t, x_cpu in enumerate(train_loader):
-            x = DataPoint(*[x.cuda() for x in x_cpu])
+        x_orig: DataPoint
+        for t, x_orig in enumerate(train_loader):
             step = epoch_step + t
-            net.train()
-            optimizer.zero_grad()
-            outputs: torch.Tensor
-            loss: torch.Tensor
-            q_values = x.q_values[torch.arange(len(x.q_values)), x.n_bellman]
-            outputs, loss = net.forward(x, q_values=q_values)
+            for rotation_index in range(n_rotations):
+                rotation_shift = rotation_index * rotation_unit
 
-            idxs = x_cpu.n_bellman, x_cpu.idx
-            Q[idxs] = outputs.detach().cpu()
-            updated[idxs] = 1
+                def rotate(x: torch.Tensor):
+                    if x.ndim == 1:
+                        return x
+                    return torch.roll(x, shifts=rotation_shift, dims=1)
 
-            b, l, _ = outputs.shape
-            metrics: Metrics = get_metrics(
-                loss=loss,
-                outputs=outputs[
-                    torch.arange(b)[:, None], torch.arange(l)[None], x.actions
-                ],
-                targets=q_values,
-                **evaluate_args,
-            )
+                x_cpu = DataPoint(*[rotate(x) for x in x_orig])
+                x = DataPoint(*[x.cuda() for x in x_cpu])
+                rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
+                step = epoch_step + t
+                net.train()
+                optimizer.zero_grad()
+                outputs: torch.Tensor
+                loss: torch.Tensor
+                q_values = x.q_values[
+                    torch.arange(len(x.q_values))[:, None],
+                    torch.arange(l)[None],
+                    x.n_bellman[:, None],
+                ]
+                outputs, loss = net.forward(x=x, q_values=q_values)
 
-            decayed_lr = decay_lr(lr, step=step, **decay_args)
-            for param_group in optimizer.param_groups:
-                param_group.update(lr=decayed_lr)
-            if load_path is None:
-                loss.backward()
-                optimizer.step()
-            counter.update(asdict(metrics), n=1)
+                tail_idxs = torch.arange(l - rotation_unit, l)
+                idxs = (
+                    x_cpu.n_bellman[:, None],
+                    x_cpu.idx[:, None],
+                    rng_rot[tail_idxs][None],
+                )
+                outputs_cpu = outputs.detach().cpu()
+                Q[idxs] = outputs_cpu[
+                    torch.arange(len(outputs))[:, None], tail_idxs[None]
+                ]
+                updated[idxs] = 1
+
+                b, l, _ = outputs.shape
+                metrics: Metrics = get_metrics(
+                    loss=loss,
+                    outputs=outputs[
+                        torch.arange(b)[:, None],
+                        torch.arange(l)[None],
+                        x.actions,
+                    ],
+                    targets=q_values,
+                    **evaluate_args,
+                )
+
+                decayed_lr = decay_lr(lr, step=step, **decay_args)
+                for param_group in optimizer.param_groups:
+                    param_group.update(lr=decayed_lr)
+                if load_path is None:
+                    loss.backward()
+                    optimizer.step()
+                counter.update(asdict(metrics), n=1)
             if step % log_interval == 0:
                 fps = log_interval / (time.time() - tick)
                 tick = time.time()
