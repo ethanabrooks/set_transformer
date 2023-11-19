@@ -21,7 +21,8 @@ class Values(BaseValues):
         ]
         Pi = Pi[None].expand_as(bootstrap_Q)
         R = sequence.transitions.rewards[None, ...]
-        Q = R + grid_world.gamma * (bootstrap_Q * Pi).sum(-1)
+        done = sequence.transitions.done[None, ...]
+        Q = R + grid_world.gamma * ~done * (bootstrap_Q * Pi).sum(-1)
         return Q
 
     @classmethod
