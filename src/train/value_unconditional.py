@@ -96,7 +96,21 @@ def train_bellman_iteration(
     tick = time.time()
 
     for e in itertools.count():
+        if updated is not None:
+            assert torch.all(updated)
+        updated = torch.zeros_like(Q)
+
         q, b, l, a = Q.shape
+        epoch_rmse = compute_rmse(
+            train_data.values.Q,
+            Q[
+                torch.arange(q)[:, None, None],
+                torch.arange(b)[None, :, None],
+                torch.arange(l)[None, None],
+                sequence.transitions.actions[None],
+            ],
+        )
+
         idxs = (
             torch.arange(q)[:, None, None],
             torch.arange(b)[None, :, None],
@@ -117,18 +131,6 @@ def train_bellman_iteration(
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)
-        epoch_rmse = compute_rmse(
-            train_data.values.Q,
-            Q[
-                torch.arange(q)[:, None, None],
-                torch.arange(b)[None, :, None],
-                torch.arange(l)[None, None],
-                sequence.transitions.actions[None],
-            ],
-        )
-        if updated is not None:
-            assert torch.all(updated)
-        updated = torch.zeros_like(Q)
         if epoch_rmse <= stop_at_rmse:
             update_plots()
             save(run, net)
