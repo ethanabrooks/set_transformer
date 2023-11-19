@@ -449,7 +449,6 @@ class GridWorld:
         rewards = torch.zeros((B, trajectory_length))
         done = torch.zeros((B, trajectory_length), dtype=torch.bool)
         S1 = self.reset_fn()
-        time_step = torch.zeros((B))
         arange = torch.arange(B)
 
         for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
@@ -465,10 +464,7 @@ class GridWorld:
 
             # Convert current current_states to indices
             next_state_indices, R, D, _ = self.step_fn(
-                states=current_state_indices,
-                actions=A,
-                episode_length=episode_length,
-                time_step=time_step,
+                states=current_state_indices, actions=A
             )
 
             # Convert next state indices to coordinates
@@ -481,8 +477,6 @@ class GridWorld:
             next_states[:, t] = S2
             rewards[:, t] = R
             done[:, t] = D
-            time_step += 1
-            time_step[D] = 0
 
             # Update current current_states
             S1 = S2
@@ -506,12 +500,9 @@ class GridWorld:
         self,
         states: torch.Tensor,
         actions: torch.Tensor,
-        episode_length: Optional[int] = None,
-        time_step: Optional[torch.Tensor] = None,
     ):
         # self.check_states(states)
         # self.check_actions(actions)
-        # self.check_time_step(time_step)
         assert len(states) == self.n_tasks
         assert states.shape == actions.shape
         shape = states.shape
