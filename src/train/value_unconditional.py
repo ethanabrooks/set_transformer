@@ -17,7 +17,7 @@ from metrics import Metrics, compute_rmse, get_metrics
 from models.value_unconditional import GRU, CausalTransformer, SetTransformer
 from sequence import make as make_sequence
 from sequence.base import Sequence
-from utils import decay_lr, set_seed
+from utils import decay_lr, load, save, set_seed
 from values.bootstrap import Values as BootstrapValues
 
 
@@ -26,6 +26,7 @@ def train_bellman_iteration(
     bootstrap_Q: torch.Tensor,
     decay_args: dict,
     evaluate_args: dict,
+    load_path: str,
     log_interval: int,
     lr: float,
     optimizer: optim.Optimizer,
@@ -122,6 +123,7 @@ def train_bellman_iteration(
         updated = torch.zeros_like(Q)
         if epoch_rmse <= stop_at_rmse:
             update_plots()
+            save(run, net)
             return Q.cpu(), epoch_step
         xs: list[torch.Tensor]
         for t, xs in enumerate(train_loader):
@@ -151,8 +153,9 @@ def train_bellman_iteration(
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             for param_group in optimizer.param_groups:
                 param_group.update(lr=decayed_lr)
-            loss.backward()
-            optimizer.step()
+            if load_path is None:
+                loss.backward()
+                optimizer.step()
             counter.update(asdict(metrics), n=1)
             if step % log_interval == 0:
                 fps = log_interval / (time.time() - tick)
@@ -204,27 +207,16 @@ def compute_values(
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
         net = CausalTransformer(
-            **model_args,
-            n_actions=data.n_actions,
-            n_ctx=L,
-            n_tokens=n_tokens,
+            **model_args, n_actions=data.n_actions, n_ctx=L, n_tokens=n_tokens
         )
     elif model_type == "set":
-        net = SetTransformer(
-            **model_args,
-            n_actions=data.n_actions,
-            n_tokens=n_tokens,
-        )
+        net = SetTransformer(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
     elif model_type == "gru":
-        net = GRU(
-            **model_args,
-            n_actions=data.n_actions,
-            n_tokens=n_tokens,
-        )
+        net = GRU(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
     else:
         raise ValueError(f"Unknown model_type {model_type}")
     if load_path is not None:
-        raise NotImplementedError
+        load(load_path, net, run)
     net = net.cuda()
     optimizer = optim.Adam(net.parameters(), lr=lr)
     plot_indices = torch.randint(0, B, (n_plot,))
@@ -234,6 +226,7 @@ def compute_values(
         new_Q, step = train_bellman_iteration(
             bellman_number=bellman_number,
             bootstrap_Q=Q,
+            load_path=load_path,
             lr=lr,
             optimizer=optimizer,
             sequence=sequence,

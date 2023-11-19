@@ -1,11 +1,18 @@
 import math
+import os
 import random
+import time
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic, Optional, TypeVar
 
 import numpy as np
 import torch
+from wandb.sdk.wandb_run import Run
 
+import wandb
+from models.set_transformer import SetTransformer
+
+MODEL_FNAME = "model.tar"
 T = TypeVar("T")
 
 
@@ -47,6 +54,24 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
         progress = np.clip(progress, 0.0, 1.0)
         lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
     return lr * lr_mult
+
+
+def load(
+    load_path: Optional[str],
+    net: SetTransformer,
+    run: Optional[Run],
+):
+    root = run.dir if run is not None else f"/tmp/wandb{time.time()}"
+    wandb.restore(MODEL_FNAME, run_path=load_path, root=root)
+    state = torch.load(os.path.join(root, MODEL_FNAME))
+    net.load_state_dict(state, strict=True)
+
+
+def save(run: Run, net: SetTransformer):
+    if run is not None:
+        savepath = os.path.join(run.dir, MODEL_FNAME)
+        torch.save(net.state_dict(), savepath)
+        wandb.save(savepath)
 
 
 def set_seed(seed: int):
