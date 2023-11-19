@@ -20,9 +20,12 @@ class Sequence(ABC):
         raise NotImplementedError
 
     @classmethod
-    def make(cls, grid_world: GridWorld, **kwargs):
+    def make(cls, grid_world: GridWorld, stop_at_rmse: float, **kwargs):
         transitions: Transition[torch.Tensor] = cls.collect_data(
             **kwargs, grid_world=grid_world
+        )
+        grid_world = GridWorldWithValues.make(
+            grid_world=grid_world, stop_at_rmse=stop_at_rmse
         )
         return cls(grid_world=grid_world, transitions=transitions)
 
