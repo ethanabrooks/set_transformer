@@ -434,7 +434,8 @@ class GridWorld:
     def get_trajectories(
         self,
         episode_length: int,
-        n_episodes: int = 1,
+        n_episodes: int,
+        use_exploration_policy: bool = False,
     ):
         B = self.n_tasks
         N = self.n_states
@@ -450,17 +451,27 @@ class GridWorld:
         done = torch.zeros((B, trajectory_length), dtype=torch.bool)
         S1 = self.reset_fn()
         arange = torch.arange(B)
+        if use_exploration_policy:
+            assert self.grid_size == 2, "Exploration policy only works for 2x2 grid"
+            action_sequence = torch.tensor(
+                [0, 3, 1, 2, 2, 1, 3, 1, 3, 0, 3, 0, 2, 0, 2, 1]
+            )
+            current_state_indices = self.convert_2d_to_1d(S1)
+            start_index = torch.tensor([0, 1, 3, 2])[current_state_indices]
 
         for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
             # Convert current current_states to indices
             current_state_indices = self.convert_2d_to_1d(S1)
 
             # Sample actions from the policy
-            A = (
-                torch.multinomial(self.Pi[arange, current_state_indices], 1)
-                .squeeze(1)
-                .long()
-            )
+            if use_exploration_policy:
+                A = action_sequence[(t + start_index) % len(action_sequence)]
+            else:
+                A = (
+                    torch.multinomial(self.Pi[arange, current_state_indices], 1)
+                    .squeeze(1)
+                    .long()
+                )
 
             # Convert current current_states to indices
             next_state_indices, R, D, _ = self.step_fn(
@@ -480,8 +491,9 @@ class GridWorld:
 
             # Update current current_states
             S1 = S2
-            S_reset = self.reset_fn()
-            S1[D] = S_reset[D]
+            if not use_exploration_policy:
+                S_reset = self.reset_fn()
+                S1[D] = S_reset[D]
 
         return Transition(
             states=states,
