@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import torch
+import torch.nn.functional as F
 
 from sequence.base import Sequence
 from values.base import Values as BaseValues
@@ -9,16 +10,29 @@ from values.base import Values as BaseValues
 @dataclass(frozen=True)
 class Values(BaseValues):
     @classmethod
-    def compute_values(cls, bootstrap_Q: torch.Tensor, sequence: Sequence):
+    def compute_values(
+        cls,
+        bootstrap_Q: torch.Tensor,
+        sample_from_trajectories: bool,
+        sequence: Sequence,
+    ):
         grid_world = sequence.grid_world
         q, b, _, a = bootstrap_Q.shape
         Pi = grid_world.Pi[torch.arange(b)[:, None], sequence.transitions.next_states]
-        bootstrap_Q = bootstrap_Q[:, :, ::a]
-        bootstrap_Q = bootstrap_Q[
-            torch.arange(q)[:, None, None],
-            torch.arange(b)[None, :, None],
-            sequence.transitions.next_states[None],
-        ]
+        if sample_from_trajectories:
+            bootstrap_Q = F.pad(bootstrap_Q[:, :, 1:], (0, 0, 0, 1))
+        else:
+            bootstrap_indexed = torch.zeros(q, b, sequence.grid_world.n_states, a)
+            bootstrap_indexed[
+                torch.arange(q)[:, None, None],
+                torch.arange(b)[None, :, None],
+                sequence.transitions.states[None],
+            ] = bootstrap_Q
+            bootstrap_Q = bootstrap_indexed[
+                torch.arange(q)[:, None, None],
+                torch.arange(b)[None, :, None],
+                sequence.transitions.next_states[None],
+            ]
         Pi = Pi[None].expand_as(bootstrap_Q)
         R = sequence.transitions.rewards[None, ...]
         done = sequence.transitions.done[None, ...]
