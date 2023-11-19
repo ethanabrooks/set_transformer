@@ -10,9 +10,9 @@ data_args:
       gamma: 0.99
       grid_size: 4
       heldout_goals: []
-      stop_at_rmse: 0.005
       terminate_on_goal: true
       use_heldout_goals: false
+    stop_at_rmse: 0.005
   value_args: {}
 decay_args:
   final_step: 500_000
@@ -45,8 +45,8 @@ test_data_args:
   sequence_args:
     grid_world_args:
       n_maze: 200
+      n_tasks: 200
       p_wall: 1
-    n_data: 200
 test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:
@@ -55,6 +55,6 @@ train_data_args:
   sequence_args:
     grid_world_args:
       n_maze: 0
+      n_tasks: 80_000
       p_wall: 0.25
-    n_data: 80_000
 value_conditional: true
