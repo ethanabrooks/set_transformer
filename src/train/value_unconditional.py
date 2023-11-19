@@ -37,6 +37,7 @@ def train_bellman_iteration(
     n_rotations: int,
     net: SetTransformer,
     run: Run,
+    sample_from_trajectories: bool,
     start_step: int,
     stop_at_rmse: float,
     test_interval: int,
@@ -61,7 +62,10 @@ def train_bellman_iteration(
     def make_dataset(bootstrap_Q: torch.Tensor):
         assert len(bootstrap_Q) == bellman_number
         values = BootstrapValues.make(
-            bootstrap_Q=bootstrap_Q, sequence=sequence, stop_at_rmse=stop_at_rmse
+            bootstrap_Q=bootstrap_Q,
+            sample_from_trajectories=sample_from_trajectories,
+            sequence=sequence,
+            stop_at_rmse=stop_at_rmse,
         )
         return Dataset.make(sequence=sequence, values=values)
 
@@ -220,6 +224,7 @@ def compute_values(
     rmse_training_final: float,
     rmse_training_intermediate: float,
     run: Run,
+    sample_from_trajectories: bool,
     sequence: Sequence,
     test_size: int,
     train_args: dict,
@@ -229,7 +234,10 @@ def compute_values(
     A = sequence.grid_world.n_actions
     Q = torch.zeros(1, B, L, A)
     values = BootstrapValues.make(
-        sequence=sequence, stop_at_rmse=rmse_bellman, bootstrap_Q=Q
+        sample_from_trajectories=sample_from_trajectories,
+        sequence=sequence,
+        stop_at_rmse=rmse_bellman,
+        bootstrap_Q=Q,
     )
     data = Dataset.make(sequence=sequence, values=values)
     start_step = 0
@@ -262,6 +270,7 @@ def compute_values(
             net=net,
             plot_indices=plot_indices,
             run=run,
+            sample_from_trajectories=sample_from_trajectories,
             start_step=start_step,
             stop_at_rmse=rmse_training_final if final else rmse_training_intermediate,
             test_size=test_size,
@@ -288,12 +297,27 @@ def save_artifact(path: Path, run: Run, type: str):
     run.log_artifact(artifact)
 
 
-def train(*args, run: Run, seed: int, sequence_args: dict, **kwargs):
+def train(
+    *args,
+    run: Run,
+    seed: int,
+    sample_from_trajectories: bool,
+    sequence_args: dict,
+    **kwargs,
+):
     set_seed(seed)
-    sequence = make_sequence(**sequence_args)
+    sequence = make_sequence(
+        **sequence_args, sample_from_trajectories=sample_from_trajectories
+    )
     if run is not None:
         path = Path(run.dir) / "sequence.pkl"
         with path.open("wb") as f:
             pickle.dump(sequence, f)
         save_artifact(path=path, run=run, type="sequence")
-    return compute_values(*args, **kwargs, run=run, sequence=sequence)
+    return compute_values(
+        *args,
+        **kwargs,
+        run=run,
+        sample_from_trajectories=sample_from_trajectories,
+        sequence=sequence,
+    )
