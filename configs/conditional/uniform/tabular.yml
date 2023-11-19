@@ -1,3 +1,6 @@
+data_args:
+  sequence_args:
+    omit_states_actions: 0
 inherit_from: base
 train_data_args:
   sequence_args:
