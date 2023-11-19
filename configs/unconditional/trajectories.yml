@@ -1,0 +1,23 @@
+inherit_from: base
+lr: 0.001
+model_args:
+  n_hidden: 256
+  n_layers: 2
+  positional_encoding_args:
+    log_term: 10000.0
+    scale_term: 1000
+model_type: gru
+n_plot: 3
+sample_from_trajectories: true
+sequence_args:
+  episode_length: 64
+  grid_world_args:
+    absorbing_state: false
+    grid_size: 2
+    n_tasks: 50
+    p_wall: 0
+  n_episodes: 1
+train_args:
+  alpha: .5
+  n_batch: 50
+  n_rotations: 4
