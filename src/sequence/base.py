@@ -4,13 +4,14 @@ from dataclasses import dataclass
 import torch
 import torch.utils.data
 
-from tabular.grid_world_with_values import GridWorldWithValues as GridWorld
+from tabular.grid_world import GridWorld
+from tabular.grid_world_with_values import GridWorldWithValues
 from utils import Transition
 
 
 @dataclass(frozen=True)
 class Sequence(ABC):
-    grid_world: GridWorld
+    grid_world: GridWorldWithValues
     transitions: Transition[torch.Tensor]
 
     @classmethod
@@ -19,18 +20,7 @@ class Sequence(ABC):
         raise NotImplementedError
 
     @classmethod
-    def make(
-        cls,
-        grid_world_args: dict,
-        n_data: int,
-        seed: int,
-        **kwargs,
-    ):
-        # 2D deltas for up, down, left, right
-        grid_world = GridWorld.make(
-            **grid_world_args, n_tasks=n_data, seed=seed, terminal_transitions=None
-        )
-
+    def make(cls, grid_world: GridWorld, **kwargs):
         transitions: Transition[torch.Tensor] = cls.collect_data(
             **kwargs, grid_world=grid_world
         )

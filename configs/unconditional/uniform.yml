@@ -24,14 +24,14 @@ sequence_args:
     grid_size: 4
     heldout_goals: []
     n_maze: 0
+    n_tasks: 80_000
     p_wall: 0.25
-    stop_at_rmse: 0.005
     terminate_on_goal: true
     use_heldout_goals: false
-  n_data: 80_000
   omit_states_actions: 0
   sample_from_trajectories: false
   seed: 0
+  stop_at_rmse: 0.005
 test_size: 50
 train_args:
   decay_args:
