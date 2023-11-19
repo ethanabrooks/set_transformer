@@ -48,6 +48,12 @@ def train_bellman_iteration(
         1 : 1 + bellman_number  # omit Q_0 from ground_truth
     ]
 
+    test_log = {}
+    counter = Counter()
+    Q = bootstrap_Q.clone()
+    _, _, l, _ = bootstrap_Q.shape
+    updated = None
+
     def make_dataset(bootstrap_Q: torch.Tensor):
         assert len(bootstrap_Q) == bellman_number
         values = BootstrapValues.make(
@@ -55,31 +61,67 @@ def train_bellman_iteration(
         )
         return Dataset.make(sequence=sequence, values=values)
 
-    test_log = {}
-    tick = time.time()
-    counter = Counter()
+    def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
+        metrics = get_metrics(
+            loss=None, outputs=outputs, targets=targets, **evaluate_args
+        )
+        return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
 
-    Q = bootstrap_Q.clone()
-    updated = None
+    def update_plots():
+        grid_world = sequence.grid_world
+        q_per_state = torch.empty(len(plot_indices), grid_world.n_states, a)
+        q_per_state[
+            torch.arange(len(plot_indices))[:, None],
+            sequence.transitions.states[plot_indices],
+        ] = Q[-1, plot_indices]
+        stacked = torch.stack([q_per_state, grid_world.Q[bellman_number, plot_indices]])
+
+        Pi = grid_world.Pi[None, plot_indices]
+        v_per_state: torch.Tensor = stacked * Pi
+        v_per_state = v_per_state.sum(-1).cpu()
+        v_per_state = torch.unbind(v_per_state, dim=1)
+        for i, plot_value in enumerate(v_per_state):
+            fig = grid_world.visualize_values(plot_value)
+            test_log[f"plot {i}, bellman {bellman_number}"] = wandb.Image(fig)
+
+    train_data = make_dataset(bootstrap_Q)
+    tick = time.time()
 
     for e in itertools.count():
-        q, b, l, _ = bootstrap_Q.shape
-        bootstrap_Q = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0)).cpu()[:-1]
+        q, b, l, a = Q.shape
+        idxs = (
+            torch.arange(q)[:, None, None],
+            torch.arange(b)[None, :, None],
+            sequence.transitions.states[None],
+        )
+        ground_truth_metrics = _get_metrics(
+            "(ground-truth)", outputs=Q, targets=ground_truth[idxs]
+        )
+
+        versus_metrics = _get_metrics(
+            "(bootstrap versus ground-truth)",
+            outputs=train_data.values.Q,
+            targets=ground_truth[[*idxs, sequence.transitions.actions[None]]],
+        )
+
+        bootstrap_Q = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)
-        Q_k1 = train_data.values.Q
-        Q_k = Q[
-            torch.arange(q)[:, None, None],
-            torch.arange(b)[None, :, None],
-            torch.arange(l)[None, None],
-            sequence.transitions.actions[None],
-        ]
-        epoch_rmse = compute_rmse(Q_k, Q_k1)
+        epoch_rmse = compute_rmse(
+            train_data.values.Q,
+            Q[
+                torch.arange(q)[:, None, None],
+                torch.arange(b)[None, :, None],
+                torch.arange(l)[None, None],
+                sequence.transitions.actions[None],
+            ],
+        )
         if updated is not None:
             assert torch.all(updated)
         updated = torch.zeros_like(Q)
         if epoch_rmse <= stop_at_rmse:
+            update_plots()
             return Q.cpu(), epoch_step
         xs: list[torch.Tensor]
         for t, xs in enumerate(train_loader):
@@ -96,12 +138,6 @@ def train_bellman_iteration(
             Q[idxs] = outputs.detach().cpu()
             updated[idxs] = 1
 
-            def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
-                metrics = get_metrics(
-                    loss=None, outputs=outputs, targets=targets, **evaluate_args
-                )
-                return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
-
             b, l, _ = outputs.shape
             metrics: Metrics = get_metrics(
                 loss=loss,
@@ -111,47 +147,6 @@ def train_bellman_iteration(
                 targets=q_values,
                 **evaluate_args,
             )
-
-            if x.n_bellman.max() < len(ground_truth):
-                idxs = x.n_bellman[:, None].cpu(), x.idx[:, None].cpu(), x.states.cpu()
-                ground_truth_metrics = _get_metrics(
-                    "(ground-truth)",
-                    outputs=outputs,
-                    targets=ground_truth[idxs].cuda(),
-                )
-                versus_metrics = _get_metrics(
-                    "(botstrap versus ground-truth)",
-                    outputs=q_values.cpu(),
-                    targets=ground_truth[[*idxs, x.actions.cpu()]],
-                )
-            else:
-                ground_truth_metrics = {}
-                versus_metrics = {}
-
-            mask = torch.isin(x.idx, plot_indices)
-            if x.n_bellman.max() < len(ground_truth) and mask.any():
-                stacked = torch.stack(
-                    [
-                        outputs.detach().cpu(),
-                        ground_truth[
-                            x.n_bellman[:, None].cpu(),
-                            x.idx[:, None].cpu(),
-                            x.states.cpu(),
-                        ],
-                    ],
-                    1,
-                )
-                grid_world = sequence.grid_world
-                values = stacked[..., :: grid_world.n_actions, :].swapaxes(0, 1)
-                idxs = x.idx[mask].cpu()
-                Pi = grid_world.Pi[idxs][None, None]
-                plot_values = values[:, mask.cpu()]
-                plot_values: torch.Tensor = plot_values * Pi
-                plot_values = plot_values.sum(-1).cpu()
-                plot_values = torch.unbind(plot_values, dim=2)
-                for i, plot_value in zip(idxs, plot_values):
-                    fig = grid_world.visualize_values(plot_value)
-                    test_log[f"values-plot {i}"] = wandb.Image(fig)
 
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             for param_group in optimizer.param_groups:
@@ -163,6 +158,7 @@ def train_bellman_iteration(
                 fps = log_interval / (time.time() - tick)
                 tick = time.time()
                 train_log = {k: v / counter["n"] for k, v in counter.items()}
+                update_plots()
 
                 train_log.update(
                     bellman_number=bellman_number,
@@ -210,7 +206,7 @@ def compute_values(
     if load_path is not None:
         raise NotImplementedError
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    plot_indices = torch.randint(0, B, (n_plot,)).cuda()
+    plot_indices = torch.randint(0, B, (n_plot,))
     final = False
 
     for bellman_number in itertools.count(1):
