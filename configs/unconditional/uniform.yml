@@ -1,4 +1,4 @@
-lr: 0.0005
+inherit_from: base
 model_args:
   isab_args:
     n_inds: 32
@@ -13,36 +13,15 @@ model_args:
     n_heads: 8
 model_type: set
 n_plot: 1
-rmse_bellman: 0.005
-rmse_training_final: 0.002
-rmse_training_intermediate: 0.005
 sample_from_trajectories: false
-seed: 3
 sequence_args:
   grid_world_args:
     absorbing_state: true
-    dense_reward: false
-    gamma: 0.99
     grid_size: 4
-    heldout_goals: []
-    n_maze: 0
     n_tasks: 80_000
     p_wall: 0.25
-    terminate_on_goal: true
-    use_heldout_goals: false
   omit_states_actions: 0
-  seed: 0
-  stop_at_rmse: 0.005
-test_size: 50
 train_args:
   alpha: 1
-  decay_args:
-    final_step: 500_000
-    warmup_steps: 10_000
-  evaluate_args:
-    accuracy_threshold: 0.01
-  log_interval: 50
   n_batch: 250
   n_rotations: 1
-  test_interval: 1000
-value_conditional: false
