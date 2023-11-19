@@ -167,6 +167,7 @@ def train_bellman_iteration(
                     fps=fps,
                     **ground_truth_metrics,
                     lr=decayed_lr,
+                    max_Q=train_data.values.Q.max().item(),
                     **versus_metrics,
                 )
                 train_log = {f"train-Q/{k}": v for k, v in train_log.items()}
