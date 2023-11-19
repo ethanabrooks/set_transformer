@@ -22,6 +22,7 @@ from values.bootstrap import Values as BootstrapValues
 
 
 def train_bellman_iteration(
+    alpha: float,
     bellman_number: int,
     bootstrap_Q: torch.Tensor,
     decay_args: dict,
@@ -105,7 +106,8 @@ def train_bellman_iteration(
             targets=ground_truth[[*idxs, sequence.transitions.actions[None]]],
         )
 
-        bootstrap_Q = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
+        bootstrap_Q2 = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
+        bootstrap_Q = alpha * bootstrap_Q2 + (1 - alpha) * bootstrap_Q
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)

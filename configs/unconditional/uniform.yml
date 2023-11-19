@@ -35,6 +35,7 @@ sequence_args:
   stop_at_rmse: 0.005
 test_size: 50
 train_args:
+  alpha: 1
   decay_args:
     final_step: 500_000
     warmup_steps: 10_000
