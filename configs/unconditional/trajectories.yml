@@ -1,12 +1,13 @@
 inherit_from: base
 lr: 0.001
 model_args:
+  n_heads: 8
   n_hidden: 256
-  n_layers: 2
+  n_layers: 3
   positional_encoding_args:
     log_term: 10000.0
     scale_term: 1000
-model_type: gru
+model_type: gpt2
 n_plot: 3
 sample_from_trajectories: true
 sequence_args:
