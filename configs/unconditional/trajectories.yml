@@ -17,7 +17,7 @@ sequence_args:
     n_tasks: 250
     p_wall: 0
   n_episodes: 1
-  use_exploration_policy: true
+  use_exploration_policy: false
 train_args:
   alpha: .5
   n_batch: 250
