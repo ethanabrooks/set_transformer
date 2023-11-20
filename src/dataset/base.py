@@ -15,7 +15,6 @@ from values.base import Values
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     sequence: Sequence
-    Q: torch.Tensor
     values: Values
 
     @abstractmethod

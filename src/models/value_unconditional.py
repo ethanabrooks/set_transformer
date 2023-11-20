@@ -19,6 +19,7 @@ class DataPoint(NamedTuple):
     q_values: torch.Tensor
     rewards: torch.Tensor
     states: torch.Tensor
+    values: torch.Tensor
 
 
 class Model(Base):
@@ -35,13 +36,13 @@ class Model(Base):
                 actions,
                 next_states,
                 rewards,
-                x.n_bellman[:, None].expand_as(rewards),
             ],
             dim=-1,
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        continuous = self.positional_encoding.forward(action_probs)
+        continuous = torch.cat([action_probs, x.values[..., None]], dim=-1)
+        continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
         X = X.reshape(B * S, T, D)

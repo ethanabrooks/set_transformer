@@ -1,15 +1,19 @@
 from dataclasses import dataclass
 
+import torch
 import numpy as np
 
 from dataset.base import Dataset as BaseDataset
 from models.value_unconditional import DataPoint
-from values.base import Values
+from values.bootstrap import Values
 
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     max_n_bellman: int
+    Q: torch.Tensor
+    V: torch.Tensor
+    values: Values
 
     def __getitem__(self, idx) -> DataPoint:
         idx, n_bellman = np.unravel_index(idx, (len(self.sequence), self.max_n_bellman))
@@ -24,6 +28,7 @@ class Dataset(BaseDataset):
             q_values=self.Q[idx],
             rewards=transitions.rewards,
             states=transitions.states,
+            values=self.V[idx, :, n_bellman],
         )
 
     def __len__(self):
@@ -31,5 +36,10 @@ class Dataset(BaseDataset):
 
     @classmethod
     def make(cls, values: Values, **kwargs):
-        Q = values.Q
-        return cls(**kwargs, max_n_bellman=len(Q), Q=Q.permute(1, 2, 0), values=values)
+        return cls(
+            **kwargs,
+            max_n_bellman=len(values.Q),
+            Q=values.Q.permute(1, 2, 0),
+            V=values.V.permute(1, 2, 0),
+            values=values,
+        )

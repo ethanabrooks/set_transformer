@@ -18,6 +18,7 @@ from values.base import Values
 class Dataset(BaseDataset):
     input_bellman: torch.Tensor
     max_n_bellman: int
+    Q: torch.Tensor
     V: torch.Tensor
 
     def __getitem__(self, idx) -> DataPoint:
