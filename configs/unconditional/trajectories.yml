@@ -14,7 +14,7 @@ sequence_args:
   grid_world_args:
     absorbing_state: false
     grid_size: 2
-    n_tasks: 250
+    n_tasks: 1000
     p_wall: 0
   n_episodes: 1
   use_exploration_policy: false
