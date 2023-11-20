@@ -116,15 +116,19 @@ def train_bellman_iteration(
             torch.arange(b)[None, :, None],
             sequence.transitions.states[None],
         )
-        ground_truth_metrics = _get_metrics(
-            "(ground-truth)", outputs=Q, targets=ground_truth[idxs]
-        )
+        if q <= len(ground_truth):
+            ground_truth_metrics = _get_metrics(
+                "(ground-truth)", outputs=Q, targets=ground_truth[idxs]
+            )
 
-        versus_metrics = _get_metrics(
-            "(bootstrap versus ground-truth)",
-            outputs=train_data.values.Q,
-            targets=ground_truth[[*idxs, sequence.transitions.actions[None]]],
-        )
+            versus_metrics = _get_metrics(
+                "(bootstrap versus ground-truth)",
+                outputs=train_data.values.Q,
+                targets=ground_truth[[*idxs, sequence.transitions.actions[None]]],
+            )
+        else:
+            ground_truth_metrics = {}
+            versus_metrics = {}
 
         bootstrap_Q2 = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
         bootstrap_Q = alpha * bootstrap_Q2 + (1 - alpha) * bootstrap_Q
