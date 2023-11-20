@@ -1,5 +1,4 @@
 inherit_from: base
-lr: 0.001
 model_args:
   n_heads: 8
   n_hidden: 256
