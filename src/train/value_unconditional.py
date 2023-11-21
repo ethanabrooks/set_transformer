@@ -226,6 +226,7 @@ def compute_values(
     model_args: dict,
     model_type: str,
     n_plot: int,
+    partial_observation: bool,
     rmse_bellman: float,
     rmse_training_final: float,
     rmse_training_intermediate: float,
@@ -250,7 +251,11 @@ def compute_values(
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
         net = CausalTransformer(
-            **model_args, n_actions=data.n_actions, n_ctx=L, n_tokens=n_tokens
+            **model_args,
+            n_actions=data.n_actions,
+            n_ctx=L,
+            n_tokens=n_tokens,
+            partial_observation=partial_observation,
         )
     elif model_type == "set":
         net = SetTransformer(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
@@ -305,6 +310,7 @@ def save_artifact(path: Path, run: Run, type: str):
 
 def train(
     *args,
+    partial_observation: bool,
     run: Run,
     seed: int,
     sample_from_trajectories: bool,
@@ -313,7 +319,9 @@ def train(
 ):
     set_seed(seed)
     sequence = make_sequence(
-        **sequence_args, sample_from_trajectories=sample_from_trajectories
+        partial_observation=partial_observation,
+        **sequence_args,
+        sample_from_trajectories=sample_from_trajectories,
     )
     if run is not None:
         path = Path(run.dir) / "sequence.pkl"
@@ -323,6 +331,7 @@ def train(
     return compute_values(
         *args,
         **kwargs,
+        partial_observation=partial_observation,
         run=run,
         sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,

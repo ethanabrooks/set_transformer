@@ -1,6 +1,7 @@
 from dataclasses import dataclass, replace
 
 import torch
+import torch.nn.functional as F
 
 from sequence.base import Sequence as BaseSequence
 from tabular.grid_world import GridWorld
@@ -11,7 +12,7 @@ from utils import Transition
 @dataclass(frozen=True)
 class Sequence(BaseSequence):
     @classmethod
-    def collect_data(cls, grid_world: GridWorld, **kwargs):
+    def collect_data(cls, grid_world: GridWorld, partial_observation: bool, **kwargs):
         steps = grid_world.get_trajectories(**kwargs)
         states = grid_world.convert_2d_to_1d(steps.states).long()
         actions = steps.actions.squeeze(-1).long()
@@ -24,6 +25,14 @@ class Sequence(BaseSequence):
         terminal_states_actions = states_actions == terminal_states_actions[..., None]
         terminal_states_actions = terminal_states_actions.all(0)
         steps.done[terminal_states_actions] = True
+        first_step = F.pad(steps.done, (1, 0), value=True)[:, :-1]
+        if partial_observation:
+            assert not grid_world.is_wall.any()
+            obs = 1 + steps.states
+            obs = first_step[..., None] * obs
+            next_obs = torch.zeros_like(obs)
+        else:
+            obs = next_obs = None
 
         assert steps.done[:, -1].all()
 
@@ -31,7 +40,9 @@ class Sequence(BaseSequence):
             states=states,
             actions=actions,
             action_probs=action_probs,
+            next_obs=next_obs,
             next_states=next_states,
+            obs=obs,
             rewards=rewards,
             done=steps.done,
         )

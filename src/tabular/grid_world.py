@@ -443,12 +443,14 @@ class GridWorld:
         assert [*self.Pi.shape] == [B, N, A]
 
         trajectory_length = episode_length * n_episodes
+
         states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
         actions = torch.zeros((B, trajectory_length), dtype=torch.int)
         action_probs = torch.zeros((B, trajectory_length, A), dtype=torch.float)
         next_states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
         rewards = torch.zeros((B, trajectory_length))
         done = torch.zeros((B, trajectory_length), dtype=torch.bool)
+
         S1 = self.reset_fn()
         arange = torch.arange(B)
         if use_exploration_policy:

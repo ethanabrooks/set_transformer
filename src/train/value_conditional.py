@@ -46,12 +46,15 @@ def train(
     set_seed(seed)
     # create data
 
-    train_data = make_data(**dict(run=run, seed=seed, **train_data_args))
-    test_data = make_data(**dict(run=run, seed=seed + 1, **test_data_args))
+    kwargs = dict(run=run)
+    train_data = make_data(**dict(**kwargs, seed=seed, **train_data_args))
+    test_data = make_data(**dict(**kwargs, seed=seed + 1, **test_data_args))
 
     print("Create net... ", end="", flush=True)
     net = SetTransformer(
-        **model_args, n_actions=train_data.n_actions, n_tokens=train_data.n_tokens
+        **model_args,
+        n_actions=train_data.n_actions,
+        n_tokens=train_data.n_tokens,
     )
     if load_path is not None:
         load(load_path, net, run)
