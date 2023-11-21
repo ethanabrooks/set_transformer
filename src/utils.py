@@ -3,7 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Generic, Optional, TypeVar
+from typing import Generic, NamedTuple, Optional, TypeVar
 
 import numpy as np
 import torch
@@ -14,6 +14,18 @@ from models.set_transformer import SetTransformer
 
 MODEL_FNAME = "model.tar"
 T = TypeVar("T")
+
+
+class DataPoint(NamedTuple):
+    action_probs: torch.Tensor
+    actions: torch.Tensor
+    idx: torch.Tensor
+    n_bellman: torch.Tensor
+    next_states: torch.Tensor
+    q_values: torch.Tensor
+    rewards: torch.Tensor
+    states: torch.Tensor
+    values: torch.Tensor
 
 
 @dataclass(frozen=True)

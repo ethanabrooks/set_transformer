@@ -99,10 +99,8 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            values = train_data.index_values(x.values, x.input_bellman)
-            q_values = train_data.index_values(
-                x.q_values, x.input_bellman + bellman_delta
-            )
+            values = train_data.index_values(x.values, x.n_bellman)
+            q_values = train_data.index_values(x.q_values, x.n_bellman + bellman_delta)
 
             outputs: torch.Tensor
             loss: torch.Tensor

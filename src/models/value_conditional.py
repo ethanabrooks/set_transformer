@@ -1,21 +1,10 @@
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
 
 from models.set_transformer import SetTransformer as Base
-
-
-class DataPoint(NamedTuple):
-    action_probs: torch.Tensor
-    actions: torch.Tensor
-    idx: torch.Tensor
-    input_bellman: torch.Tensor
-    next_states: torch.Tensor
-    q_values: torch.Tensor
-    rewards: torch.Tensor
-    states: torch.Tensor
-    values: torch.Tensor
+from utils import DataPoint
 
 
 class SetTransformer(Base):

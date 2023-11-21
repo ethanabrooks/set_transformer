@@ -27,7 +27,7 @@ class Dataset(BaseDataset):
             action_probs=transitions.action_probs,
             actions=transitions.actions,
             idx=idx,
-            input_bellman=self.input_bellman[idx],
+            n_bellman=self.input_bellman[idx],
             next_states=transitions.next_states,
             q_values=self.Q[:, idx],
             rewards=transitions.rewards,
@@ -112,7 +112,7 @@ class Dataset(BaseDataset):
         net: SetTransformer,
         x: DataPoint,
     ):
-        v1 = self.index_values(x.values, x.input_bellman)
+        v1 = self.index_values(x.values, x.n_bellman)
 
         assert torch.all(v1 == 0)
         Pi = self.sequence.transitions.action_probs.cuda()[x.idx]
@@ -120,7 +120,7 @@ class Dataset(BaseDataset):
         def generate(values: torch.Tensor):
             for j in range(iterations):
                 outputs: torch.Tensor
-                target_idxs = x.input_bellman + (j + 1) * bellman_delta
+                target_idxs = x.n_bellman + (j + 1) * bellman_delta
                 q_values = self.index_values(x.q_values, target_idxs)
                 with torch.no_grad():
                     outputs, _ = net.forward(x, values=values, q_values=q_values)

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from dataset.base import Dataset as BaseDataset
-from models.value_unconditional import DataPoint
+from utils import DataPoint
 from values.bootstrap import Values
 
 
