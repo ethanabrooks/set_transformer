@@ -11,7 +11,9 @@ from utils import Transition
 @dataclass(frozen=True)
 class Sequence(BaseSequence):
     @classmethod
-    def collect_data(cls, grid_world: GridWorld, omit_states_actions: int):
+    def collect_data(
+        cls, grid_world: GridWorld, omit_states_actions: int, partial_observation: bool
+    ):
         A = grid_world.n_actions
         S = grid_world.n_states
         B = grid_world.n_tasks

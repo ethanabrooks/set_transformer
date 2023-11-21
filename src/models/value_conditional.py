@@ -9,7 +9,10 @@ from utils import DataPoint
 
 class SetTransformer(Base):
     def forward(
-        self, x: DataPoint, values: torch.Tensor, q_values: torch.Tensor
+        self,
+        x: DataPoint,
+        values: torch.Tensor,
+        q_values: torch.Tensor,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         discrete = torch.stack(
             [

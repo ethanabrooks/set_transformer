@@ -42,16 +42,20 @@ class Transition(Generic[T]):
     next_obs: Optional[T] = None
 
     def __getitem__(self, idx: torch.Tensor):
-        def index(x: torch.Tensor):
+        def index(x: Optional[torch.Tensor]):
             if isinstance(idx, torch.Tensor):
                 x = x.to(idx.device)
-            return x[idx]
+            if isinstance(x, torch.Tensor):
+                return x[idx]
+            return x
 
         return type(self)(
             states=index(self.states),
+            obs=index(self.obs),
             actions=index(self.actions),
             action_probs=index(self.action_probs),
             next_states=index(self.next_states),
+            next_obs=index(self.next_obs),
             rewards=index(self.rewards),
             done=index(self.done),
         )

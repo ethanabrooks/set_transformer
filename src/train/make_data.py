@@ -24,6 +24,7 @@ def make_data(
         sequence: Sequence = load_sequence(**sequence_args)
     except TypeError:
         sequence: Sequence = make_sequence(
+            partial_observation=False,  # Not implemented
             **sequence_args,
             sample_from_trajectories=sample_from_trajectories,
             seed=seed

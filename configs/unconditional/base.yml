@@ -1,4 +1,5 @@
 lr: 0.0005
+partial_observation: false
 rmse_bellman: 0.005
 rmse_training_final: 0.002
 rmse_training_intermediate: 0.005
