@@ -21,7 +21,9 @@ class DataPoint(NamedTuple):
     actions: torch.Tensor
     idx: torch.Tensor
     n_bellman: torch.Tensor
+    next_obs: torch.Tensor
     next_states: torch.Tensor
+    obs: torch.Tensor
     q_values: torch.Tensor
     rewards: torch.Tensor
     states: torch.Tensor
@@ -36,6 +38,8 @@ class Transition(Generic[T]):
     next_states: T
     rewards: T
     done: T
+    obs: Optional[T] = None
+    next_obs: Optional[T] = None
 
     def __getitem__(self, idx: torch.Tensor):
         def index(x: torch.Tensor):

@@ -15,13 +15,13 @@ class Model(Base):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
-        next_states: torch.Tensor = self.offset(x.next_states)
+        next_obs: torch.Tensor = self.offset(x.next_obs)
         rewards: torch.Tensor = self.offset(x.rewards)
         discrete = torch.stack(
             [
-                x.states,
+                x.obs,
                 actions,
-                next_states,
+                next_obs,
                 rewards,
             ],
             dim=-1,
@@ -140,9 +140,9 @@ class SetTransformer(Model):
         self, embedded_discrete: torch.Tensor, x: DataPoint
     ) -> torch.Tensor:
         B, S, D = embedded_discrete.shape
-        embedded_states: torch.Tensor = self.embedding(x.states)
-        assert [*embedded_states.shape] == [B, S, D]
-        Y = torch.cat([embedded_discrete, embedded_states], dim=1)
+        embedded_obs: torch.Tensor = self.embedding(x.obs)
+        assert [*embedded_obs.shape] == [B, S, D]
+        Y = torch.cat([embedded_discrete, embedded_obs], dim=1)
         Z: torch.Tensor
         Z = self.sequence_network(Y)
         assert [*Z.shape] == [B, 2 * S, D]

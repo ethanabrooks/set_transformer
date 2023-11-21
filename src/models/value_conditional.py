@@ -13,9 +13,9 @@ class SetTransformer(Base):
     ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         discrete = torch.stack(
             [
-                x.states,
+                x.obs,
                 x.actions,
-                x.next_states,
+                x.next_obs,
                 x.rewards,
             ],
             dim=-1,
