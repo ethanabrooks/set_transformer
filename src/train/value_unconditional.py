@@ -67,7 +67,7 @@ def train_bellman_iteration(
             sequence=sequence,
             stop_at_rmse=stop_at_rmse,
         )
-        return Dataset.make(sequence=sequence, values=values)
+        return Dataset(sequence=sequence, values=values)
 
     def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
         metrics = get_metrics(
@@ -246,7 +246,7 @@ def compute_values(
         stop_at_rmse=rmse_bellman,
         bootstrap_Q=Q,
     )
-    data = Dataset.make(sequence=sequence, values=values)
+    data = Dataset(sequence=sequence, values=values)
     start_step = 0
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
