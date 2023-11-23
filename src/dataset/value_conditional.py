@@ -19,7 +19,6 @@ class Dataset(BaseDataset):
     input_bellman: torch.Tensor
     max_n_bellman: int
     Q: torch.Tensor
-    V: torch.Tensor
 
     def __getitem__(self, idx) -> DataPoint:
         transitions = self.sequence.transitions[idx]
@@ -43,7 +42,6 @@ class Dataset(BaseDataset):
             q_values=self.Q[:, idx],
             rewards=transitions.rewards,
             states=transitions.states,
-            values=self.V[:, idx],
         )
 
     @classmethod
@@ -53,10 +51,8 @@ class Dataset(BaseDataset):
         sequence: Sequence,
         values: Values,
     ):
-        transitions = sequence.transitions
         B = sequence.grid_world.n_tasks
         Q = values.Q
-        V = (Q * transitions.action_probs[None]).sum(-1)
 
         # sample n_bellman -- number of steps of policy evaluation
         if max_initial_bellman is None:
@@ -68,7 +64,6 @@ class Dataset(BaseDataset):
             max_n_bellman=len(Q) - 1,
             sequence=sequence,
             Q=Q,
-            V=V,
             values=values,
         )
 
@@ -123,23 +118,20 @@ class Dataset(BaseDataset):
         net: SetTransformer,
         x: DataPoint,
     ):
-        v1 = self.index_values(x.values, x.n_bellman)
+        input_q = self.index_values(x.q_values, x.n_bellman)
 
-        assert torch.all(v1 == 0)
-        Pi = self.sequence.transitions.action_probs.cuda()[x.idx]
+        assert torch.all(input_q == 0)
 
-        def generate(values: torch.Tensor):
+        def generate(input_q: torch.Tensor):
             for j in range(iterations):
-                outputs: torch.Tensor
                 target_idxs = x.n_bellman + (j + 1) * bellman_delta
                 q_values = self.index_values(x.q_values, target_idxs)
                 with torch.no_grad():
-                    outputs, _ = net.forward(x, values=values, q_values=q_values)
-                values: torch.Tensor = outputs * Pi
-                values = values.sum(-1)
-                yield outputs, q_values
+                    input_q: torch.Tensor
+                    input_q, _ = net.forward(x, input_q=input_q, target_q=q_values)
+                yield input_q, q_values
 
-        all_outputs, all_targets = zip(*generate(v1))
+        all_outputs, all_targets = zip(*generate(input_q))
         outputs = torch.stack(all_outputs)
         targets = torch.stack(all_targets)
 

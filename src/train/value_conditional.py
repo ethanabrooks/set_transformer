@@ -75,6 +75,7 @@ def train(
     for e in range(n_epochs):
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
+        x: DataPoint
         for t, x in enumerate(train_loader):
             x = DataPoint(*[x.cuda() for x in x])
             step = e * len(train_loader) + t
@@ -102,17 +103,17 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            values = train_data.index_values(x.values, x.n_bellman)
-            q_values = train_data.index_values(x.q_values, x.n_bellman + bellman_delta)
+            input_q = train_data.index_values(x.q_values, x.n_bellman)
+            target_q = train_data.index_values(x.q_values, x.n_bellman + bellman_delta)
 
             outputs: torch.Tensor
             loss: torch.Tensor
-            outputs, loss = net.forward(x, values=values, q_values=q_values)
+            outputs, loss = net.forward(x, input_q=input_q, target_q=target_q)
 
             metrics = get_metrics(
                 loss=loss,
                 outputs=outputs,
-                targets=q_values,
+                targets=target_q,
                 **evaluate_args,
             )
 

@@ -27,7 +27,6 @@ class DataPoint(NamedTuple):
     q_values: torch.Tensor
     rewards: torch.Tensor
     states: torch.Tensor
-    values: torch.Tensor
 
 
 @dataclass(frozen=True)
