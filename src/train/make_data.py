@@ -39,7 +39,7 @@ def make_data(
             sequence=sequence,
             sample_from_trajectories=sample_from_trajectories,
         )
-    dataset: Dataset = Dataset.make(
+    dataset: Dataset = Dataset(
         **dataset_args, bellman_delta=bellman_delta, sequence=sequence, values=values
     )
     return dataset

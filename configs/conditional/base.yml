@@ -41,7 +41,7 @@ seed: 0
 test_1_interval: ${train_1_interval}
 test_data_args:
   dataset_args:
-    max_initial_bellman: 1
+    max_n_bellman: 1
   sequence_args:
     grid_world_args:
       n_maze: 200
@@ -51,7 +51,7 @@ test_n_interval: ${train_1_interval}
 train_1_interval: 1000
 train_data_args:
   dataset_args:
-    max_initial_bellman: null
+    max_n_bellman: null
   sequence_args:
     grid_world_args:
       n_maze: 0
