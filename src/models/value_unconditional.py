@@ -7,6 +7,21 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 from models.set_transformer import ISAB, SAB
 from models.set_transformer import SetTransformer as Base
 from utils import DataPoint
+from typing import NamedTuple
+
+
+class DataPoint(NamedTuple):
+    action_probs: torch.Tensor
+    actions: torch.Tensor
+    idx: torch.Tensor
+    n_bellman: torch.Tensor
+    next_obs: torch.Tensor
+    next_states: torch.Tensor
+    obs: torch.Tensor
+    q_values: torch.Tensor
+    rewards: torch.Tensor
+    states: torch.Tensor
+    values: torch.Tensor
 
 
 class Model(Base):

@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
 import wandb
-from dataset.value_unconditional import DataPoint, Dataset
+from dataset.value_unconditional import Dataset
 from metrics import Metrics, compute_rmse, get_metrics
-from models.value_unconditional import GRU, CausalTransformer, SetTransformer
+from models.value_unconditional import GRU, CausalTransformer, SetTransformer, DataPoint
 from sequence import make as make_sequence
 from sequence.base import Sequence
 from utils import decay_lr, load, save, set_seed

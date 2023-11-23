@@ -11,8 +11,8 @@ class SetTransformer(Base):
     def forward(
         self,
         x: DataPoint,
-        values: torch.Tensor,
-        q_values: torch.Tensor,
+        input_q: torch.Tensor,
+        target_q: torch.Tensor,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         discrete = torch.stack(
             [
@@ -25,7 +25,8 @@ class SetTransformer(Base):
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        continuous = torch.cat([x.action_probs, values[..., None]], dim=-1)
+        values = (input_q * x.action_probs).sum(-1, keepdim=True)
+        continuous = torch.cat([x.action_probs, values], dim=-1)
         continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
@@ -40,5 +41,5 @@ class SetTransformer(Base):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        loss = F.mse_loss(outputs, q_values.float())
+        loss = F.mse_loss(outputs, target_q.float())
         return outputs, loss
