@@ -10,65 +10,14 @@ import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
 from models.value_conditional import DataPoint, SetTransformer
-from sequence.base import Sequence
-from values.base import Values
 
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
-    n_bellman: torch.Tensor
-
-    def __getitem__(self, idx) -> DataPoint:
-        transitions = self.sequence.transitions[idx]
-
-        obs = transitions.obs
-        if obs is None:
-            obs = transitions.states
-
-        next_obs = transitions.next_obs
-        if next_obs is None:
-            next_obs = transitions.next_states
-
-        n_bellman = self.n_bellman[idx]
-        q_idx = min(len(self.values.Q) - 1, n_bellman + self.bellman_delta)
-        return DataPoint(
-            action_probs=transitions.action_probs,
-            actions=transitions.actions,
-            idx=idx,
-            n_bellman=n_bellman,
-            next_obs=next_obs,
-            next_states=transitions.next_states,
-            obs=obs,
-            input_q=self.values.Q[n_bellman, idx],
-            rewards=transitions.rewards,
-            states=transitions.states,
-            target_q=self.values.Q[q_idx, idx],
-        )
-
-    @classmethod
-    def make(
-        cls,
-        bellman_delta: float,
-        max_initial_bellman: Optional[int],
-        sequence: Sequence,
-        values: Values,
-    ):
-        B = sequence.grid_world.n_tasks
-
-        # sample n_bellman -- number of steps of policy evaluation
-        if max_initial_bellman is None:
-            max_initial_bellman = len(values.Q) - 1
-        n_bellman = torch.randint(0, max_initial_bellman, [B])
-
-        return cls(
-            bellman_delta=bellman_delta,
-            n_bellman=n_bellman,
-            sequence=sequence,
-            values=values,
-        )
+    max_n_bellman: Optional[int]
 
     @property
-    def max_n_bellman(self):
+    def n_bellman_convergance(self):
         return len(self.values.Q) - 1
 
     def evaluate(
@@ -114,6 +63,11 @@ class Dataset(BaseDataset):
 
         return metrics
 
+    def get_max_n_bellman(self):
+        if self.max_n_bellman is None:
+            return self.n_bellman_convergance
+        return self.max_n_bellman
+
     def get_metrics(
         self,
         accuracy_threshold: float,
@@ -144,3 +98,11 @@ class Dataset(BaseDataset):
         )
         metrics = asdict(metrics)
         return metrics, outputs, targets
+
+    def input_q(self, idx: int, n_bellman: int):
+        return self.values.Q[n_bellman, idx]
+
+    def target_q(self, idx: int, n_bellman: int):
+        n_bellman = n_bellman + self.bellman_delta
+        n_bellman = min(n_bellman, len(self.values.Q) - 1)
+        return self.values.Q[n_bellman, idx]
