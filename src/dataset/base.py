@@ -14,6 +14,7 @@ from values.base import Values
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
+    bellman_delta: int
     sequence: Sequence
     values: Values
 

@@ -23,6 +23,7 @@ from values.bootstrap import Values as BootstrapValues
 
 def train_bellman_iteration(
     alpha: float,
+    bellman_delta: int,
     bellman_number: int,
     bootstrap_Q: torch.Tensor,
     decay_args: dict,
@@ -67,7 +68,7 @@ def train_bellman_iteration(
             sequence=sequence,
             stop_at_rmse=stop_at_rmse,
         )
-        return Dataset(sequence=sequence, values=values)
+        return Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
 
     def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
         metrics = get_metrics(
@@ -217,6 +218,7 @@ def train_bellman_iteration(
 
 
 def compute_values(
+    bellman_delta: int,
     lr: float,
     model_args: dict,
     model_type: str,
@@ -241,7 +243,7 @@ def compute_values(
         stop_at_rmse=rmse_bellman,
         bootstrap_Q=Q,
     )
-    data = Dataset(sequence=sequence, values=values)
+    data = Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
     start_step = 0
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
@@ -267,6 +269,7 @@ def compute_values(
 
     for bellman_number in itertools.count(1):
         new_Q, step = train_bellman_iteration(
+            bellman_delta=bellman_delta,
             bellman_number=bellman_number,
             bootstrap_Q=Q,
             load_path=load_path,

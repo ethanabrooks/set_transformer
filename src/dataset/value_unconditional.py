@@ -23,11 +23,12 @@ class Dataset(BaseDataset):
         if next_obs is None:
             next_obs = transitions.next_states
 
+        q_idx = max(0, 1 + n_bellman - self.bellman_delta)
         return DataPoint(
             action_probs=transitions.action_probs,
             actions=transitions.actions,
             idx=idx,
-            input_q=self.values.bootstrap_Q[n_bellman, idx],
+            input_q=self.values.bootstrap_Q[q_idx, idx],
             n_bellman=n_bellman,
             next_obs=next_obs,
             next_states=transitions.next_states,
