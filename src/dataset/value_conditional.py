@@ -16,7 +16,6 @@ from values.base import Values
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
-    bellman_delta: int
     n_bellman: torch.Tensor
 
     def __getitem__(self, idx) -> DataPoint:
