@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
 import wandb
-from dataset.value_unconditional import Dataset
+from dataset.value_unconditional import DataPoint, Dataset
 from metrics import Metrics, compute_rmse, get_metrics
-from models.value_unconditional import GRU, CausalTransformer, SetTransformer, DataPoint
+from models.value_unconditional import GRU, CausalTransformer, SetTransformer
 from sequence import make as make_sequence
 from sequence.base import Sequence
 from utils import decay_lr, load, save, set_seed
@@ -158,12 +158,7 @@ def train_bellman_iteration(
                 optimizer.zero_grad()
                 outputs: torch.Tensor
                 loss: torch.Tensor
-                q_values = x.q_values[
-                    torch.arange(len(x.q_values))[:, None],
-                    torch.arange(l)[None],
-                    x.n_bellman[:, None],
-                ]
-                outputs, loss = net.forward(x=x, q_values=q_values)
+                outputs, loss = net.forward(x=x)
 
                 tail_idxs = torch.arange(l - rotation_unit, l)
                 idxs = (
@@ -185,7 +180,7 @@ def train_bellman_iteration(
                         torch.arange(l)[None],
                         x.actions,
                     ],
-                    targets=q_values,
+                    targets=x.target_q,
                     **evaluate_args,
                 )
 

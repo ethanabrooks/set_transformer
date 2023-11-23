@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from dataset.base import Dataset as BaseDataset
-from models.value_unconditional import DataPoint
+from utils import DataPoint
 from values.bootstrap import Values
 
 
@@ -23,21 +23,18 @@ class Dataset(BaseDataset):
         if next_obs is None:
             next_obs = transitions.next_states
 
-        values = (
-            self.values.bootstrap_Q[n_bellman, idx] * transitions.action_probs
-        ).sum(-1)
         return DataPoint(
             action_probs=transitions.action_probs,
             actions=transitions.actions,
             idx=idx,
+            input_q=self.values.bootstrap_Q[n_bellman, idx],
             n_bellman=n_bellman,
             next_obs=next_obs,
             next_states=transitions.next_states,
             obs=obs,
-            q_values=self.values.Q[:, idx].T,
             rewards=transitions.rewards,
             states=transitions.states,
-            values=values,
+            target_q=self.values.Q[n_bellman, idx],
         )
 
     def __len__(self):

@@ -8,12 +8,7 @@ from utils import DataPoint
 
 
 class SetTransformer(Base):
-    def forward(
-        self,
-        x: DataPoint,
-        input_q: torch.Tensor,
-        target_q: torch.Tensor,
-    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
+    def forward(self, x: DataPoint) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         discrete = torch.stack(
             [
                 x.obs,
@@ -25,7 +20,7 @@ class SetTransformer(Base):
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        values = (input_q * x.action_probs).sum(-1, keepdim=True)
+        values = (x.input_q * x.action_probs).sum(-1, keepdim=True)
         continuous = torch.cat([x.action_probs, values], dim=-1)
         continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
@@ -41,5 +36,7 @@ class SetTransformer(Base):
         assert [*Z.shape] == [B, S, D]
         outputs: torch.Tensor = self.dec(Z)
 
-        loss = F.mse_loss(outputs, target_q.float())
+        if x.target_q is None:
+            return outputs, None
+        loss = F.mse_loss(outputs, x.target_q.float())
         return outputs, loss

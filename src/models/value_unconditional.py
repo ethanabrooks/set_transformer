@@ -7,27 +7,10 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 from models.set_transformer import ISAB, SAB
 from models.set_transformer import SetTransformer as Base
 from utils import DataPoint
-from typing import NamedTuple
-
-
-class DataPoint(NamedTuple):
-    action_probs: torch.Tensor
-    actions: torch.Tensor
-    idx: torch.Tensor
-    n_bellman: torch.Tensor
-    next_obs: torch.Tensor
-    next_states: torch.Tensor
-    obs: torch.Tensor
-    q_values: torch.Tensor
-    rewards: torch.Tensor
-    states: torch.Tensor
-    values: torch.Tensor
 
 
 class Model(Base):
-    def forward(
-        self, x: DataPoint, q_values: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: DataPoint) -> tuple[torch.Tensor, torch.Tensor]:
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
         next_obs: torch.Tensor = self.offset(x.next_obs)
@@ -43,7 +26,8 @@ class Model(Base):
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        continuous = torch.cat([action_probs, x.values[..., None]], dim=-1)
+        values = (x.input_q * x.action_probs).sum(-1, keepdim=True)
+        continuous = torch.cat([action_probs, values], dim=-1)
         continuous = self.positional_encoding.forward(continuous)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
@@ -58,11 +42,11 @@ class Model(Base):
             embedded_discrete=embedded_discrete, x=x
         )
         assert [*outputs.shape][:-1] == [B, S]
-        assert [*q_values.shape] == [B, S]
+        assert [*x.target_q.shape] == [B, S]
 
         loss = F.mse_loss(
             outputs[torch.arange(B)[:, None], torch.arange(S)[None], x.actions],
-            q_values,
+            x.target_q,
             reduction="none",
         )
         return outputs, loss.mean()
