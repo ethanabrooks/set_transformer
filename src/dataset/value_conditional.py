@@ -16,6 +16,7 @@ from values.base import Values
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
+    bellman_delta: int
     n_bellman: torch.Tensor
 
     def __getitem__(self, idx) -> DataPoint:
@@ -29,22 +30,26 @@ class Dataset(BaseDataset):
         if next_obs is None:
             next_obs = transitions.next_states
 
+        n_bellman = self.n_bellman[idx]
+        q_idx = min(len(self.values.Q) - 1, n_bellman + self.bellman_delta)
         return DataPoint(
             action_probs=transitions.action_probs,
             actions=transitions.actions,
             idx=idx,
-            n_bellman=self.n_bellman[idx],
+            n_bellman=n_bellman,
             next_obs=next_obs,
             next_states=transitions.next_states,
             obs=obs,
-            q_values=self.values.Q[:, idx],
+            input_q=self.values.Q[n_bellman, idx],
             rewards=transitions.rewards,
             states=transitions.states,
+            target_q=self.values.Q[q_idx, idx],
         )
 
     @classmethod
     def make(
         cls,
+        bellman_delta: float,
         max_initial_bellman: Optional[int],
         sequence: Sequence,
         values: Values,
@@ -57,6 +62,7 @@ class Dataset(BaseDataset):
         n_bellman = torch.randint(0, max_initial_bellman, [B])
 
         return cls(
+            bellman_delta=bellman_delta,
             n_bellman=n_bellman,
             sequence=sequence,
             values=values,
@@ -112,27 +118,24 @@ class Dataset(BaseDataset):
     def get_metrics(
         self,
         accuracy_threshold: float,
-        bellman_delta: int,
         iterations: int,
         net: SetTransformer,
         x: DataPoint,
     ):
-        input_q = self.index_values(x.q_values, x.n_bellman)
-
-        assert torch.all(input_q == 0)
+        assert torch.all(x.input_q == 0)
 
         def generate(input_q: torch.Tensor):
-            for j in range(iterations):
-                target_idxs = x.n_bellman + (j + 1) * bellman_delta
-                q_values = self.index_values(x.q_values, target_idxs)
+            for _ in range(iterations):
                 with torch.no_grad():
                     input_q: torch.Tensor
-                    input_q, _ = net.forward(x, input_q=input_q, target_q=q_values)
-                yield input_q, q_values
+                    input_q, _ = net.forward(x._replace(input_q=input_q, target_q=None))
+                yield input_q
 
-        all_outputs, all_targets = zip(*generate(input_q))
-        outputs = torch.stack(all_outputs)
-        targets = torch.stack(all_targets)
+        outputs = torch.stack(list(generate(x.input_q)))
+        idx = 1 + torch.arange(iterations)[:, None].cuda()
+        idx = idx * self.bellman_delta + x.n_bellman[None]
+        idx = torch.clamp(idx, 0, len(self.values.Q) - 1)
+        targets = self.values.Q[idx.cpu(), x.idx[None].cpu()].cuda()
 
         metrics = get_metrics(
             loss=None,
@@ -142,7 +145,3 @@ class Dataset(BaseDataset):
         )
         metrics = asdict(metrics)
         return metrics, outputs, targets
-
-    def index_values(self, values: torch.Tensor, idxs: torch.Tensor):
-        idxs = torch.clamp(idxs, 0, self.max_n_bellman)
-        return values[torch.arange(len(values)), idxs]

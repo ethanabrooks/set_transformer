@@ -46,7 +46,7 @@ def train(
     set_seed(seed)
     # create data
 
-    kwargs = dict(run=run)
+    kwargs = dict(bellman_delta=bellman_delta, run=run)
     train_data = make_data(**dict(**kwargs, seed=seed, **train_data_args))
     test_data = make_data(**dict(**kwargs, seed=seed + 1, **test_data_args))
 
@@ -81,7 +81,6 @@ def train(
             step = e * len(train_loader) + t
             if step % test_1_interval == 0:
                 log = test_data.evaluate(
-                    bellman_delta=bellman_delta,
                     iterations=1,
                     n_batch=n_batch,
                     net=net,
@@ -91,7 +90,6 @@ def train(
                 test_1_log = {f"test-1/{k}": v for k, v in log.items()}
             if step % test_n_interval == 0:
                 log = test_data.evaluate(
-                    bellman_delta=bellman_delta,
                     iterations=iterations,
                     n_batch=n_batch,
                     net=net,
@@ -103,17 +101,14 @@ def train(
             net.train()
             optimizer.zero_grad()
 
-            input_q = train_data.index_values(x.q_values, x.n_bellman)
-            target_q = train_data.index_values(x.q_values, x.n_bellman + bellman_delta)
-
             outputs: torch.Tensor
             loss: torch.Tensor
-            outputs, loss = net.forward(x, input_q=input_q, target_q=target_q)
+            outputs, loss = net.forward(x)
 
             metrics = get_metrics(
                 loss=loss,
                 outputs=outputs,
-                targets=target_q,
+                targets=x.target_q,
                 **evaluate_args,
             )
 

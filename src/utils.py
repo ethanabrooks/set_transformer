@@ -20,13 +20,14 @@ class DataPoint(NamedTuple):
     action_probs: torch.Tensor
     actions: torch.Tensor
     idx: torch.Tensor
+    input_q: torch.Tensor
     n_bellman: torch.Tensor
     next_obs: torch.Tensor
     next_states: torch.Tensor
     obs: torch.Tensor
-    q_values: torch.Tensor
     rewards: torch.Tensor
     states: torch.Tensor
+    target_q: torch.Tensor
 
 
 @dataclass(frozen=True)

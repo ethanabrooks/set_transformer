@@ -11,6 +11,7 @@ from values.neural import Values as NeuralValues
 
 
 def make_data(
+    bellman_delta: int,
     dataset_args: dict,
     neural_values: bool,
     q_load_path: Optional[str],
@@ -38,5 +39,7 @@ def make_data(
             sequence=sequence,
             sample_from_trajectories=sample_from_trajectories,
         )
-    dataset: Dataset = Dataset.make(**dataset_args, sequence=sequence, values=values)
+    dataset: Dataset = Dataset.make(
+        bellman_delta=bellman_delta, **dataset_args, sequence=sequence, values=values
+    )
     return dataset
