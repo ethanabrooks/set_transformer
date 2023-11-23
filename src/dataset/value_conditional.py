@@ -17,8 +17,6 @@ from values.base import Values
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     input_bellman: torch.Tensor
-    max_n_bellman: int
-    Q: torch.Tensor
 
     def __getitem__(self, idx) -> DataPoint:
         transitions = self.sequence.transitions[idx]
@@ -39,7 +37,7 @@ class Dataset(BaseDataset):
             next_obs=next_obs,
             next_states=transitions.next_states,
             obs=obs,
-            q_values=self.Q[:, idx],
+            q_values=self.values.Q[:, idx],
             rewards=transitions.rewards,
             states=transitions.states,
         )
@@ -52,20 +50,21 @@ class Dataset(BaseDataset):
         values: Values,
     ):
         B = sequence.grid_world.n_tasks
-        Q = values.Q
 
         # sample n_bellman -- number of steps of policy evaluation
         if max_initial_bellman is None:
-            max_initial_bellman = len(Q) - 1
+            max_initial_bellman = len(values.Q) - 1
         input_bellman = torch.randint(0, max_initial_bellman, [B])
 
         return cls(
             input_bellman=input_bellman,
-            max_n_bellman=len(Q) - 1,
             sequence=sequence,
-            Q=Q,
             values=values,
         )
+
+    @property
+    def max_n_bellman(self):
+        return len(self.values.Q) - 1
 
     def evaluate(
         self, n_batch: int, net: SetTransformer, plot_indices: torch.Tensor, **kwargs

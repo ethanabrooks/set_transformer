@@ -9,7 +9,7 @@ from values.base import Values as BaseValues
 
 @dataclass(frozen=True)
 class Values(BaseValues):
-    V: torch.Tensor
+    bootstrap_Q: torch.Tensor
 
     @classmethod
     def compute_values(
@@ -49,14 +49,13 @@ class Values(BaseValues):
         stop_at_rmse: float,
         **kwargs
     ):
-        V: torch.Tensor = (bootstrap_Q * sequence.transitions.action_probs).sum(-1)
         Q: torch.Tensor = cls.compute_values(
             bootstrap_Q=bootstrap_Q, sequence=sequence, **kwargs
         )
         return cls(
+            bootstrap_Q=bootstrap_Q,
             optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             sequence=sequence,
             stop_at_rmse=stop_at_rmse,
             Q=Q,
-            V=V,
         )
