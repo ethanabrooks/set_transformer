@@ -102,24 +102,6 @@ class CausalTransformer(Model):
         return GPT2()
 
 
-class GRU(Model):
-    def build_sequence_network(self, n_hidden: int, n_layers: int):
-        class GRU(nn.Module):
-            def __init__(self) -> None:
-                super().__init__()
-                self.gru = nn.GRU(
-                    input_size=n_hidden,
-                    hidden_size=n_hidden,
-                    batch_first=True,
-                    num_layers=n_layers,
-                )
-
-            def forward(self, x: torch.Tensor) -> torch.Tensor:
-                full, _ = self.gru(x)  # _ == last
-                return full
-
-        return GRU()
-
 
 class SetTransformer(Model):
     def build_sequence_network(

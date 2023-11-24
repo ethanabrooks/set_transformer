@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from wandb.sdk.wandb_run import Run
 
 import wandb
-from dataset.value_unconditional import Dataset
+from dataset.trajectories import Dataset
 from metrics import Metrics, compute_rmse, get_metrics
-from models.value_unconditional import GRU, CausalTransformer, SetTransformer
+from models.trajectories import CausalTransformer, SetTransformer
 from sequence import make as make_sequence
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save, set_seed
@@ -256,8 +256,6 @@ def compute_values(
         )
     elif model_type == "set":
         net = SetTransformer(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
-    elif model_type == "gru":
-        net = GRU(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
     else:
         raise ValueError(f"Unknown model_type {model_type}")
     if load_path is not None:
