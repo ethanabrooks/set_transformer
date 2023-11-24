@@ -46,7 +46,7 @@ def train(
     set_seed(seed)
     # create data
 
-    kwargs = dict(bellman_delta=bellman_delta, run=run)
+    kwargs = dict(bellman_delta=bellman_delta)
     train_data = make_data(**dict(**kwargs, seed=seed, **train_data_args))
     test_data = make_data(**dict(**kwargs, seed=seed + 1, **test_data_args))
 
