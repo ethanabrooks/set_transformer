@@ -1,7 +1,0 @@
-inherit_from: base
-test_data_args:
-  q_load_path: null
-train_data_args:
-  q_load_path: rldl/icvi/q0ukvijf
-  sequence_args:
-    load_path: rldl/icvi/7ribfgz9
