@@ -248,6 +248,7 @@ def compute_values(
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
         net = CausalTransformer(
+            bellman_delta=bellman_delta,
             **model_args,
             n_actions=data.n_actions,
             n_ctx=L,
@@ -255,7 +256,12 @@ def compute_values(
             partial_observation=partial_observation,
         )
     elif model_type == "set":
-        net = SetTransformer(**model_args, n_actions=data.n_actions, n_tokens=n_tokens)
+        net = SetTransformer(
+            bellman_delta=bellman_delta,
+            **model_args,
+            n_actions=data.n_actions,
+            n_tokens=n_tokens,
+        )
     else:
         raise ValueError(f"Unknown model_type {model_type}")
     if load_path is not None:
