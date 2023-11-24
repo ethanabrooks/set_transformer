@@ -9,7 +9,27 @@ from models.set_transformer import SetTransformer as Base
 from utils import DataPoint
 
 
+def get_input_bellman(n_bellman: int, bellman_delta: int):
+    return 1 + n_bellman - bellman_delta
+
+
 class Model(Base):
+    def __init__(
+        self,
+        bellman_delta: int,
+        n_actions: int,
+        n_hidden: int,
+        n_tokens: int,
+        positional_encoding_args: dict,
+        **transformer_args: dict
+    ):
+        super().__init__(
+            n_actions, n_hidden, n_tokens, positional_encoding_args, **transformer_args
+        )
+        self.bellman_delta = bellman_delta
+        if bellman_delta > 1:
+            self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
+
     def forward(self, x: DataPoint) -> tuple[torch.Tensor, torch.Tensor]:
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
@@ -26,9 +46,26 @@ class Model(Base):
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
         _, _, _, D = discrete.shape
-        values = (x.input_q * x.action_probs).sum(-1, keepdim=True)
-        continuous = torch.cat([action_probs, values], dim=-1)
-        continuous = self.positional_encoding.forward(continuous)
+        values = (x.input_q * x.action_probs).sum(-1)
+        values = self.positional_encoding(values)
+        if self.bellman_delta > 1:
+            input_bellman = get_input_bellman(
+                x.n_bellman, self.bellman_delta
+            )  # Bellman number of input values
+            use_embedding = (input_bellman < 0)[
+                :, None, None
+            ]  # when input Bellman are negative, values are clamped/meaningless
+            input_bellman = torch.clamp(
+                input_bellman, 0, self.input_bellman_embedding.num_embeddings - 1
+            )  # clamp embeddings for positive input Bellman
+            input_bellman_embedding = self.input_bellman_embedding(input_bellman)[
+                :, None
+            ]
+            values = (
+                input_bellman_embedding * use_embedding + values * ~use_embedding
+            )  # use embedding when input Bellman is negative
+        action_probs = self.positional_encoding(action_probs)
+        continuous = torch.cat([action_probs, values[:, :, None]], dim=-2)
         X = torch.cat([continuous, discrete], dim=-2)
         B, S, T, D = X.shape
         X = X.reshape(B * S, T, D)
@@ -100,7 +137,6 @@ class CausalTransformer(Model):
                 return hidden_states.last_hidden_state
 
         return GPT2()
-
 
 
 class SetTransformer(Model):

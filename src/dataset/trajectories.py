@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from dataset.base import Dataset as BaseDataset
+from models.trajectories import get_input_bellman
 from values.bootstrap import Values
 
 
@@ -12,7 +13,7 @@ class Dataset(BaseDataset):
         return len(self.values.Q)
 
     def input_q(self, idx: int, n_bellman: int):
-        q_idx = max(0, 1 + n_bellman - self.bellman_delta)
+        q_idx = max(0, get_input_bellman(n_bellman, self.bellman_delta))
         return self.values.bootstrap_Q[q_idx, idx]
 
     def target_q(self, idx: int, n_bellman: int):
