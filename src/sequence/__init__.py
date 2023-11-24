@@ -2,10 +2,10 @@ import pickle
 from pathlib import Path
 
 from artifacts import download_and_return_root
+from grid_world.base import GridWorld
 from sequence.base import Sequence
-from sequence.sample_trajectories import Sequence as SampleTrajectoriesSequence
-from sequence.sample_uniform import Sequence as SampleUniformSequence
-from tabular.grid_world import GridWorld
+from sequence.cross_product import Sequence as SampleUniformSequence
+from sequence.trajectories import Sequence as SampleTrajectoriesSequence
 
 
 def load_sequence(

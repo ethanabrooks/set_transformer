@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
-from models.value_conditional import DataPoint, SetTransformer
+from models.tabular import DataPoint, SetTransformer
 
 
 @dataclass(frozen=True)

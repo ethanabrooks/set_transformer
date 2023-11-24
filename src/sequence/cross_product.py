@@ -3,8 +3,8 @@ from typing import Optional
 
 import torch
 
+from grid_world.base import GridWorld
 from sequence.base import Sequence as BaseSequence
-from tabular.grid_world import GridWorld
 from utils import Transition
 
 

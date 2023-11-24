@@ -12,7 +12,7 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from metrics import get_metrics
-from models.value_conditional import DataPoint, SetTransformer
+from models.tabular import DataPoint, SetTransformer
 from train.make_data import make_data
 from utils import decay_lr, load, save, set_seed
 

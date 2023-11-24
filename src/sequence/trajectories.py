@@ -3,9 +3,9 @@ from dataclasses import dataclass, replace
 import torch
 import torch.nn.functional as F
 
+from grid_world.base import GridWorld
+from grid_world.values import GridWorldWithValues
 from sequence.base import Sequence as BaseSequence
-from tabular.grid_world import GridWorld
-from tabular.grid_world_with_values import GridWorldWithValues
 from utils import Transition
 
 

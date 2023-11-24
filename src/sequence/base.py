@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import torch
 import torch.utils.data
 
-from tabular.grid_world import GridWorld
-from tabular.grid_world_with_values import GridWorldWithValues
+from grid_world.base import GridWorld
+from grid_world.values import GridWorldWithValues
 from utils import Transition
 
 
