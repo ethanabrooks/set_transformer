@@ -10,8 +10,8 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from grid_world.maze import generate_maze, maze_to_state_action
 from metrics import compute_rmse
-from tabular.maze import generate_maze, maze_to_state_action
 from utils import Transition, tensor_hash
 
 

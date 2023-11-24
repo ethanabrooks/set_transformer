@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, replace
 import torch
 from tqdm import tqdm
 
-from tabular.grid_world import GridWorld
+from grid_world.base import GridWorld
 from utils import tensor_hash
 
 

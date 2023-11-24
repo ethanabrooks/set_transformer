@@ -1,8 +1,6 @@
 from typing import Optional
 
-from wandb.sdk.wandb_run import Run
-
-from dataset.value_conditional import Dataset
+from dataset.tabular import Dataset
 from sequence import load_sequence
 from sequence import make as make_sequence
 from sequence.base import Sequence
@@ -27,10 +25,10 @@ def make_data(
             seed=seed
         )
     values = make_values(
-            load_path=q_load_path,
-            sequence=sequence,
-            sample_from_trajectories=sample_from_trajectories,
-        )
+        load_path=q_load_path,
+        sequence=sequence,
+        sample_from_trajectories=sample_from_trajectories,
+    )
     dataset: Dataset = Dataset(
         **dataset_args, bellman_delta=bellman_delta, sequence=sequence, values=values
     )

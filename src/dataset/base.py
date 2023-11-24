@@ -7,7 +7,7 @@ import torch.utils.data
 from torch.utils.data import Dataset as BaseDataset
 
 from models.set_transformer import SetTransformer
-from models.value_unconditional import DataPoint
+from models.trajectories import DataPoint
 from sequence.base import Sequence
 from values.base import Values
 

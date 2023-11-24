@@ -18,8 +18,8 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from param_space import param_space
-from train.value_conditional import train as train_value_conditional
-from train.value_unconditional import train as train_value_unconditional
+from train.tabular import train as train_value_conditional
+from train.trajectories import train as train_value_unconditional
 
 tree = CommandTree()
 

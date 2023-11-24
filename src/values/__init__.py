@@ -5,7 +5,7 @@ import torch
 from artifacts import download_and_return_root, get_run
 from metrics import compute_rmse
 from sequence.base import Sequence
-from values.sample_uniform import Values as SampleUniformValues
+from values.cross_product import Values as SampleUniformValues
 from values.tabular import Values
 
 
