@@ -1,7 +1,0 @@
-inherit_from: ../base
-test_data_args:
-  sequence_args:
-    grid_world_args:
-      n_maze: 200
-      p_wall: 1
-    omit_states_actions: 0
