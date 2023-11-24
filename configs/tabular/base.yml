@@ -1,6 +1,5 @@
 bellman_delta: 2
 data_args:
-  neural_values: false
   q_load_path: null
   sample_from_trajectories: false
   sequence_args:
@@ -13,7 +12,6 @@ data_args:
       terminate_on_goal: true
       use_heldout_goals: false
     stop_at_rmse: 0.005
-  value_args: {}
 decay_args:
   final_step: 500_000
   warmup_steps: 10_000
