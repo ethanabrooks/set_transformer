@@ -1,7 +1,7 @@
 import itertools
 import pickle
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Counter, Optional
 
@@ -23,6 +23,7 @@ from values.bootstrap import Values as BootstrapValues
 
 def train_bellman_iteration(
     alpha: float,
+    baseline: bool,
     bellman_delta: int,
     bellman_number: int,
     bootstrap_Q: torch.Tensor,
@@ -129,7 +130,10 @@ def train_bellman_iteration(
             ground_truth_metrics = {}
             versus_metrics = {}
 
-        bootstrap_Q2 = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
+        if baseline:
+            bootstrap_Q2 = Q
+        else:
+            bootstrap_Q2 = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
         bootstrap_Q = alpha * bootstrap_Q2 + (1 - alpha) * bootstrap_Q
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
@@ -190,6 +194,7 @@ def train_bellman_iteration(
 
 
 def compute_values(
+    baseline: bool,
     bellman_delta: int,
     lr: float,
     model_args: dict,
@@ -206,6 +211,10 @@ def compute_values(
     train_args: dict,
     load_path: Optional[str] = None,
 ):
+    if baseline:
+        grid_world = sequence.grid_world
+        grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
+        sequence = replace(sequence, grid_world=grid_world)
     B, L = sequence.transitions.rewards.shape
     A = sequence.grid_world.n_actions
     Q = torch.zeros(1, B, L, A)
@@ -241,10 +250,11 @@ def compute_values(
     net = net.cuda()
     optimizer = optim.Adam(net.parameters(), lr=lr)
     plot_indices = torch.randint(0, B, (n_plot,))
-    final = False
+    final = baseline
 
     for bellman_number in itertools.count(1):
         new_Q, step = train_bellman_iteration(
+            baseline=baseline,
             bellman_delta=bellman_delta,
             bellman_number=bellman_number,
             bootstrap_Q=Q,
