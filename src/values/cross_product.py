@@ -7,6 +7,18 @@ from values.tabular import Values as BaseValues
 
 @dataclass(frozen=True)
 class Values(BaseValues):
+    stop_at_rmse: float
+
+    @classmethod
+    def make(cls, stop_at_rmse: float, **kwargs):
+        values = BaseValues.make(**kwargs)
+        return cls(
+            optimally_improved_policy_values=values.optimally_improved_policy_values,
+            Q=values.Q,
+            sequence=values.sequence,
+            stop_at_rmse=stop_at_rmse,
+        )
+
     def get_metrics(self, idxs: torch.Tensor, outputs: torch.Tensor):
         grid_world = self.sequence.grid_world
         S = grid_world.n_states

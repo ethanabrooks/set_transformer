@@ -42,13 +42,7 @@ class Values(BaseValues):
         return Q
 
     @classmethod
-    def make(
-        cls,
-        bootstrap_Q: torch.Tensor,
-        sequence: Sequence,
-        stop_at_rmse: float,
-        **kwargs
-    ):
+    def make(cls, bootstrap_Q: torch.Tensor, sequence: Sequence, **kwargs):
         Q: torch.Tensor = cls.compute_values(
             bootstrap_Q=bootstrap_Q, sequence=sequence, **kwargs
         )
@@ -56,6 +50,5 @@ class Values(BaseValues):
             bootstrap_Q=bootstrap_Q,
             optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             sequence=sequence,
-            stop_at_rmse=stop_at_rmse,
             Q=Q,
         )
