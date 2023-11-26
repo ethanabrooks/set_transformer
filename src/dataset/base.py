@@ -83,10 +83,8 @@ class Dataset(BaseDataset):
             input_q=self.input_q(idx, n_bellman),
             n_bellman=n_bellman,
             next_obs=next_obs,
-            next_states=transitions.next_states,
             obs=obs,
             rewards=transitions.rewards,
-            states=transitions.states,
             target_q=self.target_q(idx, n_bellman),
         )
 
