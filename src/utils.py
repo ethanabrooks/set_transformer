@@ -24,10 +24,8 @@ class DataPoint(NamedTuple):
     input_q: torch.Tensor
     n_bellman: torch.Tensor
     next_obs: torch.Tensor
-    next_states: torch.Tensor
     obs: torch.Tensor
     rewards: torch.Tensor
-    states: torch.Tensor
     target_q: torch.Tensor
 
 
