@@ -86,14 +86,16 @@ class Model(Base):
             embedded_discrete=embedded_discrete, x=x
         )
         assert [*outputs.shape][:-1] == [B, S]
-        assert [*x.target_q.shape] == [B, S]
+        if x.target_q is None:
+            loss = None
+        else:
+            assert [*x.target_q.shape] == [B, S]
 
-        loss = F.mse_loss(
-            outputs[torch.arange(B)[:, None], torch.arange(S)[None], x.actions],
-            x.target_q,
-            reduction="none",
-        )
-        return outputs, loss.mean()
+            loss = F.mse_loss(
+                outputs[torch.arange(B)[:, None], torch.arange(S)[None], x.actions],
+                x.target_q,
+            )
+        return outputs, loss
 
     def forward_output(
         self, embedded_discrete: torch.Tensor, x: DataPoint
@@ -127,19 +129,20 @@ class Model(Base):
             rotation_shift = rotation_index * rotation_unit
 
             def rotate(x: torch.Tensor):
-                if x.ndim == 1:
+                if x is None or x.ndim == 1:
                     return x
                 return torch.roll(x, shifts=rotation_shift, dims=1)
 
             x_cpu = DataPoint(*[rotate(x) for x in x_orig])
-            x = DataPoint(*[x.cuda() for x in x_cpu])
+            x = DataPoint(*[x if x is None else x.cuda() for x in x_cpu])
             rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
             if optimizer is not None:
                 optimizer.zero_grad()
             outputs: torch.Tensor
             loss: torch.Tensor
             outputs, loss = self.forward(x=x)
-            agg_loss += loss
+            if loss is not None:
+                agg_loss += loss
 
             tail_idxs = torch.arange(l - rotation_unit, l)
             if agg_outputs is None:
