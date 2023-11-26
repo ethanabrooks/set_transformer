@@ -1,3 +1,4 @@
+import random
 from typing import Optional
 
 import torch
@@ -125,8 +126,11 @@ class Model(Base):
         updated = None
         _, l = x.rewards.shape
         rotation_unit = l // self.n_rotations
+        rotation_start = random.randint(
+            0, l - 1
+        )  # randomize rotation to break correlation with termination at end of sequence
         for rotation_index in range(self.n_rotations):
-            rotation_shift = rotation_index * rotation_unit
+            rotation_shift = rotation_start + rotation_index * rotation_unit
 
             def rotate(x: torch.Tensor):
                 if x is None or x.ndim == 1:
@@ -155,6 +159,7 @@ class Model(Base):
             if optimizer is not None:
                 loss.backward()
                 optimizer.step()
+        assert torch.all(updated)
         return agg_outputs, agg_loss
 
 
