@@ -28,17 +28,17 @@ def train_bellman_iteration(
     bellman_number: int,
     bootstrap_Q: torch.Tensor,
     decay_args: dict,
-    evaluate_args: dict,
     load_path: str,
     log_interval: int,
     lr: float,
-    optimizer: optim.Optimizer,
-    plot_indices: torch.Tensor,
-    sequence: Sequence,
+    metrics_args: dict,
     n_batch: int,
     net: SetTransformer,
+    optimizer: optim.Optimizer,
+    plot_indices: torch.Tensor,
     run: Run,
     sample_from_trajectories: bool,
+    sequence: Sequence,
     start_step: int,
     stop_at_rmse: float,
     test_interval: int,
@@ -71,7 +71,7 @@ def train_bellman_iteration(
 
     def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
         metrics = get_metrics(
-            loss=None, outputs=outputs, targets=targets, **evaluate_args
+            loss=None, outputs=outputs, targets=targets, **metrics_args
         )
         return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
 
@@ -165,7 +165,7 @@ def train_bellman_iteration(
                     x.actions,
                 ],
                 targets=x.target_q,
-                **evaluate_args,
+                **metrics_args,
             )
             counter.update(asdict(metrics), n=1)
             if step % log_interval == 0:
@@ -260,12 +260,12 @@ def compute_values(
             bootstrap_Q=Q,
             load_path=load_path,
             lr=lr,
-            optimizer=optimizer,
-            sequence=sequence,
             net=net,
+            optimizer=optimizer,
             plot_indices=plot_indices,
             run=run,
             sample_from_trajectories=sample_from_trajectories,
+            sequence=sequence,
             start_step=start_step,
             stop_at_rmse=rmse_training_final if final else rmse_training_intermediate,
             test_size=test_size,

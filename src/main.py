@@ -18,8 +18,8 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from param_space import param_space
-from train.tabular import train as train_value_conditional
-from train.trajectories import train as train_value_unconditional
+from train.tabular import train as train_tabular_fn
+from train.trajectories import train as train_trajectories_fn
 
 tree = CommandTree()
 
@@ -70,7 +70,7 @@ def get_config(config_name: str):
 
     parents = reversed(list(get_parents(config)))
     merged = OmegaConf.merge(*parents, config)
-    if merged["value_conditional"]:
+    if not merged["train_trajectories"]:
         for key in ("train_data_args", "test_data_args"):
             merged[key] = OmegaConf.merge(merged["data_args"], merged[key])
         del merged["data_args"]
@@ -228,11 +228,11 @@ def sweep(
     ).fit()
 
 
-def train(*args, value_conditional: bool, **kwargs):
+def train(*args, train_trajectories: bool, **kwargs):
     return (
-        train_value_conditional(*args, **kwargs)
-        if value_conditional
-        else train_value_unconditional(*args, **kwargs)
+        train_trajectories_fn(*args, **kwargs)
+        if train_trajectories
+        else train_tabular_fn(*args, **kwargs)
     )
 
 

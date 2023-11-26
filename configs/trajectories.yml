@@ -40,9 +40,10 @@ train_args:
   decay_args:
     final_step: 500_000
     warmup_steps: 10_000
-  evaluate_args:
-    accuracy_threshold: 0.01
+
   log_interval: 50
+  metrics_args:
+    accuracy_threshold: 0.01
   n_batch: 250
   test_interval: 1000
-value_conditional: false
+train_trajectories: true
