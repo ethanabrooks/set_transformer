@@ -21,15 +21,15 @@ class Values(BaseValues):
 
     def get_metrics(self, idxs: torch.Tensor, outputs: torch.Tensor):
         grid_world = self.sequence.grid_world
-        S = grid_world.n_states
-        A = len(grid_world.deltas)
-        _, _, L, _ = outputs.shape
+        s = grid_world.n_states
+        a = len(grid_world.deltas)
+        _, _, l, _ = outputs.shape
 
-        if L == S * A:
+        if l == s * a:
             values = outputs[
                 -1,  # last iteration of policy evaluation
                 :,
-                ::A,  # index into unique states
+                ::a,  # index into unique states
             ]
 
             improved_policy_value = grid_world[idxs].evaluate_improved_policy(

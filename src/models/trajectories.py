@@ -53,7 +53,7 @@ class Model(Base):
             dim=-1,
         )
         discrete: torch.Tensor = self.embedding(discrete.long())
-        _, _, _, D = discrete.shape
+        _, _, _, d = discrete.shape
         values = (x.input_q * x.action_probs).sum(-1)
         values = self.positional_encoding(values)
         if self.bellman_delta > 1:
@@ -75,25 +75,25 @@ class Model(Base):
         action_probs = self.positional_encoding(action_probs)
         continuous = torch.cat([action_probs, values[:, :, None]], dim=-2)
         X = torch.cat([continuous, discrete], dim=-2)
-        B, S, T, D = X.shape
-        X = X.reshape(B * S, T, D)
-        _, _, D = X.shape
-        assert [*X.shape] == [B * S, T, D]
+        b, s, t, d = X.shape
+        X = X.reshape(b * s, t, d)
+        _, _, d = X.shape
+        assert [*X.shape] == [b * s, t, d]
         Y: torch.Tensor = self.transition_encoder(X)
-        assert [*Y.shape] == [B * S, T, D]
-        embedded_discrete = Y.reshape(B, S, T, D).sum(2)
-        assert [*embedded_discrete.shape] == [B, S, D]
+        assert [*Y.shape] == [b * s, t, d]
+        embedded_discrete = Y.reshape(b, s, t, d).sum(2)
+        assert [*embedded_discrete.shape] == [b, s, d]
         outputs: torch.Tensor = self.forward_output(
             embedded_discrete=embedded_discrete, x=x
         )
-        assert [*outputs.shape][:-1] == [B, S]
+        assert [*outputs.shape][:-1] == [b, s]
         if x.target_q is None:
             loss = None
         else:
-            assert [*x.target_q.shape] == [B, S]
+            assert [*x.target_q.shape] == [b, s]
 
             loss = F.mse_loss(
-                outputs[torch.arange(B)[:, None], torch.arange(S)[None], x.actions],
+                outputs[torch.arange(b)[:, None], torch.arange(s)[None], x.actions],
                 x.target_q,
             )
         return outputs, loss
@@ -101,11 +101,11 @@ class Model(Base):
     def forward_output(
         self, embedded_discrete: torch.Tensor, x: DataPoint
     ) -> torch.Tensor:
-        B, S, D = embedded_discrete.shape
+        b, s, d = embedded_discrete.shape
         Z: torch.Tensor = self.sequence_network(embedded_discrete)
-        assert [*Z.shape] == [B, S, D]
+        assert [*Z.shape] == [b, s, d]
         outputs: torch.Tensor = self.dec(Z)
-        assert [*outputs.shape][:-1] == [B, S]
+        assert [*outputs.shape][:-1] == [b, s]
         return outputs
 
     def offset(self, x: torch.Tensor) -> torch.Tensor:
@@ -211,16 +211,16 @@ class SetTransformer(Model):
     def forward_output(
         self, embedded_discrete: torch.Tensor, x: DataPoint
     ) -> torch.Tensor:
-        B, S, D = embedded_discrete.shape
+        b, s, d = embedded_discrete.shape
         embedded_obs: torch.Tensor = self.embedding(x.obs)
-        assert [*embedded_obs.shape] == [B, S, D]
+        assert [*embedded_obs.shape] == [b, s, d]
         Y = torch.cat([embedded_discrete, embedded_obs], dim=1)
         Z: torch.Tensor
         Z = self.sequence_network(Y)
-        assert [*Z.shape] == [B, 2 * S, D]
+        assert [*Z.shape] == [b, 2 * s, d]
         outputs: torch.Tensor = self.dec(Z)
-        assert [*outputs.shape][:-1] == [B, 2 * S]
-        outputs = outputs[:, S:]
+        assert [*outputs.shape][:-1] == [b, 2 * s]
+        outputs = outputs[:, s:]
         return outputs
 
     @staticmethod
