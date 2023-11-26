@@ -214,9 +214,9 @@ def compute_values(
         grid_world = sequence.grid_world
         grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
         sequence = replace(sequence, grid_world=grid_world)
-    B, L = sequence.transitions.rewards.shape
-    A = sequence.grid_world.n_actions
-    Q = torch.zeros(1, B, L, A)
+    b, l = sequence.transitions.rewards.shape
+    a = sequence.grid_world.n_actions
+    Q = torch.zeros(1, b, l, a)
     values = BootstrapValues.make(
         sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,
@@ -230,7 +230,7 @@ def compute_values(
             bellman_delta=bellman_delta,
             **model_args,
             n_actions=data.n_actions,
-            n_ctx=L,
+            n_ctx=l,
             n_tokens=n_tokens,
             partial_observation=partial_observation,
         )
@@ -247,7 +247,7 @@ def compute_values(
         load(load_path, net, run)
     net = net.cuda()
     optimizer = optim.Adam(net.parameters(), lr=lr)
-    plot_indices = torch.randint(0, B, (n_plot,))
+    plot_indices = torch.randint(0, b, (n_plot,))
     final = baseline
 
     for bellman_number in itertools.count(1):
