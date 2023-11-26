@@ -328,9 +328,11 @@ class GridWorld:
         return arange.expand(shape).flatten()
 
     def convert_1d_to_2d(self, x: torch.Tensor):
+        assert x.ndim == 1
         return convert_1d_to_2d(self.grid_size, x)
 
     def convert_2d_to_1d(self, x: torch.Tensor):
+        assert x.size(-1) == 2
         return convert_2d_to_1d(self.grid_size, x)
 
     def create_exploration_policy(self):
@@ -444,10 +446,10 @@ class GridWorld:
 
         trajectory_length = episode_length * n_episodes
 
-        states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
+        states = torch.zeros((B, trajectory_length), dtype=torch.int)
         actions = torch.zeros((B, trajectory_length), dtype=torch.int)
         action_probs = torch.zeros((B, trajectory_length, A), dtype=torch.float)
-        next_states = torch.zeros((B, trajectory_length, 2), dtype=torch.int)
+        next_states = torch.zeros((B, trajectory_length), dtype=torch.int)
         rewards = torch.zeros((B, trajectory_length))
         done = torch.zeros((B, trajectory_length), dtype=torch.bool)
 
@@ -458,35 +460,24 @@ class GridWorld:
             action_sequence = torch.tensor(
                 [0, 3, 1, 2, 2, 1, 3, 1, 3, 0, 3, 0, 2, 0, 2, 1]
             )
-            current_state_indices = self.convert_2d_to_1d(S1)
-            start_index = torch.tensor([0, 1, 3, 2])[current_state_indices]
+            start_index = torch.tensor([0, 1, 3, 2])[S1]
 
         for t in tqdm(range(trajectory_length), desc="Sampling trajectories"):
             # Convert current current_states to indices
-            current_state_indices = self.convert_2d_to_1d(S1)
 
             # Sample actions from the policy
             if use_exploration_policy:
                 A = action_sequence[(t + start_index) % len(action_sequence)]
             else:
-                A = (
-                    torch.multinomial(self.Pi[arange, current_state_indices], 1)
-                    .squeeze(1)
-                    .long()
-                )
+                A = torch.multinomial(self.Pi[arange, S1], 1).squeeze(1).long()
 
             # Convert current current_states to indices
-            next_state_indices, R, D, _ = self.step_fn(
-                states=current_state_indices, actions=A
-            )
-
-            # Convert next state indices to coordinates
-            S2 = self.convert_1d_to_2d(next_state_indices)
+            S2, R, D, _ = self.step_fn(states=S1, actions=A)
 
             # Store the current current_states and rewards
             states[:, t] = S1
             actions[:, t] = A
-            action_probs[:, t] = self.Pi[arange, current_state_indices]
+            action_probs[:, t] = self.Pi[arange, S1]
             next_states[:, t] = S2
             rewards[:, t] = R
             done[:, t] = D
@@ -507,7 +498,7 @@ class GridWorld:
         )
 
     def reset_fn(self):
-        array = self.random.choice(self.grid_size, size=(self.n_tasks, 2))
+        array = self.random.choice(self.grid_size**2, size=[self.n_tasks])
         return torch.tensor(array)
 
     def step_fn(
