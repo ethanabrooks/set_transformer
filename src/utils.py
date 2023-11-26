@@ -19,6 +19,7 @@ T = TypeVar("T")
 class DataPoint(NamedTuple):
     action_probs: torch.Tensor
     actions: torch.Tensor
+    done: torch.Tensor
     idx: torch.Tensor
     input_q: torch.Tensor
     n_bellman: torch.Tensor

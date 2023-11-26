@@ -38,12 +38,14 @@ class Model(Base):
     def forward(self, x: DataPoint) -> tuple[torch.Tensor, torch.Tensor]:
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
+        done: torch.Tensor = self.offset(x.done)
         next_obs: torch.Tensor = self.offset(x.next_obs)
         rewards: torch.Tensor = self.offset(x.rewards)
         discrete = torch.stack(
             [
                 x.obs,
                 actions,
+                done,
                 next_obs,
                 rewards,
             ],
