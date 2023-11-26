@@ -78,6 +78,7 @@ class Dataset(BaseDataset):
         return DataPoint(
             action_probs=transitions.action_probs,
             actions=transitions.actions,
+            done=transitions.done,
             idx=idx,
             input_q=self.input_q(idx, n_bellman),
             n_bellman=n_bellman,
