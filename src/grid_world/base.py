@@ -31,13 +31,13 @@ def evaluate_policy(
     T: torch.Tensor,
     D: torch.Tensor,
 ):
-    B, N, A = Pi.shape
+    b, n, a = Pi.shape
 
-    assert [*R.shape] == [B, N, A]
+    assert [*R.shape] == [b, n, a]
     EQ = (Pi * Q).sum(-1)
-    assert [*EQ.shape] == [B, N]
+    assert [*EQ.shape] == [b, n]
     EQ = (T * EQ[:, None, None]).sum(-1)
-    assert [*EQ.shape] == [B, N, A]
+    assert [*EQ.shape] == [b, n, a]
     Q = R + gamma * ~D * EQ
     return Q
 
@@ -114,13 +114,13 @@ class GridWorld:
     ):
         # transition to absorbing state instead of goal
         deltas = torch.tensor([[0, 1], [0, -1], [-1, 0], [1, 0]])
-        A = len(deltas)
-        G = grid_size**2  # number of goals
-        S = G
+        a = len(deltas)
+        g = grid_size**2  # number of goals
+        s = g
         if absorbing_state:
-            S += 1
-        M = n_maze
-        B = n_tasks
+            s += 1
+        m = n_maze
+        b = n_tasks
 
         # add absorbing state for goals
         random = np.random.default_rng(seed)
@@ -130,24 +130,24 @@ class GridWorld:
         )
 
         # generate walls
-        is_wall = torch.rand(B, G, A) < p_wall
+        is_wall = torch.rand(b, g, a) < p_wall
         if n_maze:
             mazes = [
-                maze_to_state_action(generate_maze(grid_size)).view(G, A)
-                for _ in tqdm(range(M), desc="Generating mazes")
+                maze_to_state_action(generate_maze(grid_size)).view(g, a)
+                for _ in tqdm(range(m), desc="Generating mazes")
             ]
             mazes = torch.stack(mazes)
-            assert [*mazes.shape] == [M, G, A]
-            maze_idx = torch.randint(0, M, (B,))
+            assert [*mazes.shape] == [m, g, a]
+            maze_idx = torch.randint(0, m, (b,))
             is_wall = mazes[maze_idx] & is_wall
-            assert [*is_wall.shape] == [B, G, A]
-        goals = torch.randint(0, G, (B,))
+            assert [*is_wall.shape] == [b, g, a]
+        goals = torch.randint(0, g, (b,))
 
-        alpha = torch.ones(A)
+        alpha = torch.ones(a)
         Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
-            (B, S)
+            (b, s)
         )  # random policies
-        assert [*Pi.shape] == [B, S, A]
+        assert [*Pi.shape] == [b, s, a]
         hashcode = cls.compute_hashcode(
             deltas=deltas,
             gamma=gamma,
@@ -199,16 +199,16 @@ class GridWorld:
 
     @property
     def next_state_no_absorbing(self):
-        A = self.n_actions
-        G = self.n_states
+        a = self.n_actions
+        g = self.n_states
         if self.use_absorbing_state:
-            G -= 1
-        T = self.n_tasks
+            g -= 1
+        t = self.n_tasks
         # Compute next states for each action and state for each batch (goal)
         next_states = self.states[:, None] + self.deltas[None, :]
-        assert [*next_states.shape] == [G, A, 2]
-        states = self.states[None, :, None].tile(T, 1, A, 1)
-        next_states = next_states[None].tile(T, 1, 1, 1)
+        assert [*next_states.shape] == [g, a, 2]
+        states = self.states[None, :, None].tile(t, 1, a, 1)
+        next_states = next_states[None].tile(t, 1, 1, 1)
         is_wall = self.is_wall[..., None]
         next_states = states * is_wall + next_states * (~is_wall)
         next_states = torch.clamp(next_states, 0, self.grid_size - 1)  # stay in bounds
@@ -336,32 +336,32 @@ class GridWorld:
         return convert_2d_to_1d(self.grid_size, x)
 
     def create_exploration_policy(self):
-        N = self.grid_size
-        A = self.n_actions
+        n = self.grid_size
+        a = self.n_actions
 
         def odd(n):
             return bool(n % 2)
 
-        assert not odd(N), "Perfect exploration only possible with even grid."
+        assert not odd(n), "Perfect exploration only possible with even grid."
 
         # Initialize the policy tensor with zeros
-        policy_2d = torch.zeros(N, N, A)
+        policy_2d = torch.zeros(n, n, a)
 
         # Define the deterministic policy
-        for i in range(N):
+        for i in range(n):
             top = i == 0
-            bottom = i == N - 1
+            bottom = i == n - 1
             if top:
                 up = None
             else:
                 up = 0
 
-            for j in range(N):
+            for j in range(n):
                 if odd(i):
                     down = 1
                     move = 2  # left
                 else:  # even i
-                    down = N - 1
+                    down = n - 1
                     move = 3  # right
 
                 if bottom:
@@ -375,7 +375,7 @@ class GridWorld:
                     policy_2d[i, j, move] = 1  # move left/right
 
         # Flatten the 2D policy tensor to 1D
-        policy = policy_2d.view(N * N, A)
+        policy = policy_2d.view(n * n, a)
         if self.use_absorbing_state:
             # Insert row for absorbing state
             policy = F.pad(policy, (0, 0, 0, 1), value=0)
@@ -399,11 +399,11 @@ class GridWorld:
         Pi: torch.Tensor,
         Q: torch.Tensor = None,
     ):
-        B = self.n_tasks
-        N = self.n_states
-        A = self.n_actions
+        b = self.n_tasks
+        n = self.n_states
+        a = self.n_actions
         if Q is None:
-            Q = torch.zeros((B, N, A), dtype=torch.float32, device=Pi.device)
+            Q = torch.zeros((b, n, a), dtype=torch.float32, device=Pi.device)
         return evaluate_policy(
             gamma=self.gamma,
             Pi=Pi,
@@ -418,11 +418,11 @@ class GridWorld:
         Pi: torch.Tensor,
         stop_at_rmse: float,
     ):
-        B = self.n_tasks
-        S = self.n_states
-        A = self.n_actions
+        b = self.n_tasks
+        s = self.n_states
+        a = self.n_actions
 
-        Q = torch.zeros((B, S, A), device=Pi.device, dtype=torch.float)
+        Q = torch.zeros((b, s, a), device=Pi.device, dtype=torch.float)
         rmse = float("inf")
         for _ in itertools.count(1):  # n_rounds of policy evaluation
             yield Q
@@ -439,22 +439,22 @@ class GridWorld:
         n_episodes: int,
         use_exploration_policy: bool = False,
     ):
-        B = self.n_tasks
-        N = self.n_states
-        A = self.n_actions
-        assert [*self.Pi.shape] == [B, N, A]
+        b = self.n_tasks
+        n = self.n_states
+        a = self.n_actions
+        assert [*self.Pi.shape] == [b, n, a]
 
         trajectory_length = episode_length * n_episodes
 
-        states = torch.zeros((B, trajectory_length), dtype=torch.int)
-        actions = torch.zeros((B, trajectory_length), dtype=torch.int)
-        action_probs = torch.zeros((B, trajectory_length, A), dtype=torch.float)
-        next_states = torch.zeros((B, trajectory_length), dtype=torch.int)
-        rewards = torch.zeros((B, trajectory_length))
-        done = torch.zeros((B, trajectory_length), dtype=torch.bool)
+        states = torch.zeros((b, trajectory_length), dtype=torch.int)
+        actions = torch.zeros((b, trajectory_length), dtype=torch.int)
+        action_probs = torch.zeros((b, trajectory_length, a), dtype=torch.float)
+        next_states = torch.zeros((b, trajectory_length), dtype=torch.int)
+        rewards = torch.zeros((b, trajectory_length))
+        done = torch.zeros((b, trajectory_length), dtype=torch.bool)
 
         S1 = self.reset_fn()
-        arange = torch.arange(B)
+        arange = torch.arange(b)
         if use_exploration_policy:
             assert self.grid_size == 2, "Exploration policy only works for 2x2 grid"
             action_sequence = torch.tensor(

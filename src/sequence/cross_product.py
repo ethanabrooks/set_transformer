@@ -14,20 +14,20 @@ class Sequence(BaseSequence):
     def collect_data(
         cls, grid_world: GridWorld, omit_states_actions: int, partial_observation: bool
     ):
-        A = grid_world.n_actions
-        S = grid_world.n_states
-        B = grid_world.n_tasks
-        states = torch.arange(S).repeat_interleave(A)
-        states = states[None].tile(B, 1)
-        actions = torch.arange(A).repeat(S)
-        actions = actions[None].tile(B, 1)
-        action_probs = grid_world.Pi.repeat_interleave(A, 1)
+        a = grid_world.n_actions
+        s = grid_world.n_states
+        b = grid_world.n_tasks
+        states = torch.arange(s).repeat_interleave(a)
+        states = states[None].tile(b, 1)
+        actions = torch.arange(a).repeat(s)
+        actions = actions[None].tile(b, 1)
+        action_probs = grid_world.Pi.repeat_interleave(a, 1)
         next_states, rewards, done, _ = grid_world.step_fn(states, actions)
 
-        B = grid_world.n_tasks
-        S = grid_world.n_states
-        A = len(grid_world.deltas)
-        permutation = torch.rand(B, S * A).argsort(dim=1)
+        b = grid_world.n_tasks
+        s = grid_world.n_states
+        a = len(grid_world.deltas)
+        permutation = torch.rand(b, s * a).argsort(dim=1)
 
         def permute(
             x: torch.Tensor,
