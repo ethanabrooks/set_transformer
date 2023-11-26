@@ -1,6 +1,9 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim.optimizer import Optimizer
 from transformers import GPT2Config, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 
@@ -19,6 +22,7 @@ class Model(Base):
         bellman_delta: int,
         n_actions: int,
         n_hidden: int,
+        n_rotations: int,
         n_tokens: int,
         positional_encoding_args: dict,
         **transformer_args: dict
@@ -29,6 +33,7 @@ class Model(Base):
         self.bellman_delta = bellman_delta
         if bellman_delta > 1:
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
+        self.n_rotations = n_rotations
 
     def forward(self, x: DataPoint) -> tuple[torch.Tensor, torch.Tensor]:
         action_probs: torch.Tensor = self.offset(x.action_probs)
@@ -106,6 +111,46 @@ class Model(Base):
             return padding
 
         return F.pad(x[:, :-1], tuple(padding()), value=self.n_tokens)
+
+    def forward_with_rotation(
+        self, x: DataPoint, optimizer: Optional[Optimizer]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        x_orig = x
+        agg_loss = 0
+        agg_outputs = None
+        updated = None
+        _, l = x.rewards.shape
+        rotation_unit = l // self.n_rotations
+        for rotation_index in range(self.n_rotations):
+            rotation_shift = rotation_index * rotation_unit
+
+            def rotate(x: torch.Tensor):
+                if x.ndim == 1:
+                    return x
+                return torch.roll(x, shifts=rotation_shift, dims=1)
+
+            x_cpu = DataPoint(*[rotate(x) for x in x_orig])
+            x = DataPoint(*[x.cuda() for x in x_cpu])
+            rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
+            if optimizer is not None:
+                optimizer.zero_grad()
+            outputs: torch.Tensor
+            loss: torch.Tensor
+            outputs, loss = self.forward(x=x)
+            agg_loss += loss
+
+            tail_idxs = torch.arange(l - rotation_unit, l)
+            if agg_outputs is None:
+                assert updated is None
+                agg_outputs = torch.zeros_like(outputs)
+                updated = torch.zeros_like(outputs)
+            agg_outputs[:, rng_rot[tail_idxs]] = outputs[:, tail_idxs]
+            updated[:, rng_rot[tail_idxs]] = 1
+
+            if optimizer is not None:
+                loss.backward()
+                optimizer.step()
+        return agg_outputs, agg_loss
 
 
 class CausalTransformer(Model):
