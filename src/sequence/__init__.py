@@ -19,13 +19,9 @@ def load_sequence(
 
 
 def make_sequence(
-    grid_world_args: dict,
     sample_from_trajectories: bool,
-    seed: int,
     **kwargs: dict,
 ) -> Sequence:
-    grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
-    kwargs.update(grid_world=grid_world)
     return (
         SampleTrajectoriesSequence.make(**kwargs)
         if sample_from_trajectories
@@ -33,7 +29,13 @@ def make_sequence(
     )
 
 
-def make(**kwargs: dict) -> Sequence:
+def make(
+    grid_world_args: dict,
+    seed: int,
+    **kwargs: dict,
+) -> Sequence:
+    grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
+    kwargs.update(grid_world=grid_world)
     try:
         return load_sequence(**kwargs)
     except TypeError:
