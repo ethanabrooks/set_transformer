@@ -5,7 +5,7 @@ import torch
 from artifacts import download_and_return_root, get_run
 from metrics import compute_rmse
 from sequence.base import Sequence
-from values.cross_product import Values as SampleUniformValues
+from values.cross_product import Values as SampleCrossProductValues
 from values.tabular import Values
 
 
@@ -32,5 +32,7 @@ def make(
     return (
         Values.make(**kwargs)
         if sample_from_trajectories
-        else SampleUniformValues.make(**kwargs)
+        else SampleCrossProductValues.make(
+            **kwargs, stop_at_rmse=sequence.grid_world.stop_at_rmse
+        )
     )

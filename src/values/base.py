@@ -12,7 +12,6 @@ class Values(ABC):
     sequence: Sequence
     optimally_improved_policy_values: torch.Tensor
     Q: torch.Tensor
-    stop_at_rmse: float
 
     @classmethod
     @abstractmethod
@@ -29,12 +28,10 @@ class Values(ABC):
                 torch.arange(b)[None, :, None],
                 sequence.transitions.states[None],
             ]
-        stop_at_rmse = sequence.grid_world.stop_at_rmse
         return cls(
             sequence=sequence,
             optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
             Q=Q,
-            stop_at_rmse=stop_at_rmse,
         )
 
     def get_metrics(

@@ -65,7 +65,6 @@ def train_bellman_iteration(
             bootstrap_Q=bootstrap_Q,
             sample_from_trajectories=sample_from_trajectories,
             sequence=sequence,
-            stop_at_rmse=stop_at_rmse,
         )
         return Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
 
@@ -221,7 +220,6 @@ def compute_values(
     values = BootstrapValues.make(
         sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,
-        stop_at_rmse=rmse_bellman,
         bootstrap_Q=Q,
     )
     data = Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
