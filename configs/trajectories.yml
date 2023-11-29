@@ -31,6 +31,7 @@ sequence_args:
     use_heldout_goals: false
   seed: 0
   stop_at_rmse: 0.005
+  time_limit: null
   trajectory_length: 64
   use_exploration_policy: false
 test_size: 50
