@@ -1,0 +1,5 @@
+grid_world_args:
+  absorbing_state: true
+  terminate_on_goal: false
+inherit_from: baseline
+time_limit: 10
