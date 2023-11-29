@@ -435,6 +435,7 @@ class GridWorld:
 
     def get_trajectories(
         self,
+        time_limit: Optional[int],
         trajectory_length: int,
         use_exploration_policy: bool = False,
     ):
@@ -449,6 +450,7 @@ class GridWorld:
         next_states = torch.zeros((b, trajectory_length), dtype=torch.int)
         rewards = torch.zeros((b, trajectory_length))
         done = torch.zeros((b, trajectory_length), dtype=torch.bool)
+        time_remaining = torch.ones(b) * time_limit if time_limit else None
 
         S1 = self.reset_fn()
         arange = torch.arange(b)
@@ -469,7 +471,9 @@ class GridWorld:
                 A = torch.multinomial(self.Pi[arange, S1], 1).squeeze(1).long()
 
             # Convert current current_states to indices
-            S2, R, D, _ = self.step_fn(states=S1, actions=A)
+            S2, R, D, _ = self.step_fn(
+                states=S1, actions=A, time_remaining=time_remaining
+            )
 
             # Store the current current_states and rewards
             states[:, t] = S1
@@ -478,6 +482,9 @@ class GridWorld:
             next_states[:, t] = S2
             rewards[:, t] = R
             done[:, t] = D
+            if time_remaining is not None:
+                time_remaining -= 1
+                time_remaining[D] = time_limit
 
             # Update current current_states
             S1 = S2
@@ -502,6 +509,7 @@ class GridWorld:
         self,
         states: torch.Tensor,
         actions: torch.Tensor,
+        time_remaining: Optional[torch.Tensor],
     ):
         # self.check_states(states)
         # self.check_actions(actions)
@@ -524,6 +532,8 @@ class GridWorld:
         next_states = next_states.reshape(shape)
         rewards = rewards.reshape(shape)
         done = done.reshape(shape)
+        if time_remaining is not None:
+            done = done | (time_remaining == 0)
         return next_states, rewards, done, {}
 
     def visualize_policy(self, Pi: torch.Tensor):
