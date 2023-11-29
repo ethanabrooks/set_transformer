@@ -63,6 +63,6 @@ class Sequence(BaseSequence):
         ] = transitions.done
         grid_world = replace(grid_world, terminal_transitions=terminal_transitions)
         grid_world = GridWorldWithValues.make(
-            grid_world=grid_world, stop_at_rmse=stop_at_rmse
+            grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
         return cls(grid_world=grid_world, transitions=transitions)
