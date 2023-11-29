@@ -1,5 +1,6 @@
 import functools
 from dataclasses import dataclass
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,6 +64,7 @@ def rollout(
     obs = torch.zeros((l, n, *o))
     rewards = torch.zeros((l, n))
     optimals = None
+    ground_truth_values = None
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -109,7 +111,14 @@ def rollout(
                     input_q, _ = net.forward_with_rotation(
                         x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
                     )
+                    sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
+                    sep = float("nan") * torch.ones((context_length, 1))
+                    gt = ground_truth_values[idx][:, :, 1][:, 0]
+                    rounded = (input_q * 10).round().cpu()[0]
+
+                    breakpoint()
             action = input_q[:, -1].argmax(-1).cpu()
+            breakpoint()
             action_probs[t] = epsilon_eye[action]
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
 
@@ -133,6 +142,15 @@ def rollout(
                 if optimals is None:
                     optimals = torch.zeros_like(rewards)
                 optimals[t, index] = optimal
+            ground_truth_value: Optional[torch.Tensor] = info.get(
+                "ground_truth_value", None
+            )
+            if ground_truth_value is not None:
+                q, _ = ground_truth_value.shape
+                if ground_truth_values is None:
+                    ground_truth_values = torch.zeros((l, n, q, a))
+                q = min(len(ground_truth_value), ground_truth_values.size(2))
+                ground_truth_values[t, index, :q] = ground_truth_value[:q]
 
         # record episode timesteps
         timesteps[t] = timestep
