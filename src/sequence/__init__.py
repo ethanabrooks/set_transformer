@@ -34,7 +34,9 @@ def make(
     seed: int,
     **kwargs: dict,
 ) -> Sequence:
-    grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
+    grid_world = GridWorld.make(
+        **grid_world_args, seed=seed, terminal_transitions=None, verbose=True
+    )
     kwargs.update(grid_world=grid_world)
     try:
         return load_sequence(**kwargs)
