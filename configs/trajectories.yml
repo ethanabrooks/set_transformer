@@ -1,5 +1,15 @@
 baseline: false
 bellman_delta: 1
+grid_world_args:
+  absorbing_state: false
+  dense_reward: false
+  gamma: 0.99
+  grid_size: 2
+  heldout_goals: []
+  n_maze: 0
+  p_wall: 0
+  terminate_on_goal: true
+  use_heldout_goals: false
 lr: 0.0005
 model_args:
   n_heads: 8
@@ -18,25 +28,13 @@ rmse_training_intermediate: 0.005
 sample_from_trajectories: true
 seed: 3
 sequence_args:
-  grid_world_args:
-    absorbing_state: false
-    dense_reward: false
-    gamma: 0.99
-    grid_size: 2
-    heldout_goals: []
-    n_maze: 0
-    n_tasks: 1000
-    p_wall: 0
-    terminate_on_goal: true
-    use_heldout_goals: false
-  seed: 0
-  stop_at_rmse: 0.005
-  time_limit: null
   trajectory_length: 64
   use_exploration_policy: false
 test_size: 50
+time_limit: null
 train_args:
   alpha: .5
+  count_threshold: 40
   decay_args:
     final_step: 500_000
     warmup_steps: 10_000
@@ -45,5 +43,6 @@ train_args:
   metrics_args:
     accuracy_threshold: 0.01
   n_batch: 250
-  test_interval: 1000
+  test_interval: 1
+train_size: 1000
 train_trajectories: true

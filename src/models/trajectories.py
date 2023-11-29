@@ -179,35 +179,36 @@ class Model(Base):
         return agg_outputs, agg_loss
 
 
-class CausalTransformer(Model):
-    def build_sequence_network(
+class GPT2(nn.Module):
+    def __init__(
         self, n_ctx: int, n_heads: int, n_hidden: int, n_layers: int, **kwargs
     ):
-        class GPT2(nn.Module):
-            def __init__(self):
-                super().__init__()
-                # Deal with the insanity of the GPT2 API
-                config = GPT2Config(
-                    vocab_size=1,  # dummy
-                    n_layer=n_layers,
-                    n_layers=n_layers,
-                    num_hidden_layers=n_layers,
-                    n_embd=n_hidden,
-                    n_positions=n_ctx,
-                    n_heads=n_heads,
-                    num_attention_heads=n_heads,
-                    num_heads=n_heads,
-                    **kwargs,
-                )
-                self.gpt2 = GPT2Model(config)
+        super().__init__()
+        # Deal with the insanity of the GPT2 API
+        config = GPT2Config(
+            vocab_size=1,  # dummy
+            n_layer=n_layers,
+            n_layers=n_layers,
+            num_hidden_layers=n_layers,
+            n_embd=n_hidden,
+            n_positions=n_ctx,
+            n_heads=n_heads,
+            num_attention_heads=n_heads,
+            num_heads=n_heads,
+            **kwargs,
+        )
+        self.gpt2 = GPT2Model(config)
 
-            def forward(self, x: torch.Tensor):
-                hidden_states: BaseModelOutputWithPastAndCrossAttentions = self.gpt2(
-                    inputs_embeds=x
-                )
-                return hidden_states.last_hidden_state
+    def forward(self, x: torch.Tensor):
+        hidden_states: BaseModelOutputWithPastAndCrossAttentions = self.gpt2(
+            inputs_embeds=x
+        )
+        return hidden_states.last_hidden_state
 
-        return GPT2()
+
+class CausalTransformer(Model):
+    def build_sequence_network(self, **kwargs):
+        return GPT2(**kwargs)
 
 
 class SetTransformer(Model):
