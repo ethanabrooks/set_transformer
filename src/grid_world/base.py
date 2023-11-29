@@ -435,16 +435,13 @@ class GridWorld:
 
     def get_trajectories(
         self,
-        episode_length: int,
-        n_episodes: int,
+        trajectory_length: int,
         use_exploration_policy: bool = False,
     ):
         b = self.n_tasks
         n = self.n_states
         a = self.n_actions
         assert [*self.Pi.shape] == [b, n, a]
-
-        trajectory_length = episode_length * n_episodes
 
         states = torch.zeros((b, trajectory_length), dtype=torch.int)
         actions = torch.zeros((b, trajectory_length), dtype=torch.int)
