@@ -45,7 +45,7 @@ class GridWorldWithValues(GridWorld):
         )
         optimally_improved_policy_values = grid_world.evaluate_improved_policy(
             Q=Q[-1], stop_at_rmse=stop_at_rmse
-        ).cuda()
+        )
         hashcode = cls.compute_hashcode_with_values(
             grid_world=grid_world,
             optimally_improved_policy_values=optimally_improved_policy_values,

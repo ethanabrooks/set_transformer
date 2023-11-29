@@ -127,12 +127,15 @@ def log(
         project=get_project_name(),
     )
 
-    train(**config, run=run)
+    train(**config, dummy_vec_env=False, run=run)
 
 
 @tree.command(parsers=parsers)
 def no_log(
-    config: str, load_path: str = None, memory_limit: int = None
+    config: str,
+    load_path: str = None,
+    memory_limit: int = None,
+    dummy_vec_env: bool = False,
 ):  # dead: disable
     def signal_handler(*_):
         print("Resource limit reached, terminating program.")
@@ -153,7 +156,7 @@ def no_log(
     if load_path is not None:
         config = wandb.Api().run(load_path).config
     config.update(load_path=load_path)
-    return train(**config, run=None)
+    return train(**config, dummy_vec_env=dummy_vec_env, run=None)
 
 
 def get_git_rev():
@@ -228,9 +231,9 @@ def sweep(
     ).fit()
 
 
-def train(*args, train_trajectories: bool, **kwargs):
+def train(*args, dummy_vec_env: bool, train_trajectories: bool, **kwargs):
     return (
-        train_trajectories_fn(*args, **kwargs)
+        train_trajectories_fn(*args, dummy_vec_env=dummy_vec_env, **kwargs)
         if train_trajectories
         else train_tabular_fn(*args, **kwargs)
     )

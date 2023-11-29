@@ -1,10 +1,12 @@
 import itertools
+import math
 import pickle
 import time
-from dataclasses import asdict, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Counter, Optional
 
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -13,12 +15,36 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from dataset.trajectories import Dataset
+from envs.dummy_vec_env import DummyVecEnv
+from envs.subproc_vec_env import SubprocVecEnv
+from evaluate import log as log_evaluation
+from evaluate import rollout
+from grid_world.base import GridWorld
+from grid_world.env import Env
+from grid_world.values import GridWorldWithValues
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import CausalTransformer, SetTransformer
-from sequence import make as make_sequence
+from sequence import make_sequence
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save, set_seed
 from values.bootstrap import Values as BootstrapValues
+
+
+@dataclass
+class Evaluator:
+    epsilon: float
+    envs: SubprocVecEnv
+    net: CausalTransformer
+    rollout_length: int
+
+    def rollout(self, iterations: int) -> pd.DataFrame:
+        return rollout(
+            envs=self.envs,
+            epsilon=self.epsilon,
+            iterations=iterations,
+            net=self.net,
+            rollout_length=self.rollout_length,
+        )
 
 
 def train_bellman_iteration(
@@ -27,7 +53,9 @@ def train_bellman_iteration(
     bellman_delta: int,
     bellman_number: int,
     bootstrap_Q: torch.Tensor,
+    count_threshold: int,
     decay_args: dict,
+    evaluator: Evaluator,
     load_path: str,
     log_interval: int,
     lr: float,
@@ -42,18 +70,14 @@ def train_bellman_iteration(
     start_step: int,
     stop_at_rmse: float,
     test_interval: int,
-    test_size: int,
 ):
     if run is not None:
         wandb.log(dict(bellman_number=bellman_number), step=start_step)
-    # TODO: implement testing
-    del test_interval
-    del test_size
 
     assert torch.all(bootstrap_Q[0] == 0)
-    ground_truth = sequence.grid_world.Q[
-        1 : 1 + bellman_number  # omit Q_0 from ground_truth
-    ]
+    Q = sequence.grid_world.Q
+    ground_truth = Q[1 : 1 + bellman_number]  # omit Q_0 from ground_truth
+    max_returns = Q.max().item()
 
     test_log = {}
     counter = Counter()
@@ -144,6 +168,26 @@ def train_bellman_iteration(
         if done:
             update_plots()
             save(run, net)
+        if baseline:
+            run_evaluation = e % test_interval == 0
+        else:
+            run_evaluation = done and (bellman_number % test_interval == 0)
+        if bellman_number == 1 and e == 0:
+            run_evaluation = True
+        if evaluator is None:
+            run_evaluation = False
+        if run_evaluation:
+            df = evaluator.rollout(iterations=math.ceil(bellman_number / bellman_delta))
+            plot_log, test_log = log_evaluation(
+                count_threshold=count_threshold,
+                df=df,
+                max_returns=max_returns,
+                run=run,
+                sequence=sequence,
+            )
+            if run is not None:
+                log = dict(**plot_log, **{f"test/{k}": v for k, v in test_log.items()})
+                wandb.log(log, step=epoch_step)
         x: DataPoint
         net.train()
         for t, x in enumerate(train_loader):
@@ -199,6 +243,8 @@ def train_bellman_iteration(
 def compute_values(
     baseline: bool,
     bellman_delta: int,
+    epsilon: float,
+    envs: SubprocVecEnv,
     lr: float,
     model_args: dict,
     model_type: str,
@@ -210,12 +256,11 @@ def compute_values(
     run: Run,
     sample_from_trajectories: bool,
     sequence: Sequence,
-    test_size: int,
     train_args: dict,
     load_path: Optional[str] = None,
 ):
+    grid_world = sequence.grid_world
     if baseline:
-        grid_world = sequence.grid_world
         grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
         sequence = replace(sequence, grid_world=grid_world)
     b, l = sequence.transitions.rewards.shape
@@ -250,6 +295,17 @@ def compute_values(
     if load_path is not None:
         load(load_path, net, run)
     net = net.cuda()
+
+    evaluator = (
+        Evaluator(
+            epsilon=epsilon,
+            envs=envs,
+            net=net,
+            rollout_length=l,  # TODO: play with this
+        )
+        if isinstance(net, CausalTransformer)
+        else None
+    )
     optimizer = optim.Adam(net.parameters(), lr=lr)
     plot_indices = torch.randint(0, b, (n_plot,))
     final = baseline
@@ -260,6 +316,7 @@ def compute_values(
             bellman_delta=bellman_delta,
             bellman_number=bellman_number,
             bootstrap_Q=Q,
+            evaluator=evaluator,
             load_path=load_path,
             lr=lr,
             net=net,
@@ -270,7 +327,6 @@ def compute_values(
             sequence=sequence,
             start_step=start_step,
             stop_at_rmse=rmse_training_final if final else rmse_training_intermediate,
-            test_size=test_size,
             **train_args,
         )
         start_step = step
@@ -296,19 +352,47 @@ def save_artifact(path: Path, run: Run, type: str):
 
 def train(
     *args,
+    dummy_vec_env: bool,
+    grid_world_args: dict,
     partial_observation: bool,
+    rmse_bellman: float,
     run: Run,
     seed: int,
     sample_from_trajectories: bool,
     sequence_args: dict,
+    test_size: int,
+    time_limit: int,
+    train_size: int,
+    config: Optional[str] = None,
     **kwargs,
 ):
     set_seed(seed)
+
+    def make_grid_world(n_tasks: int, seed: int):
+        return GridWorld.make(
+            **grid_world_args, n_tasks=n_tasks, seed=seed, terminal_transitions=None
+        )
+
     sequence = make_sequence(
+        grid_world=make_grid_world(n_tasks=train_size, seed=seed),
         partial_observation=partial_observation,
+        stop_at_rmse=rmse_bellman,
         **sequence_args,
         sample_from_trajectories=sample_from_trajectories,
+        time_limit=time_limit,
     )
+
+    def make_env(i):
+        return lambda: Env(
+            grid_world=GridWorldWithValues.make(
+                stop_at_rmse=rmse_bellman,
+                grid_world=make_grid_world(n_tasks=1, seed=seed + i),
+            ),
+            time_limit=time_limit,
+        )
+
+    env_fns = list(map(make_env, range(test_size)))
+    envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
     if run is not None:
         path = Path(run.dir) / "sequence.pkl"
         with path.open("wb") as f:
@@ -316,8 +400,10 @@ def train(
         save_artifact(path=path, run=run, type="sequence")
     return compute_values(
         *args,
+        envs=envs,
         **kwargs,
         partial_observation=partial_observation,
+        rmse_bellman=rmse_bellman,
         run=run,
         sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,
