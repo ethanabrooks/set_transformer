@@ -73,6 +73,9 @@ def rollout(
     action_space.seed(0)
     epsilon_eye = (1 - epsilon) * torch.eye(a) + epsilon / (a - 1)
 
+    input_q_zero = torch.zeros((context_length, n, a), dtype=float)
+    idx_prefix = torch.arange(context_length - 1)
+
     for t in tqdm(range(l)):
         obs[t] = observation
 
@@ -80,23 +83,25 @@ def rollout(
             action = torch.tensor([action_space.sample() for _ in range(n)])
             action_probs[t] = 1 / a
         else:
-            input_q = torch.zeros((context_length, n, a), dtype=float)
+            idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
+            input_q = input_q_zero
             x = DataPoint(
-                action_probs=action_probs[:t],
-                actions=actions[:t],
-                done=dones[:t],
+                action_probs=action_probs[idx],
+                actions=actions[idx],
+                done=dones[idx],
                 idx=None,
                 input_q=input_q,
                 n_bellman=None,
-                next_obs=next_obs[:t],
-                obs=obs[:t],
-                rewards=rewards[:t],
+                next_obs=next_obs[idx],
+                obs=obs[idx],
+                rewards=rewards[idx],
                 target_q=None,
             )
             x = DataPoint(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
             input_q = x.input_q
+            x.action_probs[:] = 1 / a
             with torch.no_grad():
                 for i in range(iterations):
                     n_bellman = i * torch.ones(n).long()
