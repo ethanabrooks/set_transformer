@@ -74,6 +74,8 @@ def rollout(
     epsilon_eye = (1 - epsilon) * torch.eye(a) + epsilon / (a - 1)
 
     for t in tqdm(range(l)):
+        obs[t] = observation
+
         if t < context_length:
             action = torch.tensor([action_space.sample() for _ in range(n)])
             action_probs[t] = 1 / a
@@ -106,7 +108,6 @@ def rollout(
             action_probs[t] = epsilon_eye[action]
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
 
-        obs[t] = observation
         actions[t] = action
         info_list: list[dict]
         observation, reward, done, info_list = envs.step(action.numpy())
