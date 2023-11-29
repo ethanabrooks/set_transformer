@@ -25,7 +25,7 @@ class Sequence(ABC):
             **kwargs, grid_world=grid_world
         )
         grid_world = GridWorldWithValues.make(
-            grid_world=grid_world, stop_at_rmse=stop_at_rmse
+            grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
         return cls(grid_world=grid_world, transitions=transitions)
 
