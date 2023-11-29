@@ -176,12 +176,21 @@ def render_eval_metrics(
 ):
     if len(numbers) > length:
         subarrays = np.array_split(numbers, length)
-        # Compute the mean of each subarray
         numbers = [subarray.mean() for subarray in subarrays]
-    bar_elements = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+
+    bar_elements = ["▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
+    min_num = min(numbers)
+    data_range = max(numbers) - min_num
+
+    if data_range == 0:
+        precision = 1
+    else:
+        smallest_unit = data_range / (width * (len(bar_elements) - 1))
+        precision = max(0, -int(np.floor(np.log10(smallest_unit))))
+
     for num in numbers:
         num = min(num, max_num)
-        ratio = num / max_num
+        ratio = (num - min_num) / (max_num - min_num) if max_num != min_num else 1
         full_blocks = int(ratio * width)
         fraction = ratio * width - full_blocks
         bar = full_blocks * "█"
@@ -190,7 +199,7 @@ def render_eval_metrics(
             bar += bar_elements[partial_block]
         padding = width - len(bar)
         padding = " " * padding
-        num = round(num, 1)
+        num = round(num, precision)
         yield f"{num:<6} {bar}{padding}▏"
 
 
@@ -228,7 +237,7 @@ def log(
         sems = sems[counts > count_threshold]
         if run is None:
             graph = list(render_eval_metrics(*metrics, max_num=1))
-            print(f"\n{name}" + "\n".join(graph), end="\n\n")
+            print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
 
         fig: Figure
         ax: Axes
