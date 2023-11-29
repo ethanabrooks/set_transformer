@@ -44,6 +44,8 @@ def train_bellman_iteration(
     test_interval: int,
     test_size: int,
 ):
+    if run is not None:
+        wandb.log(dict(bellman_number=bellman_number), step=start_step)
     # TODO: implement testing
     del test_interval
     del test_size
@@ -89,7 +91,8 @@ def train_bellman_iteration(
         v_per_state = torch.unbind(v_per_state, dim=1)
         for i, plot_value in enumerate(v_per_state):
             fig = grid_world.visualize_values(plot_value)
-            test_log[f"plot {i}, bellman {bellman_number}"] = wandb.Image(fig)
+            if wandb.run is not None:
+                run.log({f"plot {i}/bellman {bellman_number}": wandb.Image(fig)})
 
     train_data = make_dataset(bootstrap_Q)
     tick = time.time()
@@ -137,15 +140,39 @@ def train_bellman_iteration(
         train_data = make_dataset(bootstrap_Q)
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
         epoch_step = start_step + e * len(train_loader)
-        if epoch_rmse <= stop_at_rmse:
+        done = epoch_rmse <= stop_at_rmse
+        if done:
             update_plots()
             save(run, net)
-            return Q, epoch_step
         x: DataPoint
         net.train()
         for t, x in enumerate(train_loader):
             step = epoch_step + t
             decayed_lr = decay_lr(lr, step=step, **decay_args)
+            if done or (step % log_interval == 0):
+                fps = log_interval / (time.time() - tick)
+                tick = time.time()
+                train_log = {k: v / counter["n"] for k, v in counter.items()}
+                repeated_log = {f"repeat/{k}": v for k, v in test_log.items()}
+                update_plots()
+
+                train_log.update(
+                    epoch=e,
+                    epoch_rmse=epoch_rmse,
+                    fps=fps,
+                    **ground_truth_metrics,
+                    lr=decayed_lr,
+                    max_Q=train_data.values.Q.max().item(),
+                    **versus_metrics,
+                )
+                train_log = {f"train/{k}": v for k, v in train_log.items()}
+                counter = Counter()
+                print(".", end="", flush=True)
+                if run is not None:
+                    wandb.log(dict(**repeated_log, **train_log), step=step)
+            if done:
+                return Q, epoch_step
+
             for param_group in optimizer.param_groups:
                 param_group.update(lr=decayed_lr)
             outputs, loss = net.forward_with_rotation(
@@ -167,29 +194,6 @@ def train_bellman_iteration(
                 **metrics_args,
             )
             counter.update(asdict(metrics), n=1)
-            if step % log_interval == 0:
-                fps = log_interval / (time.time() - tick)
-                tick = time.time()
-                train_log = {k: v / counter["n"] for k, v in counter.items()}
-                update_plots()
-
-                train_log.update(
-                    bellman_number=bellman_number,
-                    epoch=e,
-                    epoch_rmse=epoch_rmse,
-                    fps=fps,
-                    **ground_truth_metrics,
-                    lr=decayed_lr,
-                    max_Q=train_data.values.Q.max().item(),
-                    **versus_metrics,
-                )
-                train_log = {f"train-Q/{k}": v for k, v in train_log.items()}
-                counter = Counter()
-                print(".", end="", flush=True)
-                if run is not None:
-                    wandb.log(dict(**train_log, **test_log), step=step)
-
-                test_log = {}
 
 
 def compute_values(
@@ -273,7 +277,7 @@ def compute_values(
         rmse = compute_rmse(Q[-1], new_Q[-1])
         Q = F.pad(new_Q, (0, 0, 0, 0, 0, 0, 1, 0))
         if run is not None:
-            wandb.log({"Q/rmse": rmse}, step=step)
+            wandb.log(dict(rmse=rmse), step=step)
         if final:
             if run is not None:
                 path = Path(run.dir) / "Q.pt"
