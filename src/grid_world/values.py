@@ -32,17 +32,13 @@ class GridWorldWithValues(GridWorld):
         )
 
     @classmethod
-    def make(cls, stop_at_rmse: float, grid_world: GridWorld):
-        Q = torch.stack(
-            list(
-                tqdm(
-                    grid_world.evaluate_policy_iteratively(
-                        Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
-                    ),
-                    desc="Computing values",
-                )
-            )
+    def make(cls, stop_at_rmse: float, grid_world: GridWorld, verbose: bool = False):
+        iterator = grid_world.evaluate_policy_iteratively(
+            Pi=grid_world.Pi, stop_at_rmse=stop_at_rmse
         )
+        if verbose:
+            iterator = tqdm(iterator, desc="Computing values")
+        Q = torch.stack(list(iterator))
         optimally_improved_policy_values = grid_world.evaluate_improved_policy(
             Q=Q[-1], stop_at_rmse=stop_at_rmse
         ).cuda()
