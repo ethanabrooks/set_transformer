@@ -18,7 +18,6 @@ rmse_training_intermediate: 0.005
 sample_from_trajectories: true
 seed: 3
 sequence_args:
-  episode_length: 64
   grid_world_args:
     absorbing_state: false
     dense_reward: false
@@ -30,9 +29,9 @@ sequence_args:
     p_wall: 0
     terminate_on_goal: true
     use_heldout_goals: false
-  n_episodes: 1
   seed: 0
   stop_at_rmse: 0.005
+  trajectory_length: 64
   use_exploration_policy: false
 test_size: 50
 train_args:

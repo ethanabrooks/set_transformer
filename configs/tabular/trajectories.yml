@@ -12,8 +12,7 @@ test_data_args:
 train_data_args:
   sample_from_trajectories: true
   sequence_args:
-    episode_length: 20
     grid_world_args:
       n_maze: 0
       p_wall: 0
-    n_episodes: 10
+    trajectory_length: 200
