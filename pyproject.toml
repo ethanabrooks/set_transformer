@@ -16,7 +16,7 @@ torchrl = "^0.0.5"
 tensordict = "^0.1.0"
 torchsnapshot = "^0.1.0"
 wandb = "^0.14.1"
-ray = { version = "^2.3.1", extras = ["tune"] }
+ray = { version = ">=2.3.1,<2.8.0", extras = ["tune"] }
 mujoco = "^2.3.5"
 dm_alchemy = { git = "https://github.com/ethanabrooks/dm_alchemy.git", rev = "a295e5432d518903a736cda3ec63a0c480fe6312" }
 grpcio-tools = "1.49.1"
