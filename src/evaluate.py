@@ -51,22 +51,24 @@ def rollout(
     ground_truth: torch.Tensor,
 ) -> pd.DataFrame:
     x_orig = x
+    del x
     observation = envs.reset()
     observation = torch.from_numpy(observation).float()
-    observation = x.obs[:, 0]
+    observation = x_orig.obs[:, 0]
     n, *o = observation.shape
     a = envs.action_space.n
     sequence_network: GPT2 = net.sequence_network
     config: GPT2Config = sequence_network.gpt2.config
     context_length = config.n_positions
     l = context_length + rollout_length
+    fill_value = net.pad_value
 
-    action_probs = torch.zeros((l, n, a))
-    actions = torch.zeros((l, n), dtype=torch.int64)
-    dones = torch.zeros((l, n), dtype=torch.bool)
+    action_probs = torch.full((l, n, a), fill_value, dtype=torch.float32)
+    actions = torch.full((l, n), fill_value, dtype=torch.int64)
+    dones = torch.full((l, n), fill_value, dtype=torch.bool)
     # next_obs = torch.zeros((l, n, *o))
-    obs = torch.zeros((l, n, *o))
-    rewards = torch.zeros((l, n))
+    obs = torch.full((l, n, *o), fill_value)
+    rewards = torch.full((l, n), fill_value)
     optimals = None
     # policy = envs.policy
 
@@ -95,7 +97,7 @@ def rollout(
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
-            x_T = DataPoint(*[y if y.ndim == 1 else y.swapaxes(0, 1) for y in x])
+            x_T = DataPoint(*[y if y.ndim == 1 else y.swapaxes(0, 1) for y in x_orig])
             x = DataPoint(
                 action_probs=x_T.action_probs,  # action_probs[idx],
                 actions=x_T.actions,  # actions[idx],
@@ -121,9 +123,7 @@ def rollout(
                         x._replace(input_q=input_q, n_bellman=n_bellman),
                         optimizer=None,
                     )
-                    gt = ground_truth[i + 1, x_orig.idx[:, None], x_orig.obs]
-                    gt2 = envs.values[torch.arange(n)[:, None], i + 1, x_orig.obs]
-                    assert torch.all(gt == gt2)
+                    gt = envs.values[torch.arange(n)[:, None], i + 1, x.obs]
                     # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
                     # sep = float("nan") * torch.ones((context_length, 1))
                     # gt = ground_truth_values[idx][:, :, 1][:, 0]
