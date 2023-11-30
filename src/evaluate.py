@@ -92,8 +92,12 @@ def rollout(
     idx_prefix = torch.arange(context_length - 1)
 
     for t in tqdm(range(l)):
+
+        def check(x1: torch.Tensor, x2: torch.Tensor):
+            assert torch.all(x1[t] == x2[:, t])
+
         obs[t] = observation
-        assert torch.all(obs[t] == x_orig.obs[:, t])
+        check(obs, x_orig.obs)
 
         if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
@@ -175,11 +179,11 @@ def rollout(
         # record step result
         assert len(step.info) == n
         next_obs[t] = torch.from_numpy(step.observation)
-        assert torch.all(next_obs[t] == x_orig.next_obs[:, t])
+        check(next_obs, x_orig.next_obs)
         rewards[t] = torch.from_numpy(step.reward)
-        assert torch.all(rewards[t] == x_orig.rewards[:, t])
+        check(rewards, x_orig.rewards)
         dones[t] = torch.from_numpy(step.done)
-        assert torch.all(dones[t] == x_orig.done[:, t])
+        check(dones, x_orig.done)
         observation = torch.from_numpy(step.observation)
 
         # record episode timesteps
