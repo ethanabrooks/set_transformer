@@ -66,7 +66,7 @@ def rollout(
     obs = torch.zeros((l, n, *o))
     rewards = torch.zeros((l, n))
     optimals = None
-    ground_truth_values = envs.values
+    policy = envs.policy
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -84,8 +84,10 @@ def rollout(
         obs[t] = observation
 
         if t < context_length:
-            action = torch.tensor([action_space.sample() for _ in range(n)])
-            action_probs[t] = 1 / a
+            # action = torch.tensor([action_space.sample() for _ in range(n)])
+            # action_probs[t] = 1 / a
+            action_probs[t] = policy[torch.arange(n), observation.long()]
+            action = torch.multinomial(action_probs[t], 1).squeeze(-1)
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
@@ -105,7 +107,6 @@ def rollout(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
             input_q = torch.zeros_like(x_orig.input_q)
-            x.action_probs[:] = 1 / a
             with torch.no_grad():
                 for i in range(len(ground_truth)):
                     n_bellman = i * torch.ones_like(x_orig.n_bellman).long()
