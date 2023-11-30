@@ -1,5 +1,6 @@
 import functools
 from dataclasses import dataclass
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -107,8 +108,9 @@ def rollout(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
             input_q = torch.zeros_like(x_orig.input_q)
+            errors = []
             with torch.no_grad():
-                for i in range(len(ground_truth)):
+                for i in range(len(ground_truth) - 1):
                     n_bellman = i * torch.ones_like(x_orig.n_bellman).long()
                     input_q: torch.Tensor
                     input_q, _ = net.forward_with_rotation(
@@ -121,9 +123,9 @@ def rollout(
                     # gt = ground_truth_values[idx][:, :, 1][:, 0]
                     # rounded = (input_q * 100).round().cpu()
                     mae = (input_q.cpu() - gt).abs().mean()
-                    print(mae)
-                    breakpoint()
+                    errors.append(mae.item())
             action = input_q[:, -1].argmax(-1).cpu()
+            print("\n".join(list(render_eval_metrics(*errors, max_num=1))))
             breakpoint()
             action_probs[t] = epsilon_eye[action]
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
@@ -187,7 +189,7 @@ def rollout(
 
 
 def render_eval_metrics(
-    *numbers: float, max_num: float, width: int = 10, length: int = 10
+    *numbers: float, max_num: Optional[float] = None, width: int = 10, length: int = 10
 ):
     if len(numbers) > length:
         subarrays = np.array_split(numbers, length)
@@ -195,6 +197,8 @@ def render_eval_metrics(
 
     bar_elements = ["▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"]
     min_num = min(numbers)
+    if max_num is None:
+        max_num = max(numbers)
     data_range = max(numbers) - min_num
 
     if data_range == 0:
