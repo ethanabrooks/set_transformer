@@ -90,20 +90,16 @@ def rollout(
 
     input_q_zero = torch.zeros((context_length, n, a), dtype=float)
     idx_prefix = torch.arange(context_length - 1)
-    epsilon_eye = (1 - epsilon) * torch.eye(a) + epsilon / a
 
     for t in tqdm(range(l)):
 
-        def check(x1: torch.Tensor, x2: torch.Tensor):
-            try:
-                assert torch.all(x1[t] == x2[:, t])
-            except IndexError:
-                pass
+        def check(*_):
+            pass
 
         obs[t] = observation
         check(obs, x_orig.obs)
 
-        if t < context_length:
+        if t < -1:  # context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
             # action_probs[t] = 1 / a
             # action_probs[t] = policy[torch.arange(n), observation.long()]
@@ -136,30 +132,31 @@ def rollout(
             )
 
             input_q = torch.zeros_like(x.input_q)
-            errors = []
-            with torch.no_grad():
-                for i in range(ground_truth.size(1) - 1):
-                    n_bellman = i * torch.ones(n).long()
-                    input_q: torch.Tensor
-                    input_q, _ = net.forward_with_rotation(
-                        x._replace(input_q=input_q, n_bellman=n_bellman),
-                        optimizer=None,
-                    )
-                    gt = ground_truth[torch.arange(n)[:, None], i + 1, x.obs.long()]
-                    # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
-                    # sep = float("nan") * torch.ones((context_length, 1))
-                    # gt = ground_truth_values[idx][:, :, 1][:, 0]
-                    # rounded = (input_q * 100).round().cpu()
-                    mae = (input_q.cpu() - gt).abs().mean()
-                    errors.append(mae.item())
-            output = input_q.cpu()
-            acc = (output.argmax(-1) == gt.argmax(-1)).float()
-            action = output[:, -1].argmax(-1)
-            print("\n".join(list(render_eval_metrics(*errors, max_num=1))))
-            print("Overall Accuracy:", acc.mean().item())
-            print("Last Index Accuracy:", acc[:, -1].mean().item())
-            action_probs[t] = epsilon_eye[action]
-            action = torch.multinomial(action_probs[t], 1).squeeze(-1)
+            # errors = []
+            # with torch.no_grad():
+            #     for i in range(ground_truth.size(1) - 1):
+            #         n_bellman = i * torch.ones(n).long()
+            #         input_q: torch.Tensor
+            #         input_q, _ = net.forward_with_rotation(
+            #             x._replace(input_q=input_q, n_bellman=n_bellman),
+            #             optimizer=None,
+            #         )
+            #         gt = ground_truth[torch.arange(n)[:, None], i + 1, x.obs.long()]
+            #         # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
+            #         # sep = float("nan") * torch.ones((context_length, 1))
+            #         # gt = ground_truth_values[idx][:, :, 1][:, 0]
+            #         # rounded = (input_q * 100).round().cpu()
+            #         mae = (input_q.cpu() - gt).abs().mean()
+            #         errors.append(mae.item())
+            # output = input_q.cpu()
+            # acc = (output.argmax(-1) == gt.argmax(-1)).float()
+            # action = output[:, -1].argmax(-1)
+            # print("\n".join(list(render_eval_metrics(*errors, max_num=1))))
+            # print("Overall Accuracy:", acc.mean().item())
+            # print("Last Index Accuracy:", acc[:, -1].mean().item())
+            action = ground_truth[torch.arange(n), -1, observation.long()].argmax(-1)
+            action_probs[t] = torch.eye(a)[action]
+            # action = torch.multinomial(action_probs[t], 1).squeeze(-1)
         actions[t] = action
         info_list: list[dict]
         observation, reward, done, info_list = envs.step(action.numpy())
@@ -194,7 +191,7 @@ def rollout(
                 else:
                     observation[index] = envs.reset(index)
 
-                optimal = envs.optimal(index, obs[t, index])
+                optimal = envs.optimal(index, observation[index])
                 if optimal is not None and t + 1 < len(optimals):
                     optimals[t + 1, index] = optimal
     idx = torch.arange(n)[None].expand(l, -1)
@@ -269,15 +266,21 @@ def log(
         discounted = df[key] * discounts
         return discounted.sum()
 
-    returns: pd.Series = df.groupby(["episode", "idx"]).apply(
+    def is_complete(df: pd.DataFrame):
+        dones: pd.Series = df["dones"]
+        return dones.iloc[-1]
+
+    complete_episodes = df.groupby(["episode", "idx"]).filter(is_complete)
+    returns: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
         functools.partial(get_returns, "rewards")
     )
     graphs = dict(returns=returns)
     if "optimals" in df.columns:
-        optimals: pd.Series = df.groupby(["episode", "idx"]).apply(
+        optimals: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
             functools.partial(get_returns, "optimals")
         )
         metrics = optimals - returns
+        breakpoint()
         assert (metrics >= 0).all()
         graphs["regret"] = metrics
     plot_log = {}
@@ -291,6 +294,7 @@ def log(
         if run is None:
             graph = list(render_eval_metrics(*metrics, max_num=1))
             print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
+        breakpoint()
 
         fig: Figure
         ax: Axes

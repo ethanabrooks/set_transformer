@@ -302,7 +302,7 @@ def compute_values(
         raise ValueError(f"Unknown model_type {model_type}")
     if load_path is not None:
         load(load_path, net, run)
-    net = net.cuda()
+    # net = net.cuda()
 
     evaluator = (
         Evaluator(

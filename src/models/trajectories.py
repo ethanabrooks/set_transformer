@@ -129,7 +129,7 @@ class Model(Base):
     def forward_with_rotation(
         self, x: DataPoint, optimizer: Optional[Optimizer]
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        x_cuda = DataPoint(*[y if y is None else y.cuda() for y in x])
+        x_cuda = DataPoint(*[y if y is None else y for y in x])
         x_mask = deepcopy(x_cuda)
         x_mask.action_probs[:, -1] = self.pad_value
         x_mask.actions[:, -1] = self.pad_value
