@@ -135,8 +135,11 @@ def rollout(
                     # rounded = (input_q * 100).round().cpu()
                     mae = (input_q.cpu() - gt).abs().mean()
                     errors.append(mae.item())
-            action = input_q[:, -1].argmax(-1).cpu()
+            output = input_q.cpu()
+            acc = (output.argmax(-1) == gt.argmax(-1)).float().mean()
+            action = output[:, -1].argmax(-1)
             print("\n".join(list(render_eval_metrics(*errors, max_num=1))))
+            print("Accuracy:", acc.item())
             breakpoint()
             action_probs[t] = epsilon_eye[action]
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
