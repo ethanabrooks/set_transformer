@@ -15,4 +15,5 @@ train_data_args:
     grid_world_args:
       n_maze: 0
       p_wall: 0
+    time_limit: null
     trajectory_length: 200
