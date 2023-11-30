@@ -21,7 +21,6 @@ from evaluate import log as log_evaluation
 from evaluate import rollout
 from grid_world.base import GridWorld
 from grid_world.env import Env
-from grid_world.values import GridWorldWithValues
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import CausalTransformer, SetTransformer
 from sequence import make_sequence
@@ -393,13 +392,15 @@ def train(
 
     def make_env(i):
         return lambda: Env(
-            grid_world=GridWorldWithValues.make(
-                stop_at_rmse=rmse_bellman,
-                grid_world=make_grid_world(n_tasks=1, seed=seed + i),
-            ),
+            grid_world=sequence.grid_world[i : i + 1],
+            # grid_world=GridWorldWithValues.make(
+            #     stop_at_rmse=rmse_bellman,
+            #     grid_world=make_grid_world(n_tasks=1, seed=seed + i),
+            # ),
             time_limit=time_limit,
         )
 
+    test_size = 250
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
     if run is not None:

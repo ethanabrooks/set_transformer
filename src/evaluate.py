@@ -53,6 +53,7 @@ def rollout(
     x_orig = x
     observation = envs.reset()
     observation = torch.from_numpy(observation).float()
+    observation = x.obs[:, 0]
     n, *o = observation.shape
     a = envs.action_space.n
     sequence_network: GPT2 = net.sequence_network
@@ -63,11 +64,11 @@ def rollout(
     action_probs = torch.zeros((l, n, a))
     actions = torch.zeros((l, n), dtype=torch.int64)
     dones = torch.zeros((l, n), dtype=torch.bool)
-    next_obs = torch.zeros((l, n, *o))
+    # next_obs = torch.zeros((l, n, *o))
     obs = torch.zeros((l, n, *o))
     rewards = torch.zeros((l, n))
     optimals = None
-    policy = envs.policy
+    # policy = envs.policy
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -87,31 +88,34 @@ def rollout(
         if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
             # action_probs[t] = 1 / a
-            action_probs[t] = policy[torch.arange(n), observation.long()]
-            action = torch.multinomial(action_probs[t], 1).squeeze(-1)
+            # action_probs[t] = policy[torch.arange(n), observation.long()]
+            # action = torch.multinomial(action_probs[t], 1).squeeze(-1)
+            action_probs[t] = x_orig.action_probs[:, t]
+            action = x_orig.actions[:, t]
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
+            x_T = DataPoint(*[y if y.ndim == 1 else y.swapaxes(0, 1) for y in x])
             x = DataPoint(
-                action_probs=action_probs[idx],
-                actions=actions[idx],
-                done=dones[idx],
+                action_probs=x_T.action_probs,  # action_probs[idx],
+                actions=x_T.actions,  # actions[idx],
+                done=x_T.done,  # dones[idx],
                 idx=None,
                 input_q=input_q,
                 n_bellman=None,
-                next_obs=next_obs[idx],
-                obs=obs[idx],
-                rewards=rewards[idx],
+                next_obs=x_T.next_obs,  # next_obs[idx],
+                obs=x_T.obs,  # obs[idx],
+                rewards=x_T.rewards,  # rewards[idx],
                 target_q=None,
             )
             x = DataPoint(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
-            input_q = torch.zeros_like(x_orig.input_q)
+            input_q = torch.zeros_like(x.input_q)
             errors = []
             with torch.no_grad():
                 for i in range(len(ground_truth) - 1):
-                    n_bellman = i * torch.ones_like(x_orig.n_bellman).long()
+                    n_bellman = i * torch.ones(n).long()
                     input_q: torch.Tensor
                     input_q, _ = net.forward_with_rotation(
                         x_orig._replace(input_q=input_q, n_bellman=n_bellman),
