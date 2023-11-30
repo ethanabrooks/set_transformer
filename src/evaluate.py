@@ -118,13 +118,12 @@ def rollout(
                     n_bellman = i * torch.ones(n).long()
                     input_q: torch.Tensor
                     input_q, _ = net.forward_with_rotation(
-                        x_orig._replace(input_q=input_q, n_bellman=n_bellman),
+                        x._replace(input_q=input_q, n_bellman=n_bellman),
                         optimizer=None,
                     )
                     gt = ground_truth[i + 1, x_orig.idx[:, None], x_orig.obs]
                     gt2 = envs.values[torch.arange(n)[:, None], i + 1, x_orig.obs]
                     assert torch.all(gt == gt2)
-                    breakpoint()
                     # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
                     # sep = float("nan") * torch.ones((context_length, 1))
                     # gt = ground_truth_values[idx][:, :, 1][:, 0]
