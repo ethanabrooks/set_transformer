@@ -52,9 +52,8 @@ def rollout(
 ) -> pd.DataFrame:
     x_orig = x
     del x
-    observation = envs.reset(state=x_orig.obs[:, 0].numpy())
+    observation = envs.reset()
     observation = torch.from_numpy(observation).float()
-    assert torch.all(x_orig.obs[:, 0] == observation)
     n, *o = observation.shape
     a = envs.action_space.n
     sequence_network: GPT2 = net.sequence_network
