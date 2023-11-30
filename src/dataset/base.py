@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -53,13 +54,19 @@ class Dataset(BaseDataset):
 
     @property
     def n_tokens(self):
+        return 1 + self.pad_value
+
+    @property
+    @lru_cache()
+    def pad_value(self):
         transitions = self.sequence.transitions
-        return 1 + max(
+        pad_value: torch.Tensor = 1 + max(
             transitions.actions.max(),
             transitions.next_states.max(),
             transitions.rewards.max(),
             transitions.states.max(),
         )
+        return pad_value.item()
 
     def __getitem__(self, idx) -> DataPoint:
         idx, n_bellman = np.unravel_index(
