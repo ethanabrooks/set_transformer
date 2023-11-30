@@ -181,7 +181,6 @@ def train_bellman_iteration(
             if run_evaluation:
                 df = evaluator.rollout(
                     iterations=math.ceil(bellman_number / bellman_delta),
-                    x=x,
                     ground_truth=sequence.grid_world.Q,
                 )
                 plot_log, test_log = log_evaluation(

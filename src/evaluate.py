@@ -47,11 +47,8 @@ def rollout(
     iterations: int,
     net: CausalTransformer,
     rollout_length: int,
-    x: DataPoint,
     ground_truth: torch.Tensor,
 ) -> pd.DataFrame:
-    x_orig = x
-    del x
     observation = envs.reset()
     observation = torch.from_numpy(observation).float()
     n, *o = observation.shape
@@ -93,12 +90,7 @@ def rollout(
     epsilon_eye = (1 - epsilon) * torch.eye(a) + epsilon / a
 
     for t in tqdm(range(l)):
-
-        def check(*_):
-            pass
-
         obs[t] = observation
-        check(obs, x_orig.obs)
 
         if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
@@ -108,12 +100,6 @@ def rollout(
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
-            x_T = DataPoint(*[y if y.ndim == 1 else y.swapaxes(0, 1) for y in x_orig])
-            x_T.action_probs[-1] = fill_value
-            x_T.actions[-1] = fill_value
-            x_T.done[-1] = fill_value
-            x_T.next_obs[-1] = fill_value
-            x_T.rewards[-1] = fill_value
             x = DataPoint(
                 action_probs=action_probs[idx],
                 actions=actions[idx],
@@ -171,11 +157,8 @@ def rollout(
         # record step result
         assert len(step.info) == n
         next_obs[t] = torch.from_numpy(step.observation)
-        check(next_obs, x_orig.next_obs)
         rewards[t] = torch.from_numpy(step.reward)
-        check(rewards, x_orig.rewards)
         dones[t] = torch.from_numpy(step.done)
-        check(dones, x_orig.done)
         observation = torch.from_numpy(step.observation)
 
         # record episode timesteps
