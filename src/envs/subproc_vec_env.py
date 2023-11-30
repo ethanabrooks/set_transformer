@@ -37,6 +37,7 @@ class Command(Enum):
     ACTION_SPACE = auto()
     CLOSE = auto()
     OBSERVATION_SPACE = auto()
+    OPTIMAL = auto()
     POLICY = auto()
     RESET = auto()
     STEP = auto()
@@ -50,6 +51,8 @@ def work(env: Env, command: Command, data):
         return env.observation_space
     elif command == Command.RESET:
         return env.reset(data)
+    elif command == Command.OPTIMAL:
+        return env.optimal(data)
     elif command == Command.POLICY:
         return env.policy
     elif command == Command.STEP:
@@ -132,6 +135,9 @@ class SubprocVecEnv:
         for p in self.ps:
             p.join()
         self.closed = True
+
+    def optimal(self, n: int, state: torch.Tensor) -> Optional[float]:
+        return self.send_to_nth(n, Command.OPTIMAL, state)
 
     def reset(
         self, n: Optional[int] = None, state: Optional[torch.Tensor] = None

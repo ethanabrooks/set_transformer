@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import gym
 import gym.spaces
@@ -24,4 +25,8 @@ class Env(gym.Env, ABC):
     @property
     @abstractmethod
     def values(self) -> torch.Tensor:
+        pass
+
+    @abstractmethod
+    def optimal(self) -> Optional[torch.Tensor]:
         pass

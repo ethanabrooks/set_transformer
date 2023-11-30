@@ -12,7 +12,6 @@ from grid_world.values import GridWorld, GridWorldWithValues
 class Env(Env):
     grid_world: GridWorld
     current_state: Optional[int] = None
-    first: bool = True
     time_limit: Optional[int] = None
     time_remaining: Optional[int] = None
 
@@ -40,6 +39,14 @@ class Env(Env):
     def convert_2d_to_1d(self, state: torch.Tensor):
         return self.grid_world.convert_2d_to_1d(state)
 
+    def optimal(self, state: torch.Tensor) -> Optional[float]:
+        if isinstance(self.grid_world, GridWorldWithValues):
+            return (
+                self.grid_world.optimally_improved_policy_values[:, state.long().item()]
+                .max()
+                .item()
+            )
+
     def reset(self, state: Optional[torch.Tensor] = None):
         assert self.grid_world.n_tasks == 1
         if state is None:
@@ -47,23 +54,11 @@ class Env(Env):
         else:
             current_state = state
         self.current_state = current_state.item()
-        self.first = True
         self.time_remaining = self.time_limit
         return self.current_state
 
     def step(self, action: Union[torch.Tensor, int]):
         info = dict()
-        if self.first:
-            self.first = False
-            if isinstance(self.grid_world, GridWorldWithValues):
-                optimal = (
-                    self.grid_world.optimally_improved_policy_values[
-                        :, self.current_state
-                    ]
-                    .max()
-                    .item()
-                )
-                info.update(optimal=optimal)
         if isinstance(action, int):
             action = torch.tensor([action])
         action = action.reshape(1)

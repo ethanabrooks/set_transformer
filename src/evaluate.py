@@ -66,11 +66,19 @@ def rollout(
     action_probs = torch.full((l, n, a), fill_value, dtype=torch.float32)
     actions = torch.full((l, n), fill_value, dtype=torch.int64)
     dones = torch.full((l, n), fill_value, dtype=torch.bool)
-    next_obs = torch.zeros((l, n, *o))
-    obs = torch.full((l, n, *o), fill_value)
-    rewards = torch.full((l, n), fill_value)
+    next_obs = torch.zeros((l, n, *o), dtype=torch.float32)
+    obs = torch.full((l, n, *o), fill_value, dtype=torch.float32)
+    rewards = torch.full((l, n), fill_value, dtype=torch.float32)
     optimals = None
-    # policy = envs.policy
+
+    for i, o in enumerate(observation):
+        optimal = envs.optimal(i, o)
+        if optimal is not None:
+            if optimals is None:
+                optimals = torch.zeros_like(rewards)
+            optimals[0, i] = optimal
+
+    ground_truth = envs.values
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -121,14 +129,14 @@ def rollout(
             input_q = torch.zeros_like(x.input_q)
             errors = []
             with torch.no_grad():
-                for i in range(len(ground_truth) - 1):
+                for i in range(ground_truth.size(1) - 1):
                     n_bellman = i * torch.ones(n).long()
                     input_q: torch.Tensor
                     input_q, _ = net.forward_with_rotation(
                         x._replace(input_q=input_q, n_bellman=n_bellman),
                         optimizer=None,
                     )
-                    gt = envs.values[torch.arange(n)[:, None], i + 1, x.obs]
+                    gt = ground_truth[torch.arange(n)[:, None], i + 1, x.obs.long()]
                     # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
                     # sep = float("nan") * torch.ones((context_length, 1))
                     # gt = ground_truth_values[idx][:, :, 1][:, 0]
@@ -159,14 +167,6 @@ def rollout(
         dones[t] = torch.from_numpy(step.done)
         observation = torch.from_numpy(step.observation)
 
-        # check for optimal reward
-        for index, info in enumerate(info_list):
-            optimal = info.get("optimal", None)
-            if optimal is not None:
-                if optimals is None:
-                    optimals = torch.zeros_like(rewards)
-                optimals[t, index] = optimal
-
         # record episode timesteps
         timesteps[t] = timestep
         timestep += 1
@@ -179,6 +179,9 @@ def rollout(
             assert isinstance(done, (bool, np.bool_))
             if done:
                 obs[t, index] = envs.reset(index)
+                optimal = envs.optimal(index, obs[t, index])
+                if optimal is not None and t + 1 < len(optimals):
+                    optimals[t + 1, index] = optimal
     idx = torch.arange(n)[None].expand(l, -1)
     data = dict(
         actions=actions,
