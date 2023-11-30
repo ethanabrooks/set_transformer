@@ -120,17 +120,27 @@ def rollout(
             x_T.next_obs[-1] = fill_value
             x_T.rewards[-1] = fill_value
             x = DataPoint(
-                action_probs=x_T.action_probs,  # action_probs[idx],
-                actions=x_T.actions,  # actions[idx],
-                done=x_T.done,  # dones[idx],
+                action_probs=action_probs[idx],
+                actions=actions[idx],
+                done=dones[idx],
                 idx=None,
                 input_q=input_q,
                 n_bellman=None,
-                next_obs=x_T.next_obs,  # next_obs[idx],
-                obs=x_T.obs,  # obs[idx],
-                rewards=x_T.rewards,  # rewards[idx],
+                next_obs=next_obs[idx],
+                obs=obs[idx],
+                rewards=rewards[idx],
                 target_q=None,
             )
+            # for name, x1, x2 in [
+            #     ("action_probs", x_T.action_probs, action_probs[idx]),
+            #     ("actions", x_T.actions, actions[idx]),
+            #     ("done", x_T.done, dones[idx]),
+            #     ("next_obs", x_T.next_obs, next_obs[idx]),
+            #     ("obs", x_T.obs, obs[idx]),
+            #     ("rewards", x_T.rewards, rewards[idx]),
+            # ]:
+            #     if not torch.all(x1 == x2):
+            #         breakpoint()
             x = DataPoint(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
@@ -146,18 +156,14 @@ def rollout(
                         optimizer=None,
                     )
                     gt = ground_truth[torch.arange(n)[:, None], i + 1, x.obs.long()]
-                    # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
-                    # sep = float("nan") * torch.ones((context_length, 1))
-                    # gt = ground_truth_values[idx][:, :, 1][:, 0]
-                    # rounded = (input_q * 100).round().cpu()
                     mae = (input_q.cpu() - gt).abs().mean()
                     errors.append(mae.item())
             output = input_q.cpu()
-            acc = (output.argmax(-1) == gt.argmax(-1)).float()
+            best = ground_truth[torch.arange(n), -1, observation.long()].argmax(-1)
             action = output[:, -1].argmax(-1)
+            acc = (action == best).float()
             print("\n".join(list(render_eval_metrics(*errors, max_num=1))))
-            print("Overall Accuracy:", acc.mean().item())
-            print("Last Index Accuracy:", acc[:, -1].mean().item())
+            print("Accuracy:", acc.mean().item())
             action_probs[t] = epsilon_eye[action]
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
         actions[t] = action
@@ -194,7 +200,7 @@ def rollout(
                 else:
                     observation[index] = envs.reset(index)
 
-                optimal = envs.optimal(index, obs[t, index])
+                optimal = envs.optimal(index, observation[index])
                 if optimal is not None and t + 1 < len(optimals):
                     optimals[t + 1, index] = optimal
     idx = torch.arange(n)[None].expand(l, -1)
@@ -269,12 +275,17 @@ def log(
         discounted = df[key] * discounts
         return discounted.sum()
 
-    returns: pd.Series = df.groupby(["episode", "idx"]).apply(
+    def is_complete(df: pd.DataFrame):
+        dones: pd.Series = df["dones"]
+        return dones.iloc[-1]
+
+    complete_episodes = df.groupby(["episode", "idx"]).filter(is_complete)
+    returns: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
         functools.partial(get_returns, "rewards")
     )
     graphs = dict(returns=returns)
     if "optimals" in df.columns:
-        optimals: pd.Series = df.groupby(["episode", "idx"]).apply(
+        optimals: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
             functools.partial(get_returns, "optimals")
         )
         metrics = optimals - returns
@@ -309,4 +320,5 @@ def log(
 
         test_log[name] = means.iloc[-1]
         plot_log[name] = wandb.Image(fig)
+    breakpoint()
     return plot_log, test_log
