@@ -28,6 +28,10 @@ class Env(Env):
     def observation_space(self):
         return MultiDiscrete([self.grid_size, self.grid_size])
 
+    @property
+    def policy(self):
+        return self.grid_world.Pi.squeeze(0)
+
     def convert_2d_to_1d(self, state: torch.Tensor):
         return self.grid_world.convert_2d_to_1d(state)
 

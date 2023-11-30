@@ -8,6 +8,7 @@ from multiprocessing.connection import Connection
 from typing import Optional
 
 import numpy as np
+import torch
 from gym.spaces import Discrete
 
 from envs.base import Env
@@ -36,6 +37,7 @@ class Command(Enum):
     ACTION_SPACE = auto()
     CLOSE = auto()
     OBSERVATION_SPACE = auto()
+    POLICY = auto()
     RESET = auto()
     STEP = auto()
 
@@ -47,6 +49,8 @@ def work(env: Env, command: Command, data):
         return env.observation_space
     elif command == Command.RESET:
         return env.reset()
+    elif command == Command.POLICY:
+        return env.policy
     elif command == Command.STEP:
         return env.step(data)
     raise RuntimeError(f"Unknown command {command}")
@@ -104,6 +108,10 @@ class SubprocVecEnv:
     @property
     def observation_space(self):
         return self.send_to_first(Command.OBSERVATION_SPACE, None)
+
+    @property
+    def policy(self):
+        return torch.stack(self.send_to_all(Command.POLICY, None))
 
     def close(self):
         if self.waiting:
