@@ -120,7 +120,7 @@ class Model(Base):
     def forward_with_rotation(
         self, x: DataPoint, optimizer: Optional[Optimizer]
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        x_orig = x
+        x_cuda = DataPoint(*[y if y is None else y.cuda() for y in x])
         agg_loss = 0
         agg_outputs = None
         updated = None
@@ -137,8 +137,7 @@ class Model(Base):
                     return x
                 return torch.roll(x, shifts=rotation_shift, dims=1)
 
-            x_cpu = DataPoint(*[rotate(x) for x in x_orig])
-            x = DataPoint(*[x if x is None else x.cuda() for x in x_cpu])
+            x = DataPoint(*[rotate(x) for x in x_cuda])
             rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
             if optimizer is not None:
                 optimizer.zero_grad()
