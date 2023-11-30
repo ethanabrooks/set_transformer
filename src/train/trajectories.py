@@ -153,6 +153,7 @@ def train_bellman_iteration(
                 fps = log_interval / (time.time() - tick)
                 tick = time.time()
                 train_log = {k: v / counter["n"] for k, v in counter.items()}
+                test_log.update(bellman_number=bellman_number)
                 repeated_log = {f"repeat/{k}": v for k, v in test_log.items()}
                 update_plots()
 
