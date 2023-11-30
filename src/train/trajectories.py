@@ -238,6 +238,7 @@ def compute_values(
             n_ctx=l,
             n_tokens=n_tokens,
             partial_observation=partial_observation,
+            pad_value=data.pad_value,
         )
     elif model_type == "set":
         net = SetTransformer(
@@ -245,6 +246,7 @@ def compute_values(
             **model_args,
             n_actions=data.n_actions,
             n_tokens=n_tokens,
+            pad_value=data.pad_value,
         )
     else:
         raise ValueError(f"Unknown model_type {model_type}")
