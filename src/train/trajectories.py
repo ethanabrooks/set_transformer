@@ -374,6 +374,7 @@ def train(
     config: Optional[str] = None,
     **kwargs,
 ):
+    del config
     set_seed(seed)
 
     def make_grid_world(n_tasks: int, seed: int):
