@@ -145,7 +145,8 @@ class SubprocVecEnv:
             for remote in self.remotes:
                 remote.send((command, data))
         else:
-            for remote, data in zip(self.remotes, data):
+            assert len(self.remotes) == len(data)
+            for i, (remote, data) in enumerate(zip(self.remotes, data)):
                 remote.send((command, data))
         self.waiting = True
         received = [remote.recv() for remote in self.remotes]
