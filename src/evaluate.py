@@ -66,7 +66,7 @@ def rollout(
     action_probs = torch.full((l, n, a), fill_value, dtype=torch.float32)
     actions = torch.full((l, n), fill_value, dtype=torch.int64)
     dones = torch.full((l, n), fill_value, dtype=torch.bool)
-    # next_obs = torch.zeros((l, n, *o))
+    next_obs = torch.zeros((l, n, *o))
     obs = torch.full((l, n, *o), fill_value)
     rewards = torch.full((l, n), fill_value)
     optimals = None
@@ -145,6 +145,7 @@ def rollout(
 
         # record step result
         assert len(step.info) == n
+        next_obs[t] = torch.from_numpy(step.observation)
         rewards[t] = torch.from_numpy(step.reward)
         dones[t] = torch.from_numpy(step.done)
         observation = torch.from_numpy(step.observation)
