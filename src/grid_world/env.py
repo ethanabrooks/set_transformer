@@ -32,6 +32,11 @@ class Env(Env):
     def policy(self):
         return self.grid_world.Pi.squeeze(0)
 
+    @property
+    def values(self):
+        if isinstance(self.grid_world, GridWorldWithValues):
+            return self.grid_world.Q.squeeze(1)
+
     def convert_2d_to_1d(self, state: torch.Tensor):
         return self.grid_world.convert_2d_to_1d(state)
 

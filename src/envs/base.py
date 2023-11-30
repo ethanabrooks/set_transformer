@@ -20,3 +20,8 @@ class Env(gym.Env, ABC):
     @abstractmethod
     def policy(self) -> torch.Tensor:
         pass
+
+    @property
+    @abstractmethod
+    def values(self) -> torch.Tensor:
+        pass

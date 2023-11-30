@@ -82,12 +82,3 @@ class GridWorldWithValues(GridWorld):
 
     def __hash__(self):
         return self.hashcode
-
-    def step_fn(self, *args, states: torch.Tensor, **kwargs):
-        s, r, t, i = super().step_fn(*args, states=states, **kwargs)
-        i.update(
-            ground_truth_value=self.Q[
-                torch.arange(len(self.Q)), torch.arange(self.n_tasks), states
-            ]
-        )
-        return s, r, t, i

@@ -40,6 +40,7 @@ class Command(Enum):
     POLICY = auto()
     RESET = auto()
     STEP = auto()
+    VALUES = auto()
 
 
 def work(env: Env, command: Command, data):
@@ -53,6 +54,8 @@ def work(env: Env, command: Command, data):
         return env.policy
     elif command == Command.STEP:
         return env.step(data)
+    elif command == Command.VALUES:
+        return env.values
     raise RuntimeError(f"Unknown command {command}")
 
 
@@ -112,6 +115,13 @@ class SubprocVecEnv:
     @property
     def policy(self):
         return torch.stack(self.send_to_all(Command.POLICY, None))
+
+    @property
+    def values(self):
+        values = [x for x in self.send_to_all(Command.VALUES, None) if x is not None]
+        min_size = min(len(x) for x in values)
+        if values:
+            return torch.stack([x[:min_size] for x in values])
 
     def close(self):
         if self.waiting:

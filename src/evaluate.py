@@ -1,6 +1,5 @@
 import functools
 from dataclasses import dataclass
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -67,7 +66,7 @@ def rollout(
     obs = torch.zeros((l, n, *o))
     rewards = torch.zeros((l, n))
     optimals = None
-    ground_truth_values = None
+    ground_truth_values = envs.values
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -148,15 +147,6 @@ def rollout(
                 if optimals is None:
                     optimals = torch.zeros_like(rewards)
                 optimals[t, index] = optimal
-            ground_truth_value: Optional[torch.Tensor] = info.get(
-                "ground_truth_value", None
-            )
-            if ground_truth_value is not None:
-                q, _ = ground_truth_value.shape
-                if ground_truth_values is None:
-                    ground_truth_values = torch.zeros((l, n, q, a))
-                q = min(len(ground_truth_value), ground_truth_values.size(2))
-                ground_truth_values[t, index, :q] = ground_truth_value[:q]
 
         # record episode timesteps
         timesteps[t] = timestep
