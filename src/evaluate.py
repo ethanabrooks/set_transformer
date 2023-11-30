@@ -98,6 +98,11 @@ def rollout(
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
             x_T = DataPoint(*[y if y.ndim == 1 else y.swapaxes(0, 1) for y in x_orig])
+            x_T.action_probs[-1] = fill_value
+            x_T.actions[-1] = fill_value
+            x_T.done[-1] = fill_value
+            x_T.next_obs[-1] = fill_value
+            x_T.rewards[-1] = fill_value
             x = DataPoint(
                 action_probs=x_T.action_probs,  # action_probs[idx],
                 actions=x_T.actions,  # actions[idx],
