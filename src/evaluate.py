@@ -190,11 +190,7 @@ def rollout(
         for index, done in enumerate(step.done):
             assert isinstance(done, (bool, np.bool_))
             if done:
-                if t + 1 < x_orig.obs.shape[1]:
-                    observation[index] = envs.reset(index, x_orig.obs[index, t + 1])
-                    assert torch.all(observation[index] == x_orig.obs[index, t + 1])
-                else:
-                    observation[index] = envs.reset(index)
+                observation[index] = envs.reset(index)
 
                 optimal = envs.optimal(index, observation[index])
                 if optimal is not None and t + 1 < len(optimals):
