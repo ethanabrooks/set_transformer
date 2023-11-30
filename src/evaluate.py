@@ -87,21 +87,20 @@ def rollout(
 
     action_space = envs.action_space
     action_space.seed(0)
-    epsilon_eye = (1 - epsilon) * torch.eye(a) + epsilon / (a - 1)
 
     input_q_zero = torch.zeros((context_length, n, a), dtype=float)
     idx_prefix = torch.arange(context_length - 1)
 
     for t in tqdm(range(l)):
         obs[t] = observation
+        assert torch.all(obs[t] == x_orig.obs[:, t])
 
         if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
             # action_probs[t] = 1 / a
             # action_probs[t] = policy[torch.arange(n), observation.long()]
             # action = torch.multinomial(action_probs[t], 1).squeeze(-1)
-            action_probs[t] = x_orig.action_probs[:, t]
-            action = x_orig.actions[:, t]
+            pass
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
@@ -126,6 +125,18 @@ def rollout(
             x = DataPoint(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
+            for name, x1, x2 in [
+                ("action_probs", x_T.action_probs, action_probs[idx]),
+                ("actions", x_T.actions, actions[idx]),
+                ("done", x_T.done, dones[idx]),
+                ("next_obs", x_T.next_obs, next_obs[idx]),
+                ("obs", x_T.obs, obs[idx]),
+                ("rewards", x_T.rewards, rewards[idx]),
+            ]:
+                if not torch.all(x1 == x2):
+                    print(name)
+                    breakpoint()
+
             input_q = torch.zeros_like(x.input_q)
             errors = []
             with torch.no_grad():
@@ -150,9 +161,10 @@ def rollout(
             print("Overall Accuracy:", acc.mean().item())
             print("Last Index Accuracy:", acc[:, -1].mean().item())
             breakpoint()
-            action_probs[t] = epsilon_eye[action]
-            action = torch.multinomial(action_probs[t], 1).squeeze(-1)
-
+            # action_probs[t] = epsilon_eye[action]
+            # action = torch.multinomial(action_probs[t], 1).squeeze(-1)
+        action_probs[t] = x_orig.action_probs[:, t]
+        action = x_orig.actions[:, t]
         actions[t] = action
         info_list: list[dict]
         observation, reward, done, info_list = envs.step(action.numpy())
@@ -163,8 +175,11 @@ def rollout(
         # record step result
         assert len(step.info) == n
         next_obs[t] = torch.from_numpy(step.observation)
+        assert torch.all(next_obs[t] == x_orig.next_obs[:, t])
         rewards[t] = torch.from_numpy(step.reward)
+        assert torch.all(rewards[t] == x_orig.rewards[:, t])
         dones[t] = torch.from_numpy(step.done)
+        assert torch.all(dones[t] == x_orig.done[:, t])
         observation = torch.from_numpy(step.observation)
 
         # record episode timesteps
@@ -178,7 +193,12 @@ def rollout(
         for index, done in enumerate(step.done):
             assert isinstance(done, (bool, np.bool_))
             if done:
-                obs[t, index] = envs.reset(index)
+                if t + 1 < x_orig.obs.shape[1]:
+                    observation[index] = envs.reset(index, x_orig.obs[index, t + 1])
+                    assert torch.all(observation[index] == x_orig.obs[index, t + 1])
+                else:
+                    observation[index] = envs.reset(index)
+
                 optimal = envs.optimal(index, obs[t, index])
                 if optimal is not None and t + 1 < len(optimals):
                     optimals[t + 1, index] = optimal
