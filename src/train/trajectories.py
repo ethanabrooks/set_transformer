@@ -37,11 +37,11 @@ class Evaluator:
     net: CausalTransformer
     rollout_length: int
 
-    def rollout(self, iterations: int) -> pd.DataFrame:
+    def rollout(self, **kwargs) -> pd.DataFrame:
         return rollout(
             envs=self.envs,
             epsilon=self.epsilon,
-            iterations=iterations,
+            **kwargs,
             net=self.net,
             rollout_length=self.rollout_length,
         )
@@ -176,21 +176,28 @@ def train_bellman_iteration(
             run_evaluation = True
         if evaluator is None:
             run_evaluation = False
-        if run_evaluation:
-            df = evaluator.rollout(iterations=math.ceil(bellman_number / bellman_delta))
-            plot_log, test_log = log_evaluation(
-                count_threshold=count_threshold,
-                df=df,
-                max_returns=max_returns,
-                run=run,
-                sequence=sequence,
-            )
-            if run is not None:
-                log = dict(**plot_log, **{f"test/{k}": v for k, v in test_log.items()})
-                wandb.log(log, step=epoch_step)
         x: DataPoint
         net.train()
         for t, x in enumerate(train_loader):
+            if run_evaluation:
+                df = evaluator.rollout(
+                    iterations=math.ceil(bellman_number / bellman_delta),
+                    x=x,
+                    ground_truth=sequence.grid_world.Q,
+                )
+                plot_log, test_log = log_evaluation(
+                    count_threshold=count_threshold,
+                    df=df,
+                    max_returns=max_returns,
+                    run=run,
+                    sequence=sequence,
+                )
+                if run is not None:
+                    log = dict(
+                        **plot_log, **{f"test/{k}": v for k, v in test_log.items()}
+                    )
+                    wandb.log(log, step=epoch_step)
+                run_evaluation = False
             step = epoch_step + t
             decayed_lr = decay_lr(lr, step=step, **decay_args)
             if done or (step % log_interval == 0):

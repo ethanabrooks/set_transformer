@@ -47,7 +47,10 @@ def rollout(
     iterations: int,
     net: CausalTransformer,
     rollout_length: int,
+    x: DataPoint,
+    ground_truth: torch.Tensor,
 ) -> pd.DataFrame:
+    x_orig = x
     observation = envs.reset()
     observation = torch.from_numpy(observation).float()
     n, *o = observation.shape
@@ -102,20 +105,23 @@ def rollout(
             x = DataPoint(
                 *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
             )
-            input_q = x.input_q
+            input_q = torch.zeros_like(x_orig.input_q)
             x.action_probs[:] = 1 / a
             with torch.no_grad():
-                for i in range(iterations):
-                    n_bellman = i * torch.ones(n).long()
+                for i in range(len(ground_truth)):
+                    n_bellman = i * torch.ones_like(x_orig.n_bellman).long()
                     input_q: torch.Tensor
                     input_q, _ = net.forward_with_rotation(
-                        x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
+                        x_orig._replace(input_q=input_q, n_bellman=n_bellman),
+                        optimizer=None,
                     )
-                    sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
-                    sep = float("nan") * torch.ones((context_length, 1))
-                    gt = ground_truth_values[idx][:, :, 1][:, 0]
-                    rounded = (input_q * 10).round().cpu()[0]
-
+                    gt = ground_truth[i + 1, x_orig.idx[:, None], x_orig.obs]
+                    # sar = torch.stack([x.obs, x.actions, x.rewards], -1)[0]
+                    # sep = float("nan") * torch.ones((context_length, 1))
+                    # gt = ground_truth_values[idx][:, :, 1][:, 0]
+                    # rounded = (input_q * 100).round().cpu()
+                    mae = (input_q.cpu() - gt).abs().mean()
+                    print(mae)
                     breakpoint()
             action = input_q[:, -1].argmax(-1).cpu()
             breakpoint()
