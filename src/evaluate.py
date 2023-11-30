@@ -81,7 +81,6 @@ def rollout(
     action_space.seed(0)
 
     input_q_zero = torch.zeros((context_length, n, a), dtype=float)
-    idx_prefix = torch.arange(context_length - 1)
 
     for t in tqdm(range(l)):
         obs[t] = observation
@@ -90,7 +89,7 @@ def rollout(
             action_probs[t] = 1 / a
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
         else:
-            idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
+            idx = slice(t + 1 - context_length, t + 1)
             input_q = input_q_zero
             x = DataPoint(
                 action_probs=action_probs[idx],
@@ -104,9 +103,7 @@ def rollout(
                 rewards=rewards[idx],
                 target_q=None,
             )
-            x = DataPoint(
-                *[y if y is None else y[-context_length:].swapaxes(0, 1) for y in x]
-            )
+            x = DataPoint(*[y if y is None else y.swapaxes(0, 1) for y in x])
 
             input_q = torch.zeros_like(x.input_q)
             with torch.no_grad():
