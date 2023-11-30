@@ -99,7 +99,7 @@ def rollout(
         obs[t] = observation
         check(obs, x_orig.obs)
 
-        if t < -1:  # context_length:
+        if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
             # action_probs[t] = 1 / a
             # action_probs[t] = policy[torch.arange(n), observation.long()]
@@ -280,7 +280,6 @@ def log(
             functools.partial(get_returns, "optimals")
         )
         metrics = optimals - returns
-        breakpoint()
         assert (metrics >= 0).all()
         graphs["regret"] = metrics
     plot_log = {}
@@ -294,7 +293,6 @@ def log(
         if run is None:
             graph = list(render_eval_metrics(*metrics, max_num=1))
             print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
-        breakpoint()
 
         fig: Figure
         ax: Axes
@@ -313,4 +311,5 @@ def log(
 
         test_log[name] = means.iloc[-1]
         plot_log[name] = wandb.Image(fig)
+    breakpoint()
     return plot_log, test_log
