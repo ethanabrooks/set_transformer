@@ -1,4 +1,5 @@
 import random
+from copy import deepcopy
 from typing import Optional
 
 import torch
@@ -25,6 +26,7 @@ class Model(Base):
         n_hidden: int,
         n_rotations: int,
         n_tokens: int,
+        pad_value: int,
         positional_encoding_args: dict,
         **transformer_args: dict
     ):
@@ -35,8 +37,13 @@ class Model(Base):
         if bellman_delta > 1:
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
         self.n_rotations = n_rotations
+        self.pad_value = pad_value
 
-    def forward(self, x: DataPoint) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, x: DataPoint, unmasked_actions: Optional[torch.Tensor] = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if unmasked_actions is None:
+            unmasked_actions = x.actions
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
         done: torch.Tensor = self.offset(x.done)
@@ -93,7 +100,9 @@ class Model(Base):
             assert [*x.target_q.shape] == [b, s]
 
             loss = F.mse_loss(
-                outputs[torch.arange(b)[:, None], torch.arange(s)[None], x.actions],
+                outputs[
+                    torch.arange(b)[:, None], torch.arange(s)[None], unmasked_actions
+                ],
                 x.target_q,
             )
         return outputs, loss
@@ -121,6 +130,13 @@ class Model(Base):
         self, x: DataPoint, optimizer: Optional[Optimizer]
     ) -> tuple[torch.Tensor, torch.Tensor]:
         x_cuda = DataPoint(*[y if y is None else y.cuda() for y in x])
+        x_mask = deepcopy(x_cuda)
+        x_mask.action_probs[:, -1] = self.pad_value
+        x_mask.actions[:, -1] = self.pad_value
+        x_mask.done[:, -1] = self.pad_value
+        x_mask.next_obs[:, -1] = self.pad_value
+        x_mask.rewards[:, -1] = self.pad_value
+
         agg_loss = 0
         agg_outputs = None
         updated = None
@@ -137,13 +153,14 @@ class Model(Base):
                     return x
                 return torch.roll(x, shifts=rotation_shift, dims=1)
 
-            x = DataPoint(*[rotate(x) for x in x_cuda])
+            x = DataPoint(*[rotate(x) for x in x_mask])
+            unmasked_actions = rotate(x_cuda.actions)
             rng_rot = torch.roll(torch.arange(l), shifts=rotation_shift)
             if optimizer is not None:
                 optimizer.zero_grad()
             outputs: torch.Tensor
             loss: torch.Tensor
-            outputs, loss = self.forward(x=x)
+            outputs, loss = self.forward(x=x, unmasked_actions=unmasked_actions)
             if loss is not None:
                 agg_loss += loss
 
