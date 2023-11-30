@@ -79,6 +79,7 @@ def rollout(
             optimals[0, i] = optimal
 
     ground_truth = envs.values
+    policy = envs.policy
 
     episode = torch.zeros(n, dtype=int)
     episodes = torch.zeros((l, n), dtype=int)
@@ -94,11 +95,8 @@ def rollout(
 
     for t in tqdm(range(l)):
 
-        def check(x1: torch.Tensor, x2: torch.Tensor):
-            try:
-                assert torch.all(x1[t] == x2[:, t])
-            except IndexError:
-                pass
+        def check(*_):
+            pass
 
         obs[t] = observation
         check(obs, x_orig.obs)
@@ -106,10 +104,8 @@ def rollout(
         if t < context_length:
             # action = torch.tensor([action_space.sample() for _ in range(n)])
             # action_probs[t] = 1 / a
-            # action_probs[t] = policy[torch.arange(n), observation.long()]
-            # action = torch.multinomial(action_probs[t], 1).squeeze(-1)
-            action_probs[t] = x_orig.action_probs[:, t]
-            action = x_orig.actions[:, t]
+            action_probs[t] = policy[torch.arange(n), observation.long()]
+            action = torch.multinomial(action_probs[t], 1).squeeze(-1)
         else:
             idx = torch.cat([idx_prefix, torch.tensor(t)[None]])
             input_q = input_q_zero
