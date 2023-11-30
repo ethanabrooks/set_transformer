@@ -231,7 +231,7 @@ def sweep(
     ).fit()
 
 
-def train(*args, dummy_vec_env: bool, train_trajectories: bool, **kwargs):
+def train(*args, train_trajectories: bool, dummy_vec_env: bool = False, **kwargs):
     return (
         train_trajectories_fn(*args, dummy_vec_env=dummy_vec_env, **kwargs)
         if train_trajectories
