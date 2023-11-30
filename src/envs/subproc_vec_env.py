@@ -49,7 +49,7 @@ def work(env: Env, command: Command, data):
     elif command == Command.OBSERVATION_SPACE:
         return env.observation_space
     elif command == Command.RESET:
-        return env.reset()
+        return env.reset(data)
     elif command == Command.POLICY:
         return env.policy
     elif command == Command.STEP:
@@ -133,11 +133,13 @@ class SubprocVecEnv:
             p.join()
         self.closed = True
 
-    def reset(self, n: Optional[int] = None) -> np.ndarray:
+    def reset(
+        self, n: Optional[int] = None, state: Optional[torch.Tensor] = None
+    ) -> np.ndarray:
         if n is None:
-            return np.stack(self.send_to_all(Command.RESET, None))
+            return np.stack(self.send_to_all(Command.RESET, state))
         else:
-            return self.send_to_nth(n, Command.RESET, None)
+            return self.send_to_nth(n, Command.RESET, state)
 
     def send_to_all(self, command: Command, data):
         self._assert_not_closed()

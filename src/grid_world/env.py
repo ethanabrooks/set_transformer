@@ -40,9 +40,12 @@ class Env(Env):
     def convert_2d_to_1d(self, state: torch.Tensor):
         return self.grid_world.convert_2d_to_1d(state)
 
-    def reset(self):
+    def reset(self, state: Optional[torch.Tensor] = None):
         assert self.grid_world.n_tasks == 1
-        current_state = self.grid_world.reset_fn()
+        if state is None:
+            current_state = self.grid_world.reset_fn()
+        else:
+            current_state = state
         self.current_state = current_state.item()
         self.first = True
         self.time_remaining = self.time_limit
