@@ -1,2 +1,2 @@
 bellman_delta: 2
-inherit_from: trajectories
+inherit_from: grid-size-3
