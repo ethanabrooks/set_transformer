@@ -1,21 +1,7 @@
-import pickle
-from pathlib import Path
-
-from artifacts import download_and_return_root
 from grid_world.base import GridWorld
 from sequence.base import Sequence
 from sequence.cross_product import Sequence as SampleUniformSequence
 from sequence.trajectories import Sequence as SampleTrajectoriesSequence
-
-
-def load_sequence(
-    load_path: str, **_
-) -> Sequence:  # TODO: think of a better way to handle excess args
-    type = "sequence"
-    artifact_root = download_and_return_root(load_path=load_path, type=type)
-    artifact_path: Path = artifact_root / f"{type}.pkl"
-    with artifact_path.open("rb") as f:
-        return pickle.load(f)
 
 
 def make_sequence(
@@ -36,7 +22,4 @@ def make(
 ) -> Sequence:
     grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
     kwargs.update(grid_world=grid_world)
-    try:
-        return load_sequence(**kwargs)
-    except TypeError:
-        return make_sequence(**kwargs)
+    return make_sequence(**kwargs)
