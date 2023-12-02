@@ -107,7 +107,7 @@
       devShell = pkgs.mkShell {
         MUJOCO_PY_MUJOCO_PATH = "${mujoco}";
         MUJOCO_PY_FORCE_CPU = 1;
-        LD_LIBRARY_PATH = with pkgs; "$LD_LIBRARY_PATH:${mesa.osmesa}/lib:${mujoco}/bin";
+        LD_LIBRARY_PATH = with pkgs; "$LD_LIBRARY_PATH:${libGLU}/lib:${freetype}/lib:${mesa.osmesa}/lib:${gcc-unwrapped.lib}/lib:${mujoco}/bin";
         buildInputs = with pkgs; [
           alejandra
           poetry

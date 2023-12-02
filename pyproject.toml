@@ -5,9 +5,8 @@ description = ""
 authors = ["Ethan Brooks <ethanabrooks@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.11"
 torch = "1.13.1"
-gym = "^0.17.2"
 matplotlib = "^3.7.1"
 imageio = "^2.26.1"
 mujoco-py = "^2.0.2.10"
@@ -18,7 +17,6 @@ torchsnapshot = "^0.1.0"
 wandb = "^0.14.1"
 ray = { version = ">=2.3.1,<2.8.0", extras = ["tune"] }
 mujoco = "^2.3.5"
-dm_alchemy = { git = "https://github.com/ethanabrooks/dm_alchemy.git", rev = "a295e5432d518903a736cda3ec63a0c480fe6312" }
 grpcio-tools = "1.49.1"
 gitpython = "^3.1.31"
 rich = "^13.4.2"
@@ -27,6 +25,8 @@ dollar-lambda = "^1.1.4"
 omegaconf = "^2.3.0"
 transformers = "^4.34.1"
 pandas = "^2.1.3"
+miniworld = "^2.0.0"
+gym = "^0.26.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.6.0"
