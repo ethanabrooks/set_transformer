@@ -32,7 +32,6 @@ class Dataset(BaseDataset):
     @abstractmethod
     def get_metrics(
         self,
-        accuracy_threshold: float,
         bellman_delta: int,
         iterations: int,
         net: SetTransformer,
