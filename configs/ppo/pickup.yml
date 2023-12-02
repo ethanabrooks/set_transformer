@@ -1,0 +1,2 @@
+env_name: MiniWorld-PickupObjects-v0
+inherit_from: miniworld
