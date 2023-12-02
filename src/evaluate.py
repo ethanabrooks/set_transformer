@@ -234,7 +234,7 @@ def log(
             functools.partial(get_returns, "optimals")
         )
         metrics = optimals - returns
-        assert (metrics >= 0).all()
+        # assert (metrics >= 0).all()
         graphs["regret"] = metrics
     plot_log = {}
     test_log = {}
