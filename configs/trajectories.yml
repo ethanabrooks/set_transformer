@@ -1,5 +1,7 @@
 baseline: false
 bellman_delta: 1
+evaluator_args:
+  rollout_length: ${sequence_args.trajectory_length}
 grid_world_args:
   absorbing_state: false
   dense_reward: false

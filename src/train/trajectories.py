@@ -243,6 +243,7 @@ def compute_values(
     baseline: bool,
     bellman_delta: int,
     envs: SubprocVecEnv,
+    evaluator_args: dict,
     lr: float,
     model_args: dict,
     model_type: str,
@@ -297,7 +298,7 @@ def compute_values(
     net = net.cuda()
 
     evaluator = (
-        Evaluator(envs=envs, net=net, rollout_length=l)  # TODO: play with l
+        Evaluator(envs=envs, net=net, **evaluator_args)
         if isinstance(net, CausalTransformer)
         else None
     )
