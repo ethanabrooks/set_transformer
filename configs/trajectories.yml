@@ -15,7 +15,7 @@ model_args:
   n_heads: 8
   n_hidden: 256
   n_layers: 3
-  n_rotations: 4
+  n_rotations: 2
   positional_encoding_args:
     log_term: 10000.0
     scale_term: 1000
