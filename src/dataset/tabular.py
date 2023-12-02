@@ -70,7 +70,6 @@ class Dataset(BaseDataset):
 
     def get_metrics(
         self,
-        accuracy_threshold: float,
         iterations: int,
         net: SetTransformer,
         x: DataPoint,
@@ -94,7 +93,6 @@ class Dataset(BaseDataset):
             loss=None,
             outputs=outputs[-1],
             targets=targets[-1],
-            accuracy_threshold=accuracy_threshold,
         )
         metrics = asdict(metrics)
         return metrics, outputs, targets

@@ -40,8 +40,7 @@ train_args:
     warmup_steps: 10_000
 
   log_interval: 50
-  metrics_args:
-    accuracy_threshold: 0.01
+  metrics_args: {}
   n_batch: 250
   test_interval: 1
 train_size: 1000
