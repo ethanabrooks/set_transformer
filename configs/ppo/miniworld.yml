@@ -1,0 +1,6 @@
+dummy_vec_env: true
+inherit_from: base
+num_processes: 1
+recurrent_policy: true
+update_args:
+  num_mini_batch: 1

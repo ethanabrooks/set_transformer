@@ -1,0 +1,2 @@
+env_name: HalfCheetah-v2
+inherit_from: base
