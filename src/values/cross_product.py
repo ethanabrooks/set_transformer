@@ -32,11 +32,13 @@ class Values(BaseValues):
                 ::a,  # index into unique states
             ]
 
-            improved_policy_value = grid_world[idxs].evaluate_improved_policy(
-                Q=values, stop_at_rmse=self.stop_at_rmse
+            improved_policy_value = (
+                grid_world[idxs]
+                .evaluate_improved_policy(Q=values, stop_at_rmse=self.stop_at_rmse)
+                .cpu()
             )
             optimally_improved_policy_values = self.optimally_improved_policy_values[
-                idxs
+                idxs.cpu()
             ]
             regret: torch.Tensor = (
                 optimally_improved_policy_values - improved_policy_value
