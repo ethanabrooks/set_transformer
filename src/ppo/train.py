@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 import torch
 from torch.optim import Adam
+from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 from ppo import utils
@@ -81,7 +82,7 @@ def train(
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
-    for j in range(num_updates):
+    for j in tqdm(range(num_updates)):
         if not disable_linear_lr_decay:
             # decrease learning rate linearly
             utils.update_linear_schedule(
@@ -147,21 +148,11 @@ def train(
         if j % log_interval == 0 and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * num_processes * num_steps
             end = time.time()
-            print(
-                "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
-                    j,
-                    total_num_steps,
-                    int(total_num_steps / (end - start)),
-                    len(episode_rewards),
-                    np.mean(episode_rewards),
-                    np.median(episode_rewards),
-                    np.min(episode_rewards),
-                    np.max(episode_rewards),
-                )
-            )
+            mean_reward = np.mean(episode_rewards)
+
             log = dict(
                 updates=j,
-                mean_reward=np.mean(episode_rewards),
+                mean_reward=mean_reward,
                 fps=int(total_num_steps / (end - start)),
                 value_loss=value_loss,
                 action_loss=action_loss,
