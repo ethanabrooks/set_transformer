@@ -8,7 +8,7 @@ from grid_world.base import GridWorld
 from grid_world.env import Env
 from grid_world.values import GridWorldWithValues
 from sequence import make_grid_world_sequence
-from train.trainer.base import Trainer
+from train.trainer.grid_world import Trainer
 from utils import set_seed
 
 
