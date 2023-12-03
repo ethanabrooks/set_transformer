@@ -29,5 +29,16 @@ class Sequence(ABC):
         )
         return cls(grid_world=grid_world, transitions=transitions)
 
+    @property
+    def max_discrete_value(self):
+        transitions = self.transitions
+        pad_value: torch.Tensor = 1 + max(
+            transitions.actions.max(),
+            transitions.next_states.max(),
+            transitions.rewards.max(),
+            transitions.states.max(),
+        )
+        return pad_value.item()
+
     def __len__(self):
         return len(self.transitions)
