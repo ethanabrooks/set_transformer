@@ -15,7 +15,7 @@ from wandb.sdk.wandb_run import Run
 
 import wandb
 from envs.subproc_vec_env import SubprocVecEnv
-from models.trajectories import GPT2, CausalTransformer
+from models.trajectories import GPT2, Model
 from sequence.base import Sequence
 from utils import DataPoint
 
@@ -44,7 +44,7 @@ class StepResult:
 def rollout(
     envs: SubprocVecEnv,
     iterations: int,
-    net: CausalTransformer,
+    net: Model,
     rollout_length: int,
 ) -> pd.DataFrame:
     observation = envs.reset()

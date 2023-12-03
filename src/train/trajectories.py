@@ -23,7 +23,7 @@ from grid_world.base import GridWorld
 from grid_world.env import Env
 from grid_world.values import GridWorldWithValues
 from metrics import Metrics, compute_rmse, get_metrics
-from models.trajectories import CausalTransformer, SetTransformer
+from models.trajectories import Model
 from sequence import make_sequence
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save, set_seed
@@ -33,7 +33,7 @@ from values.bootstrap import Values as BootstrapValues
 @dataclass
 class Evaluator:
     envs: SubprocVecEnv
-    net: CausalTransformer
+    net: Model
     rollout_length: int
 
     def rollout(self, iterations: int) -> pd.DataFrame:
@@ -59,11 +59,10 @@ def train_bellman_iteration(
     lr: float,
     metrics_args: dict,
     n_batch: int,
-    net: SetTransformer,
+    net: Model,
     optimizer: optim.Optimizer,
     plot_indices: torch.Tensor,
     run: Run,
-    sample_from_trajectories: bool,
     sequence: Sequence,
     start_step: int,
     stop_at_rmse: float,
@@ -85,11 +84,7 @@ def train_bellman_iteration(
 
     def make_dataset(bootstrap_Q: torch.Tensor):
         assert len(bootstrap_Q) == bellman_number
-        values = BootstrapValues.make(
-            bootstrap_Q=bootstrap_Q,
-            sample_from_trajectories=sample_from_trajectories,
-            sequence=sequence,
-        )
+        values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
         return Dataset(
             bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
         )
@@ -248,14 +243,12 @@ def compute_values(
     evaluator_args: dict,
     lr: float,
     model_args: dict,
-    model_type: str,
     n_plot: int,
     partial_observation: bool,
     rmse_bellman: float,
     rmse_training_final: float,
     rmse_training_intermediate: float,
     run: Run,
-    sample_from_trajectories: bool,
     sequence: Sequence,
     train_args: dict,
     load_path: Optional[str] = None,
@@ -267,43 +260,28 @@ def compute_values(
     b, l = sequence.transitions.rewards.shape
     a = envs.action_space.n
     Q = torch.zeros(1, b, l, a)
-    values = BootstrapValues.make(
-        sample_from_trajectories=sample_from_trajectories,
-        sequence=sequence,
-        bootstrap_Q=Q,
-    )
+    values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
     data = Dataset(
         bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
     )
     start_step = 0
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
-    if model_type == "gpt2":
-        net = CausalTransformer(
-            bellman_delta=bellman_delta,
-            **model_args,
-            n_actions=data.n_actions,
-            n_ctx=l,
-            n_tokens=n_tokens,
-            partial_observation=partial_observation,
-            pad_value=data.pad_value,
-        )
-    elif model_type == "set":
-        net = SetTransformer(
-            bellman_delta=bellman_delta,
-            **model_args,
-            n_actions=data.n_actions,
-            n_tokens=n_tokens,
-            pad_value=data.pad_value,
-        )
-    else:
-        raise ValueError(f"Unknown model_type {model_type}")
+    net = Model(
+        bellman_delta=bellman_delta,
+        **model_args,
+        n_actions=data.n_actions,
+        n_ctx=l,
+        n_tokens=n_tokens,
+        partial_observation=partial_observation,
+        pad_value=data.pad_value,
+    )
     if load_path is not None:
         load(load_path, net, run)
     net = net.cuda()
 
     evaluator = (
         Evaluator(envs=envs, net=net, **evaluator_args)
-        if isinstance(net, CausalTransformer)
+        if isinstance(net, Model)
         else None
     )
     optimizer = optim.Adam(net.parameters(), lr=lr)
@@ -323,7 +301,6 @@ def compute_values(
             optimizer=optimizer,
             plot_indices=plot_indices,
             run=run,
-            sample_from_trajectories=sample_from_trajectories,
             sequence=sequence,
             start_step=start_step,
             stop_at_rmse=rmse_training_final if final else rmse_training_intermediate,
@@ -358,7 +335,6 @@ def train(
     rmse_bellman: float,
     run: Run,
     seed: int,
-    sample_from_trajectories: bool,
     sequence_args: dict,
     test_size: int,
     time_limit: int,
@@ -377,7 +353,7 @@ def train(
     sequence = make_sequence(
         grid_world=make_grid_world(n_tasks=train_size, seed=seed),
         partial_observation=partial_observation,
-        sample_from_trajectories=sample_from_trajectories,
+        sample_from_trajectories=True,
         **sequence_args,
         stop_at_rmse=rmse_bellman,
         time_limit=time_limit,
@@ -406,6 +382,5 @@ def train(
         partial_observation=partial_observation,
         rmse_bellman=rmse_bellman,
         run=run,
-        sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,
     )
