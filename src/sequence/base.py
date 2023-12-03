@@ -11,6 +11,7 @@ from utils import Transition
 
 @dataclass(frozen=True)
 class Sequence(ABC):
+    gamma: float
     grid_world: GridWorldWithValues
     transitions: Transition[torch.Tensor]
 
@@ -27,7 +28,9 @@ class Sequence(ABC):
         grid_world = GridWorldWithValues.make(
             grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
-        return cls(grid_world=grid_world, transitions=transitions)
+        return cls(
+            gamma=grid_world.gamma, grid_world=grid_world, transitions=transitions
+        )
 
     @property
     def max_discrete_value(self):
