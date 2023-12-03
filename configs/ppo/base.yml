@@ -7,9 +7,9 @@ gamma: 0.99
 load_path: null
 log_interval: 1
 lr: 3e-4
-num_env_steps: 1000000
 num_processes: 1
 num_steps: 2048
+num_updates: 10
 optim_args:
   eps: 1e-5
 recurrent_policy: false
