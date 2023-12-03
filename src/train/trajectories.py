@@ -62,12 +62,13 @@ def train(
     trainer = Trainer.make(
         envs=envs,
         evaluator_args=evaluator_args,
+        **kwargs,
         lr=lr,
         model_args=model_args,
-        **kwargs,
+        n_plot=n_plot,
         rmse_bellman=rmse_bellman,
         run=run,
         sequence=sequence,
         **train_args,
     )
-    return trainer.train(lr=lr, n_plot=n_plot)
+    return trainer.train(lr=lr)
