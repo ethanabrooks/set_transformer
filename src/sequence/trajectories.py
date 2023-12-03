@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from grid_world.base import GridWorld
 from grid_world.values import GridWorldWithValues
 from sequence.grid_world_base import Sequence as BaseSequence
+from sequence.grid_world_base import max_discrete_value
 from utils import Transition
 
 
@@ -66,5 +67,9 @@ class Sequence(BaseSequence):
             grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
         return cls(
-            gamma=grid_world.gamma, grid_world=grid_world, transitions=transitions
+            gamma=grid_world.gamma,
+            grid_world=grid_world,
+            n_actions=grid_world.n_actions,
+            pad_value=max_discrete_value(transitions) + 1,
+            transitions=transitions,
         )
