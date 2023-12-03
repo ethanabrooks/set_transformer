@@ -1,4 +1,5 @@
 import math
+import shutil
 import time
 from collections import Counter
 from dataclasses import asdict
@@ -8,6 +9,7 @@ import torch
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 import wandb
@@ -27,6 +29,7 @@ def train(
     n_plot: int,
     bellman_delta: int,
     evaluate_args: dict,
+    max_regret: float,
     run: Optional[Run],
     save_interval: int,
     seed: int,
@@ -72,6 +75,8 @@ def train(
     plot_indices = torch.randint(0, len(test_data), [n_plot]).cuda()
 
     optimizer = optim.Adam(net.parameters(), lr=lr)
+    terminal_width = shutil.get_terminal_size().columns
+    pbar = tqdm(total=max_regret, desc="regret", ncols=terminal_width)
     for e in range(n_epochs):
         # Split the dataset into train and test sets
         train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
@@ -129,7 +134,10 @@ def train(
                     epoch=e, fps=fps, lr=decayed_lr, save_count=save_count
                 )
                 counter = Counter()
-                print(".", end="", flush=True)
+                regret = test_n_log.get("test-n/regret", None)
+                if regret is not None:
+                    pbar.n = max(0, min(max_regret, regret))
+                    pbar.refresh()
                 if run is not None:
                     wandb.log(
                         dict(**test_1_log, **test_n_log, **train_1_log),
