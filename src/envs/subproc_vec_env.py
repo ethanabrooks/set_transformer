@@ -173,6 +173,8 @@ class SubprocVecEnv:
 
     @classmethod
     def start_processes(cls, env_fns) -> tuple[list, list[Process]]:
+        remotes: list[Connection]
+        work_remotes: list[Connection]
         remotes, work_remotes = zip(*[Pipe() for _ in range(len(env_fns))])
         ps = [
             Process(
