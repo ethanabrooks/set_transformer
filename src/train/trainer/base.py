@@ -45,10 +45,13 @@ class Trainer:
     bellman_delta: int
     count_threshold: int
     decay_args: dict
+    evaluator: Evaluator
     load_path: Optional[str]
     log_interval: int
     metrics_args: dict
     n_batch: int
+    net: Model
+    optimizer: optim.Optimizer
     rmse_bellman: float
     rmse_training_final: float
     rmse_training_intermediate: float
@@ -57,44 +60,37 @@ class Trainer:
     test_interval: int
 
     @classmethod
-    def make(cls, **kwargs):
-        return cls(**kwargs)
-
-    def train(
-        self,
+    def make(
+        cls,
+        baseline: bool,
+        bellman_delta: int,
         envs: SubprocVecEnv,
         evaluator_args: dict,
+        load_path: Optional[str],
         lr: float,
         model_args: dict,
-        n_plot: int,
+        run: Run,
+        sequence: Sequence,
+        **kwargs,
     ):
-        sequence = self.sequence
         grid_world = sequence.grid_world
-        baseline = self.baseline
         if baseline:
             grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
             sequence = replace(sequence, grid_world=grid_world)
-        b, l = sequence.transitions.rewards.shape
-        a = envs.action_space.n
-        Q = torch.zeros(1, b, l, a)
-        values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
-        data = Dataset(
-            bellman_delta=self.bellman_delta, sequence=sequence, values=values
-        )
-        start_step = 0
+        _, l = sequence.transitions.rewards.shape
         n_tokens = max(
-            data.sequence.n_tokens, len(sequence.grid_world.Q) * 2
+            sequence.n_tokens, len(sequence.grid_world.Q) * 2
         )  # double for padding
         net = Model(
-            bellman_delta=self.bellman_delta,
+            bellman_delta=bellman_delta,
             **model_args,
-            n_actions=data.sequence.n_actions,
+            n_actions=sequence.n_actions,
             n_ctx=l,
             n_tokens=n_tokens,
-            pad_value=data.sequence.pad_value,
+            pad_value=sequence.pad_value,
         )
-        if self.load_path is not None:
-            load(self.load_path, net, self.run)
+        if load_path is not None:
+            load(load_path, net, run)
         net = net.cuda()
 
         evaluator = (
@@ -103,17 +99,31 @@ class Trainer:
             else None
         )
         optimizer = optim.Adam(net.parameters(), lr=lr)
+        return cls(
+            baseline=baseline,
+            bellman_delta=bellman_delta,
+            evaluator=evaluator,
+            **kwargs,
+            load_path=load_path,
+            net=net,
+            optimizer=optimizer,
+            run=run,
+            sequence=sequence,
+        )
+
+    def train(self, lr: float, n_plot: int):
+        b, l = self.sequence.transitions.rewards.shape
+        a = self.sequence.n_actions
+        Q = torch.zeros(1, b, l, a)
         plot_indices = torch.randint(0, b, (n_plot,))
-        final = baseline
+        final = self.baseline
+        start_step = 0
 
         for bellman_number in itertools.count(1):
             new_Q, step = self.train_bellman_iteration(
                 bellman_number=bellman_number,
                 bootstrap_Q=Q,
-                evaluator=evaluator,
                 lr=lr,
-                net=net,
-                optimizer=optimizer,
                 plot_indices=plot_indices,
                 start_step=start_step,
                 stop_at_rmse=self.rmse_training_final
@@ -134,10 +144,7 @@ class Trainer:
         self,
         bellman_number: int,
         bootstrap_Q: torch.Tensor,
-        evaluator: Evaluator,
         lr: float,
-        net: Model,
-        optimizer: optim.Optimizer,
         plot_indices: torch.Tensor,
         start_step: int,
         stop_at_rmse: float,
@@ -240,17 +247,17 @@ class Trainer:
             done = epoch_rmse <= stop_at_rmse
             if done:
                 update_plots()
-                save(self.run, net)
+                save(self.run, self.net)
             if self.baseline:
                 run_evaluation = e % self.test_interval == 0
             else:
                 run_evaluation = done and (bellman_number % self.test_interval == 0)
             if bellman_number == 1 and e == 0:
                 run_evaluation = True
-            if evaluator is None:
+            if self.evaluator is None:
                 run_evaluation = False
             if run_evaluation:
-                df = evaluator.rollout(
+                df = self.evaluator.rollout(
                     iterations=math.ceil(bellman_number / self.bellman_delta)
                 )
                 plot_log, test_log = log_evaluation(
@@ -265,7 +272,7 @@ class Trainer:
                     )
                     wandb.log(log, step=epoch_step)
             x: DataPoint
-            net.train()
+            self.net.train()
             for t, x in enumerate(train_loader):
                 step = epoch_step + t
                 decayed_lr = decay_lr(lr, step=step, **self.decay_args)
@@ -294,10 +301,10 @@ class Trainer:
                 if done:
                     return Q, epoch_step
 
-                for param_group in optimizer.param_groups:
+                for param_group in self.optimizer.param_groups:
                     param_group.update(lr=decayed_lr)
-                outputs, loss = net.forward_with_rotation(
-                    x=x, optimizer=optimizer if self.load_path is None else None
+                outputs, loss = self.net.forward_with_rotation(
+                    x=x, optimizer=self.optimizer if self.load_path is None else None
                 )
                 idxs = x.n_bellman, x.idx
                 outputs_cpu = outputs.detach().cpu()
