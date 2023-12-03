@@ -120,12 +120,13 @@ def log(
         check_dirty()
 
     config_name = config
-    config = get_config(config)
+    config: dict = get_config(config)
     run = wandb.init(
         config=dict(**config, config=config_name),
         name=name,
         project=get_project_name(),
     )
+    config.update(load_path=None)
 
     train(**config, run=run)
 
@@ -223,7 +224,7 @@ def sweep(
         run.log_code(
             str(root), include_fn=lambda p: include_fn(p, exclude=["__pycache__/**"])
         )  # log untracked files
-        config.update(run=run)
+        config.update(run=run, load_path=None)
         return train(**config)
 
     tune.Tuner(
