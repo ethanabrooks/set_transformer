@@ -80,7 +80,7 @@ def train_bellman_iteration(
     test_log = {}
     counter = Counter()
     Q = bootstrap_Q.clone()
-    _, _, l, _ = bootstrap_Q.shape
+    _, _, l, a = bootstrap_Q.shape
     updated = None
 
     def make_dataset(bootstrap_Q: torch.Tensor):
@@ -90,7 +90,9 @@ def train_bellman_iteration(
             sample_from_trajectories=sample_from_trajectories,
             sequence=sequence,
         )
-        return Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
+        return Dataset(
+            bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
+        )
 
     def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
         metrics = get_metrics(
@@ -263,14 +265,16 @@ def compute_values(
         grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
         sequence = replace(sequence, grid_world=grid_world)
     b, l = sequence.transitions.rewards.shape
-    a = sequence.grid_world.n_actions
+    a = envs.action_space.n
     Q = torch.zeros(1, b, l, a)
     values = BootstrapValues.make(
         sample_from_trajectories=sample_from_trajectories,
         sequence=sequence,
         bootstrap_Q=Q,
     )
-    data = Dataset(bellman_delta=bellman_delta, sequence=sequence, values=values)
+    data = Dataset(
+        bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
+    )
     start_step = 0
     n_tokens = max(data.n_tokens, len(sequence.grid_world.Q) * 2)  # double for padding
     if model_type == "gpt2":
