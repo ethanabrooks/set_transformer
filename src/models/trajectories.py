@@ -9,13 +9,39 @@ from torch.optim.optimizer import Optimizer
 from transformers import GPT2Config, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 
-from models.set_transformer import ISAB, SAB
 from models.set_transformer import SetTransformer as Base
 from utils import DataPoint
 
 
 def get_input_bellman(n_bellman: int, bellman_delta: int):
     return 1 + n_bellman - bellman_delta
+
+
+class GPT2(nn.Module):
+    def __init__(
+        self, n_ctx: int, n_heads: int, n_hidden: int, n_layers: int, **kwargs
+    ):
+        super().__init__()
+        # Deal with the insanity of the GPT2 API
+        config = GPT2Config(
+            vocab_size=1,  # dummy
+            n_layer=n_layers,
+            n_layers=n_layers,
+            num_hidden_layers=n_layers,
+            n_embd=n_hidden,
+            n_positions=n_ctx,
+            n_heads=n_heads,
+            num_attention_heads=n_heads,
+            num_heads=n_heads,
+            **kwargs,
+        )
+        self.gpt2 = GPT2Model(config)
+
+    def forward(self, x: torch.Tensor):
+        hidden_states: BaseModelOutputWithPastAndCrossAttentions = self.gpt2(
+            inputs_embeds=x
+        )
+        return hidden_states.last_hidden_state
 
 
 class Model(Base):
@@ -38,6 +64,9 @@ class Model(Base):
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
         self.n_rotations = n_rotations
         self.pad_value = pad_value
+
+    def build_sequence_network(self, **kwargs):
+        return GPT2(**kwargs)
 
     def forward(
         self, x: DataPoint, unmasked_actions: Optional[torch.Tensor] = None
@@ -177,69 +206,3 @@ class Model(Base):
                 optimizer.step()
         assert torch.all(updated)
         return agg_outputs, agg_loss
-
-
-class GPT2(nn.Module):
-    def __init__(
-        self, n_ctx: int, n_heads: int, n_hidden: int, n_layers: int, **kwargs
-    ):
-        super().__init__()
-        # Deal with the insanity of the GPT2 API
-        config = GPT2Config(
-            vocab_size=1,  # dummy
-            n_layer=n_layers,
-            n_layers=n_layers,
-            num_hidden_layers=n_layers,
-            n_embd=n_hidden,
-            n_positions=n_ctx,
-            n_heads=n_heads,
-            num_attention_heads=n_heads,
-            num_heads=n_heads,
-            **kwargs,
-        )
-        self.gpt2 = GPT2Model(config)
-
-    def forward(self, x: torch.Tensor):
-        hidden_states: BaseModelOutputWithPastAndCrossAttentions = self.gpt2(
-            inputs_embeds=x
-        )
-        return hidden_states.last_hidden_state
-
-
-class CausalTransformer(Model):
-    def build_sequence_network(self, **kwargs):
-        return GPT2(**kwargs)
-
-
-class SetTransformer(Model):
-    def build_sequence_network(
-        self,
-        isab_args: dict,
-        n_hidden: int,
-        n_isab: int,
-        n_sab: int,
-        sab_args: dict,
-    ):
-        return nn.Sequential(
-            *[ISAB(n_hidden, n_hidden, **isab_args, **sab_args) for _ in range(n_isab)],
-            *[SAB(n_hidden, n_hidden, **sab_args) for _ in range(n_sab)],
-        )
-
-    def forward_output(
-        self, embedded_discrete: torch.Tensor, x: DataPoint
-    ) -> torch.Tensor:
-        b, s, d = embedded_discrete.shape
-        embedded_obs: torch.Tensor = self.embedding(x.obs)
-        assert [*embedded_obs.shape] == [b, s, d]
-        Y = torch.cat([embedded_discrete, embedded_obs], dim=1)
-        Z: torch.Tensor
-        Z = self.sequence_network(Y)
-        assert [*Z.shape] == [b, 2 * s, d]
-        outputs: torch.Tensor = self.dec(Z)
-        assert [*outputs.shape][:-1] == [b, 2 * s]
-        outputs = outputs[:, s:]
-        return outputs
-
-    @staticmethod
-    def offset(x: torch.Tensor) -> torch.Tensor:
-        return x
