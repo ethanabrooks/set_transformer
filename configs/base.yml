@@ -1,0 +1,30 @@
+evaluator_args:
+  rollout_length: ${trajectory_length}
+lr: 0.0005
+model_args:
+  n_heads: 8
+  n_hidden: 256
+  n_layers: 3
+  n_rotations: 2
+  positional_encoding_args:
+    log_term: 10000.0
+    scale_term: 1000
+n_plot: 3
+rmse_bellman: 0.005
+seed: 3
+test_size: 50
+train_args:
+  alpha: .5
+  baseline: false
+  bellman_delta: 1
+  count_threshold: 40
+  decay_args:
+    final_step: 500_000
+    warmup_steps: 10_000
+  log_interval: 50
+  metrics_args: {}
+  n_batch: 250
+  rmse_training_final: 0.002
+  rmse_training_intermediate: 0.007
+  test_interval: 1
+train_trajectories: true
