@@ -144,9 +144,11 @@ class SubprocVecEnv:
 
     def reset(self, n: Optional[int] = None) -> np.ndarray:
         if n is None:
-            return np.stack(self.send_to_all(Command.RESET, None))
+            observations, _ = zip(*self.send_to_all(Command.RESET, None))
+            return np.stack(observations)
         else:
-            return self.send_to_nth(n, Command.RESET, None)
+            observation, _ = self.send_to_nth(n, Command.RESET, None)
+            return np.array(observation)
 
     def send_to_all(self, command: Command, data):
         self._assert_not_closed()
@@ -193,5 +195,9 @@ class SubprocVecEnv:
     def step(
         self, actions: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, list]:
-        obs, rews, dones, infos = zip(*self.send_to_all(Command.STEP, actions))
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+        obs, rews, dones, truncated, infos = zip(
+            *self.send_to_all(Command.STEP, actions)
+        )
+        dones = np.stack(dones)
+        truncated = np.stack(truncated)
+        return np.stack(obs), np.stack(rews), dones | truncated, infos

@@ -22,9 +22,10 @@ class Sequence(BaseSequence):
         actions = torch.arange(a).repeat(s)
         actions = actions[None].tile(b, 1)
         action_probs = grid_world.Pi.repeat_interleave(a, 1)
-        next_states, rewards, done, _ = grid_world.step_fn(
+        next_states, rewards, done, truncated, _ = grid_world.step_fn(
             states=states, actions=actions, time_remaining=None
         )
+        done = done | truncated
 
         b = grid_world.n_tasks
         s = grid_world.n_states
