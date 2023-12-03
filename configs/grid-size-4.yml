@@ -1,5 +1,5 @@
 grid_world_args:
   grid_size: 4
-inherit_from: trajectories
-trajectory_length: 300
+inherit_from: grid-world
 train_size: 5000
+trajectory_length: 300

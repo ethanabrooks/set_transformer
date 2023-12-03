@@ -1,2 +1,2 @@
-inherit_from: trajectories
+inherit_from: grid-world
 partial_observation: true
