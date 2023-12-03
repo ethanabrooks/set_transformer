@@ -1,6 +1,5 @@
 import time
 from collections import deque
-from dataclasses import asdict
 from typing import Optional
 
 import numpy as np
@@ -121,7 +120,9 @@ def train(
                 rewards=reward,
                 masks=masks,
                 bad_masks=bad_masks,
-                **asdict(action_metadata)
+                rnn_hxs=action_metadata.rnn_hxs,
+                log_probs=action_metadata.log_probs,
+                value=action_metadata.value,
             )
 
         with torch.no_grad():
