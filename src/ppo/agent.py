@@ -14,6 +14,7 @@ from ppo.storage import RolloutStorage, Sample
 @dataclass
 class ActMetadata:
     log_probs: torch.Tensor
+    probs: torch.Tensor
     rnn_hxs: torch.Tensor
     value: torch.Tensor
 
@@ -80,7 +81,7 @@ class Agent(nn.Module):
 
         action_log_probs = dist.log_probs(action)
         return action, ActMetadata(
-            log_probs=action_log_probs, rnn_hxs=rnn_hxs, value=value
+            log_probs=action_log_probs, probs=dist.probs, rnn_hxs=rnn_hxs, value=value
         )
 
     def get_value(
@@ -103,7 +104,7 @@ class Agent(nn.Module):
         dist_entropy = dist.entropy().mean()
 
         return dist_entropy, ActMetadata(
-            log_probs=action_log_probs, rnn_hxs=rnn_hxs, value=value
+            log_probs=action_log_probs, probs=dist.probs, rnn_hxs=rnn_hxs, value=value
         )
 
     def update(
