@@ -56,6 +56,10 @@ class Trainer:
     sequence: Sequence
     test_interval: int
 
+    @classmethod
+    def make(cls, **kwargs):
+        return cls(**kwargs)
+
     def train(
         self,
         envs: SubprocVecEnv,

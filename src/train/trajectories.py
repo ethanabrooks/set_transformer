@@ -60,7 +60,7 @@ def train(
 
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
-    trainer = Trainer(
+    trainer = Trainer.make(
         **kwargs, rmse_bellman=rmse_bellman, run=run, sequence=sequence, **train_args
     )
     return trainer.train(
