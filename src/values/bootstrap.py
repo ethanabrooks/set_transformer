@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from sequence.grid_world_base import Sequence
+from sequence.grid_world_base import Sequence as GridWorldSequence
 from values.base import Values as BaseValues
 
 
@@ -13,7 +14,6 @@ class Values(BaseValues):
 
     @classmethod
     def compute_values(cls, bootstrap_Q: torch.Tensor, sequence: Sequence):
-        _, b, _, _ = bootstrap_Q.shape
         Pi = F.pad(sequence.transitions.action_probs[:, 1:], (0, 0, 0, 1))
         bootstrap_Q = F.pad(bootstrap_Q[:, :, 1:], (0, 0, 0, 1))
         Pi = Pi[None].expand_as(bootstrap_Q)
@@ -27,9 +27,15 @@ class Values(BaseValues):
         Q: torch.Tensor = cls.compute_values(
             bootstrap_Q=bootstrap_Q, sequence=sequence, **kwargs
         )
+        if isinstance(sequence, GridWorldSequence):
+            optimally_improved_policy_values = (
+                sequence.grid_world.optimally_improved_policy_values
+            )
+        else:
+            optimally_improved_policy_values = None
         return cls(
             bootstrap_Q=bootstrap_Q,
-            optimally_improved_policy_values=sequence.grid_world.optimally_improved_policy_values,
+            optimally_improved_policy_values=optimally_improved_policy_values,
             sequence=sequence,
             Q=Q,
         )

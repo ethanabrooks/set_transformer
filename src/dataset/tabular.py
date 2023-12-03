@@ -10,11 +10,13 @@ import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
 from models.tabular import DataPoint, SetTransformer
+from sequence.grid_world_base import Sequence
 
 
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     max_n_bellman: Optional[int]
+    sequence: Sequence
 
     @property
     def n_bellman_convergance(self):
