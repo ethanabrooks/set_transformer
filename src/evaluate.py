@@ -16,7 +16,7 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from envs.subproc_vec_env import SubprocVecEnv
 from models.trajectories import GPT2, Model
-from sequence.grid_world_base import Sequence
+from sequence.base import Sequence
 from utils import DataPoint
 
 
