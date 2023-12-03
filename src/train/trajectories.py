@@ -74,7 +74,6 @@ def train_bellman_iteration(
     assert torch.all(bootstrap_Q[0] == 0)
     Q = sequence.grid_world.Q
     ground_truth = Q[1 : 1 + bellman_number]  # omit Q_0 from ground_truth
-    max_returns = Q.max().item()
 
     test_log = {}
     counter = Counter()
@@ -176,7 +175,6 @@ def train_bellman_iteration(
             plot_log, test_log = log_evaluation(
                 count_threshold=count_threshold,
                 df=df,
-                max_returns=max_returns,
                 run=run,
                 sequence=sequence,
             )
