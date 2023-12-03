@@ -1,22 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Optional
 
-import gym
-import gym.spaces
+import gymnasium
 import torch
 
 
-class Env(gym.Env, ABC):
-    @property
-    @abstractmethod
-    def action_space(self) -> gym.spaces.Discrete:
-        pass
-
-    @property
-    @abstractmethod
-    def observation_space(self) -> gym.Space:
-        pass
-
+class Env(gymnasium.Env, ABC):
     @property
     def policy(self) -> Optional[torch.Tensor]:
         pass

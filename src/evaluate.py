@@ -143,9 +143,10 @@ def rollout(
         for index, done in enumerate(step.done):
             assert isinstance(done, (bool, np.bool_))
             if done:
-                observation[index] = envs.reset(index)
+                reset_obs = envs.reset(index)
+                observation[index] = torch.from_numpy(np.array(reset_obs))
 
-                optimal = envs.optimal(index, observation[index])
+                optimal = envs.optimal(index, reset_obs)
                 if optimal is not None and t + 1 < len(optimals):
                     optimals[t + 1, index] = optimal
     idx = torch.arange(n)[None].expand(l, -1)
