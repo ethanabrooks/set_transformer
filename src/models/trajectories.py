@@ -11,6 +11,7 @@ from transformers import GPT2Config, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 
 from models.set_transformer import SetTransformer as Base
+from ppo.networks import Flatten
 from utils import DataPoint
 
 
@@ -224,6 +225,35 @@ class Model(Base, ABC):
                 optimizer.step()
         assert torch.all(updated)
         return agg_outputs, agg_loss
+
+
+class NormalizeLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor):
+        return x / 255.0
+
+
+class MiniWorldModel(Model):
+    def build_obs_encoder(self):
+        return nn.Sequential(
+            NormalizeLayer(),
+            nn.Conv2d(
+                3, 128, kernel_size=11, stride=5
+            ),  # Larger kernel and stride, more output channels
+            nn.ReLU(),
+            nn.Conv2d(128, 64, kernel_size=5, stride=3),  # Further reduce dimensions
+            nn.ReLU(),
+            Flatten(),  # Flatten the output
+            nn.Linear(
+                512, self.n_hidden
+            ),  # Adjust the input features for the linear layer
+            nn.ReLU(),
+        )
+
+    def build_rew_encoder(self):
+        return self.positional_encoding
 
 
 class CastToLongLayer(nn.Module):

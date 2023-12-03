@@ -207,7 +207,7 @@ class Trainer:
                 torch.arange(b)[None, :, None],
                 sequence.transitions.states[None],
             )
-            if q <= len(ground_truth):
+            if ground_truth is not None and q <= len(ground_truth):
                 ground_truth_metrics = _get_metrics(
                     "(ground-truth)", outputs=Q, targets=ground_truth[idxs]
                 )
