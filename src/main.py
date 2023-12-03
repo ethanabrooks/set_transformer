@@ -127,7 +127,7 @@ def log(
         project=get_project_name(),
     )
 
-    train(**config, dummy_vec_env=False, run=run)
+    train(**config, run=run)
 
 
 @tree.command(parsers=parsers)
@@ -156,7 +156,9 @@ def no_log(
     if load_path is not None:
         config = wandb.Api().run(load_path).config
     config.update(load_path=load_path)
-    return train(**config, dummy_vec_env=dummy_vec_env, run=None)
+    if dummy_vec_env:
+        config.update(dummy_vec_env=dummy_vec_env)
+    return train(**config, run=None)
 
 
 def get_git_rev():
