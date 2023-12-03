@@ -54,6 +54,7 @@ class Trainer:
     n_batch: int
     net: Model
     optimizer: optim.Optimizer
+    plot_indices: torch.Tensor
     rmse_bellman: float
     rmse_training_final: float
     rmse_training_intermediate: float
@@ -71,6 +72,7 @@ class Trainer:
         load_path: Optional[str],
         lr: float,
         model_args: dict,
+        n_plot: int,
         run: Run,
         sequence: Sequence,
         **kwargs,
@@ -101,6 +103,8 @@ class Trainer:
             else None
         )
         optimizer = optim.Adam(net.parameters(), lr=lr)
+        b, _ = sequence.transitions.rewards.shape
+        plot_indices = torch.randint(0, b, (n_plot,))
         return cls(
             baseline=baseline,
             bellman_delta=bellman_delta,
@@ -109,15 +113,15 @@ class Trainer:
             load_path=load_path,
             net=net,
             optimizer=optimizer,
+            plot_indices=plot_indices,
             run=run,
             sequence=sequence,
         )
 
-    def train(self, lr: float, n_plot: int):
+    def train(self, lr: float):
         b, l = self.sequence.transitions.rewards.shape
         a = self.sequence.n_actions
         Q = torch.zeros(1, b, l, a)
-        plot_indices = torch.randint(0, b, (n_plot,))
         final = self.baseline
         start_step = 0
 
@@ -126,7 +130,6 @@ class Trainer:
                 bellman_number=bellman_number,
                 bootstrap_Q=Q,
                 lr=lr,
-                plot_indices=plot_indices,
                 start_step=start_step,
                 stop_at_rmse=self.rmse_training_final
                 if final
@@ -147,7 +150,6 @@ class Trainer:
         bellman_number: int,
         bootstrap_Q: torch.Tensor,
         lr: float,
-        plot_indices: torch.Tensor,
         start_step: int,
         stop_at_rmse: float,
     ):
@@ -180,6 +182,7 @@ class Trainer:
 
         def update_plots():
             grid_world = sequence.grid_world
+            plot_indices = self.plot_indices
             q_per_state = torch.empty(len(plot_indices), grid_world.n_states, a)
             q_per_state[
                 torch.arange(len(plot_indices))[:, None],
