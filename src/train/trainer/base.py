@@ -63,7 +63,6 @@ class Trainer:
         lr: float,
         model_args: dict,
         n_plot: int,
-        partial_observation: bool,
     ):
         sequence = self.sequence
         grid_world = sequence.grid_world
@@ -91,7 +90,6 @@ class Trainer:
             n_actions=data.n_actions,
             n_ctx=l,
             n_tokens=n_tokens,
-            partial_observation=partial_observation,
             pad_value=data.pad_value,
         )
         if self.load_path is not None:
