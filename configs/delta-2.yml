@@ -1,2 +1,3 @@
-bellman_delta: 2
 inherit_from: grid-size-4
+train_args:
+  bellman_delta: 2
