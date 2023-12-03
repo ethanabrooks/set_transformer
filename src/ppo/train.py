@@ -9,7 +9,7 @@ from wandb.sdk.wandb_run import Run
 
 from ppo import utils
 from ppo.agent import Agent
-from ppo.envs.envs import make_vec_envs
+from ppo.envs.envs import VecPyTorch, make_vec_envs
 from ppo.storage import RolloutStorage
 from ppo.utils import get_vec_normalize
 
@@ -41,12 +41,11 @@ def train(
     torch.set_num_threads(1)
     device = torch.device("cuda")
 
-    envs = make_vec_envs(
+    envs: VecPyTorch = make_vec_envs(
         device=device,
         dummy_vec_env=dummy_vec_env,
         env_name=env_name,
         gamma=gamma,
-        log_dir=None,
         num_processes=num_processes,
         seed=seed,
     )
