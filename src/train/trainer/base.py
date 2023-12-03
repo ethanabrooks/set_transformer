@@ -38,27 +38,36 @@ class Evaluator:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Trainer:
-    def compute_values(
+    alpha: float
+    baseline: bool
+    bellman_delta: int
+    count_threshold: int
+    decay_args: dict
+    load_path: Optional[str]
+    log_interval: int
+    metrics_args: dict
+    n_batch: int
+    rmse_bellman: float
+    rmse_training_final: float
+    rmse_training_intermediate: float
+    run: Run
+    sequence: Sequence
+    test_interval: int
+
+    def train(
         self,
-        baseline: bool,
-        bellman_delta: int,
         envs: SubprocVecEnv,
         evaluator_args: dict,
         lr: float,
         model_args: dict,
         n_plot: int,
         partial_observation: bool,
-        rmse_bellman: float,
-        rmse_training_final: float,
-        rmse_training_intermediate: float,
-        run: Run,
-        sequence: Sequence,
-        train_args: dict,
-        load_path: Optional[str] = None,
     ):
+        sequence = self.sequence
         grid_world = sequence.grid_world
+        baseline = self.baseline
         if baseline:
             grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
             sequence = replace(sequence, grid_world=grid_world)
@@ -67,14 +76,17 @@ class Trainer:
         Q = torch.zeros(1, b, l, a)
         values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
         data = Dataset(
-            bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
+            bellman_delta=self.bellman_delta,
+            n_actions=a,
+            sequence=sequence,
+            values=values,
         )
         start_step = 0
         n_tokens = max(
             data.n_tokens, len(sequence.grid_world.Q) * 2
         )  # double for padding
         net = Model(
-            bellman_delta=bellman_delta,
+            bellman_delta=self.bellman_delta,
             **model_args,
             n_actions=data.n_actions,
             n_ctx=l,
@@ -82,8 +94,8 @@ class Trainer:
             partial_observation=partial_observation,
             pad_value=data.pad_value,
         )
-        if load_path is not None:
-            load(load_path, net, run)
+        if self.load_path is not None:
+            load(self.load_path, net, self.run)
         net = net.cuda()
 
         evaluator = (
@@ -97,62 +109,45 @@ class Trainer:
 
         for bellman_number in itertools.count(1):
             new_Q, step = self.train_bellman_iteration(
-                baseline=baseline,
-                bellman_delta=bellman_delta,
                 bellman_number=bellman_number,
                 bootstrap_Q=Q,
                 evaluator=evaluator,
-                load_path=load_path,
                 lr=lr,
                 net=net,
                 optimizer=optimizer,
                 plot_indices=plot_indices,
-                run=run,
-                sequence=sequence,
                 start_step=start_step,
-                stop_at_rmse=rmse_training_final
+                stop_at_rmse=self.rmse_training_final
                 if final
-                else rmse_training_intermediate,
-                **train_args,
+                else self.rmse_training_intermediate,
             )
             start_step = step
             rmse = compute_rmse(Q[-1], new_Q[-1])
             Q = F.pad(new_Q, (0, 0, 0, 0, 0, 0, 1, 0))
-            if run is not None:
+            if self.run is not None:
                 wandb.log(dict(rmse=rmse), step=step)
             if final:
                 return
-            if rmse <= rmse_bellman:
+            if rmse <= self.rmse_bellman:
                 final = True
 
     def train_bellman_iteration(
         self,
-        alpha: float,
-        baseline: bool,
-        bellman_delta: int,
         bellman_number: int,
         bootstrap_Q: torch.Tensor,
-        count_threshold: int,
-        decay_args: dict,
         evaluator: Evaluator,
-        load_path: str,
-        log_interval: int,
         lr: float,
-        metrics_args: dict,
-        n_batch: int,
         net: Model,
         optimizer: optim.Optimizer,
         plot_indices: torch.Tensor,
-        run: Run,
-        sequence: Sequence,
         start_step: int,
         stop_at_rmse: float,
-        test_interval: int,
     ):
-        if run is not None:
+        if self.run is not None:
             wandb.log(dict(bellman_number=bellman_number), step=start_step)
 
         assert torch.all(bootstrap_Q[0] == 0)
+        sequence = self.sequence
         Q = sequence.grid_world.Q
         ground_truth = Q[1 : 1 + bellman_number]  # omit Q_0 from ground_truth
 
@@ -166,7 +161,7 @@ class Trainer:
             assert len(bootstrap_Q) == bellman_number
             values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
             return Dataset(
-                bellman_delta=bellman_delta,
+                bellman_delta=self.bellman_delta,
                 n_actions=a,
                 sequence=sequence,
                 values=values,
@@ -174,7 +169,7 @@ class Trainer:
 
         def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
             metrics = get_metrics(
-                loss=None, outputs=outputs, targets=targets, **metrics_args
+                loss=None, outputs=outputs, targets=targets, **self.metrics_args
             )
             return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
 
@@ -196,7 +191,9 @@ class Trainer:
             for i, plot_value in enumerate(v_per_state):
                 fig = grid_world.visualize_values(plot_value)
                 if wandb.run is not None:
-                    run.log({f"plot {i}/bellman {bellman_number}": wandb.Image(fig)})
+                    self.run.log(
+                        {f"plot {i}/bellman {bellman_number}": wandb.Image(fig)}
+                    )
 
         train_data = make_dataset(bootstrap_Q)
         tick = time.time()
@@ -236,37 +233,37 @@ class Trainer:
                 ground_truth_metrics = {}
                 versus_metrics = {}
 
-            if baseline:
+            if self.baseline:
                 bootstrap_Q2 = Q
             else:
                 bootstrap_Q2 = F.pad(Q, (0, 0, 0, 0, 0, 0, 1, 0))[:-1]
-            bootstrap_Q = alpha * bootstrap_Q2 + (1 - alpha) * bootstrap_Q
+            bootstrap_Q = self.alpha * bootstrap_Q2 + (1 - self.alpha) * bootstrap_Q
             train_data = make_dataset(bootstrap_Q)
-            train_loader = DataLoader(train_data, batch_size=n_batch, shuffle=True)
+            train_loader = DataLoader(train_data, batch_size=self.n_batch, shuffle=True)
             epoch_step = start_step + e * len(train_loader)
             done = epoch_rmse <= stop_at_rmse
             if done:
                 update_plots()
-                save(run, net)
-            if baseline:
-                run_evaluation = e % test_interval == 0
+                save(self.run, net)
+            if self.baseline:
+                run_evaluation = e % self.test_interval == 0
             else:
-                run_evaluation = done and (bellman_number % test_interval == 0)
+                run_evaluation = done and (bellman_number % self.test_interval == 0)
             if bellman_number == 1 and e == 0:
                 run_evaluation = True
             if evaluator is None:
                 run_evaluation = False
             if run_evaluation:
                 df = evaluator.rollout(
-                    iterations=math.ceil(bellman_number / bellman_delta)
+                    iterations=math.ceil(bellman_number / self.bellman_delta)
                 )
                 plot_log, test_log = log_evaluation(
-                    count_threshold=count_threshold,
+                    count_threshold=self.count_threshold,
                     df=df,
-                    run=run,
+                    run=self.run,
                     sequence=sequence,
                 )
-                if run is not None:
+                if self.run is not None:
                     log = dict(
                         **plot_log, **{f"test/{k}": v for k, v in test_log.items()}
                     )
@@ -275,9 +272,9 @@ class Trainer:
             net.train()
             for t, x in enumerate(train_loader):
                 step = epoch_step + t
-                decayed_lr = decay_lr(lr, step=step, **decay_args)
-                if done or (step % log_interval == 0):
-                    fps = log_interval / (time.time() - tick)
+                decayed_lr = decay_lr(lr, step=step, **self.decay_args)
+                if done or (step % self.log_interval == 0):
+                    fps = self.log_interval / (time.time() - tick)
                     tick = time.time()
                     train_log = {k: v / counter["n"] for k, v in counter.items()}
                     test_log.update(bellman_number=bellman_number)
@@ -296,7 +293,7 @@ class Trainer:
                     train_log = {f"train/{k}": v for k, v in train_log.items()}
                     counter = Counter()
                     print(".", end="", flush=True)
-                    if run is not None:
+                    if self.run is not None:
                         wandb.log(dict(**repeated_log, **train_log), step=step)
                 if done:
                     return Q, epoch_step
@@ -304,7 +301,7 @@ class Trainer:
                 for param_group in optimizer.param_groups:
                     param_group.update(lr=decayed_lr)
                 outputs, loss = net.forward_with_rotation(
-                    x=x, optimizer=optimizer if load_path is None else None
+                    x=x, optimizer=optimizer if self.load_path is None else None
                 )
                 idxs = x.n_bellman, x.idx
                 outputs_cpu = outputs.detach().cpu()
@@ -319,6 +316,6 @@ class Trainer:
                         x.actions,
                     ],
                     targets=x.target_q,
-                    **metrics_args,
+                    **self.metrics_args,
                 )
                 counter.update(asdict(metrics), n=1)
