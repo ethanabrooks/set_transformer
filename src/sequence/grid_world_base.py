@@ -6,14 +6,13 @@ import torch.utils.data
 
 from grid_world.base import GridWorld
 from grid_world.values import GridWorldWithValues
+from sequence.base import Sequence as Base
 from utils import Transition
 
 
 @dataclass(frozen=True)
-class Sequence(ABC):
-    gamma: float
+class Sequence(Base, ABC):
     grid_world: GridWorldWithValues
-    transitions: Transition[torch.Tensor]
 
     @classmethod
     @abstractmethod
@@ -42,6 +41,3 @@ class Sequence(ABC):
             transitions.states.max(),
         )
         return pad_value.item()
-
-    def __len__(self):
-        return len(self.transitions)
