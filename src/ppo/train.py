@@ -27,7 +27,7 @@ def train(
     lr: float,
     num_processes: int,
     num_steps: int,
-    num_env_steps: int,
+    num_updates: int,
     optim_args: dict,
     recurrent_policy: bool,
     run: Optional[Run],
@@ -81,7 +81,6 @@ def train(
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
-    num_updates = int(num_env_steps) // num_steps // num_processes
     for j in range(num_updates):
         if not disable_linear_lr_decay:
             # decrease learning rate linearly
