@@ -117,14 +117,11 @@ class SubprocVecEnv:
 
     @property
     def policy(self):
-        return torch.stack(self.send_to_all(Command.POLICY, None))
+        return self.collect_optional(Command.POLICY)
 
     @property
     def values(self):
-        values = [x for x in self.send_to_all(Command.VALUES, None) if x is not None]
-        min_size = min(len(x) for x in values)
-        if values:
-            return torch.stack([x[:min_size] for x in values])
+        return self.collect_optional(Command.VALUES)
 
     def close(self):
         if self.waiting:
@@ -135,6 +132,12 @@ class SubprocVecEnv:
         for p in self.ps:
             p.join()
         self.closed = True
+
+    def collect_optional(self, command: Command):
+        xs = [x for x in self.send_to_all(command, None) if x is not None]
+        min_size = min(len(x) for x in xs)
+        if xs:
+            return torch.stack([x[:min_size] for x in xs])
 
     def optimal(self, n: int, state: torch.Tensor) -> Optional[float]:
         return self.send_to_nth(n, Command.OPTIMAL, state)
