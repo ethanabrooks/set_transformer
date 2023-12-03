@@ -1,17 +1,27 @@
 import time
 from collections import deque
+from dataclasses import asdict
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import torch
+from tensordict import TensorDict
 from torch.optim import Adam
 from wandb.sdk.wandb_run import Run
 
 from ppo import utils
 from ppo.agent import Agent
 from ppo.envs.envs import VecPyTorch, make_vec_envs
+from ppo.replay_buffer import create_replay_buffer
 from ppo.storage import RolloutStorage
 from ppo.utils import get_vec_normalize
+from utils import Transition, filter_torchrl_warnings
+
+filter_torchrl_warnings()
+
+
+from torchrl.data import ReplayBuffer  # noqa: E402
 
 
 def train(
@@ -81,6 +91,17 @@ def train(
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
+
+    # replay_buffer
+    replay_buffer_dir = Path("/tmp" if run is None else run.dir) / "replay-buffer"
+    replay_buffer_size = num_updates * num_steps
+    replay_buffers = [
+        create_replay_buffer(
+            directory=replay_buffer_dir, size=replay_buffer_size, index=i
+        )
+        for i in range(num_processes)
+    ]
+
     for j in range(num_updates):
         if not disable_linear_lr_decay:
             # decrease learning rate linearly
@@ -99,9 +120,29 @@ def train(
                     rnn_hxs=rollouts.recurrent_hidden_states[step],
                     masks=rollouts.masks[step],
                 )
-
+            prev_obs = obs
             # Obser reward and next obs
             obs, reward, done, truncated, infos = envs.step(action)
+
+            terminal = done | truncated
+            action_probs = action_metadata.probs
+            assert torch.allclose(action_probs.sum(dim=-1), torch.ones(1).cuda())
+            transition = Transition(
+                states=prev_obs,
+                actions=action.squeeze(-1),
+                action_probs=action_probs,
+                next_states=obs,
+                rewards=reward,
+                done=terminal,
+                obs=prev_obs,
+                next_obs=obs,
+            )
+            transitions = TensorDict(
+                {k: v for k, v in asdict(transition).items() if v is not None},
+                batch_size=[num_processes],
+            )
+            for buffer, transition in zip(replay_buffers, transitions):
+                buffer.add(transition)
 
             info: dict
             for info in infos:
@@ -109,7 +150,7 @@ def train(
                     episode_rewards.append(info["episode"]["r"])
 
             # If done then clean the history of observations.
-            masks = torch.from_numpy(~(done | truncated))
+            masks = torch.from_numpy(~terminal)
             bad_masks = torch.from_numpy(~truncated)
 
             rollouts.insert(
@@ -169,3 +210,10 @@ def train(
             )
             if run is not None:
                 run.log(log, step=total_num_steps)
+
+    replay_buffer: ReplayBuffer = create_replay_buffer(
+        directory=replay_buffer_dir, size=replay_buffer_size * num_processes, index=None
+    )
+    for buffer in replay_buffers:
+        replay_buffer.extend(buffer[:])
+    return replay_buffer
