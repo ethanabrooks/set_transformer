@@ -211,7 +211,6 @@ def render_eval_metrics(
 def log(
     count_threshold: int,
     df: pd.DataFrame,
-    max_returns: float,
     run: Run,
     sequence: Sequence,
 ):
@@ -256,7 +255,7 @@ def log(
         ax.fill_between(x, means - sems, means + sems, alpha=0.2)
         ax.plot(x, means)
         if name == "returns":
-            ymin, ymax = None, max(means.max(), max_returns)
+            ymin, ymax = None, means.max()
         elif name == "regret":
             ymin, ymax = 0, None
         ax.set_ylim(ymin, ymax)
