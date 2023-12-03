@@ -13,7 +13,7 @@ from rich import print
 
 import wandb
 from param_space import param_space
-from train_ppo import train
+from ppo.train import train
 
 tree = CommandTree()
 
