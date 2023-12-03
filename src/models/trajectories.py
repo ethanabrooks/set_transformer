@@ -111,26 +111,26 @@ class Model(Base):
         action_probs = self.positional_encoding(action_probs)
         continuous = torch.cat([action_probs, values[:, :, None]], dim=-2)
         X = torch.cat([continuous, discrete], dim=-2)
-        b, s, t, d = X.shape
-        X = X.reshape(b * s, t, d)
+        b, l, t, d = X.shape
+        X = X.reshape(b * l, t, d)
         _, _, d = X.shape
-        assert [*X.shape] == [b * s, t, d]
+        assert [*X.shape] == [b * l, t, d]
         Y: torch.Tensor = self.transition_encoder(X)
-        assert [*Y.shape] == [b * s, t, d]
-        embedded_discrete = Y.reshape(b, s, t, d).sum(2)
-        assert [*embedded_discrete.shape] == [b, s, d]
+        assert [*Y.shape] == [b * l, t, d]
+        embedded_discrete = Y.reshape(b, l, t, d).sum(2)
+        assert [*embedded_discrete.shape] == [b, l, d]
         outputs: torch.Tensor = self.forward_output(
             embedded_discrete=embedded_discrete, x=x
         )
-        assert [*outputs.shape][:-1] == [b, s]
+        assert [*outputs.shape][:-1] == [b, l]
         if x.target_q is None:
             loss = None
         else:
-            assert [*x.target_q.shape] == [b, s]
+            assert [*x.target_q.shape] == [b, l]
 
             loss = F.mse_loss(
                 outputs[
-                    torch.arange(b)[:, None], torch.arange(s)[None], unmasked_actions
+                    torch.arange(b)[:, None], torch.arange(l)[None], unmasked_actions
                 ],
                 x.target_q,
             )
