@@ -24,7 +24,7 @@ from grid_world.env import Env
 from grid_world.values import GridWorldWithValues
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
-from sequence import make_sequence
+from sequence import make_grid_world_sequence
 from sequence.grid_world_base import Sequence
 from utils import DataPoint, decay_lr, load, save, set_seed
 from values.bootstrap import Values as BootstrapValues
@@ -348,7 +348,7 @@ def train(
             **grid_world_args, n_tasks=n_tasks, seed=seed, terminal_transitions=None
         )
 
-    sequence = make_sequence(
+    sequence = make_grid_world_sequence(
         grid_world=make_grid_world(n_tasks=train_size, seed=seed),
         partial_observation=partial_observation,
         sample_from_trajectories=True,

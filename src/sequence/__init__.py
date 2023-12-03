@@ -4,7 +4,7 @@ from sequence.grid_world_base import Sequence
 from sequence.trajectories import Sequence as SampleTrajectoriesSequence
 
 
-def make_sequence(
+def make_grid_world_sequence(
     sample_from_trajectories: bool,
     **kwargs: dict,
 ) -> Sequence:
@@ -22,4 +22,4 @@ def make(
 ) -> Sequence:
     grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
     kwargs.update(grid_world=grid_world)
-    return make_sequence(**kwargs)
+    return make_grid_world_sequence(**kwargs)
