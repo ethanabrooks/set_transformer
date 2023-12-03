@@ -8,7 +8,7 @@ from grid_world.base import GridWorld
 from grid_world.env import Env
 from grid_world.values import GridWorldWithValues
 from sequence import make_grid_world_sequence
-from train.trainer.base import compute_values
+from train.trainer.base import Trainer
 from utils import set_seed
 
 
@@ -55,7 +55,7 @@ def train(
 
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
-    return compute_values(
+    return Trainer().compute_values(
         *args,
         envs=envs,
         **kwargs,
