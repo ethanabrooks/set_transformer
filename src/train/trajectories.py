@@ -1,9 +1,7 @@
 import itertools
 import math
-import pickle
 import time
 from dataclasses import asdict, dataclass, replace
-from pathlib import Path
 from typing import Counter, Optional
 
 import pandas as pd
@@ -310,19 +308,9 @@ def compute_values(
         if run is not None:
             wandb.log(dict(rmse=rmse), step=step)
         if final:
-            if run is not None:
-                path = Path(run.dir) / "Q.pt"
-                torch.save(Q, path)
-                save_artifact(path=path, run=run, type="Q")
-            return Q
+            return
         if rmse <= rmse_bellman:
             final = True
-
-
-def save_artifact(path: Path, run: Run, type: str):
-    artifact = wandb.Artifact(name=f"{type}-{run.id}", type=type)
-    artifact.add_file(path)
-    run.log_artifact(artifact)
 
 
 def train(
@@ -368,11 +356,6 @@ def train(
 
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
-    if run is not None:
-        path = Path(run.dir) / "sequence.pkl"
-        with path.open("wb") as f:
-            pickle.dump(sequence, f)
-        save_artifact(path=path, run=run, type="sequence")
     return compute_values(
         *args,
         envs=envs,
