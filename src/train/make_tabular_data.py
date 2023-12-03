@@ -32,10 +32,6 @@ def make_data(
         sequence=sequence, sample_from_trajectories=sample_from_trajectories
     )
     dataset: Dataset = Dataset(
-        **dataset_args,
-        bellman_delta=bellman_delta,
-        n_actions=len(sequence.grid_world.deltas),
-        sequence=sequence,
-        values=values,
+        **dataset_args, bellman_delta=bellman_delta, sequence=sequence, values=values
     )
     return dataset

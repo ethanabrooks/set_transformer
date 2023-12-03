@@ -79,22 +79,19 @@ class Trainer:
         Q = torch.zeros(1, b, l, a)
         values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
         data = Dataset(
-            bellman_delta=self.bellman_delta,
-            n_actions=a,
-            sequence=sequence,
-            values=values,
+            bellman_delta=self.bellman_delta, sequence=sequence, values=values
         )
         start_step = 0
         n_tokens = max(
-            data.n_tokens, len(sequence.grid_world.Q) * 2
+            data.sequence.n_tokens, len(sequence.grid_world.Q) * 2
         )  # double for padding
         net = Model(
             bellman_delta=self.bellman_delta,
             **model_args,
-            n_actions=data.n_actions,
+            n_actions=data.sequence.n_actions,
             n_ctx=l,
             n_tokens=n_tokens,
-            pad_value=data.pad_value,
+            pad_value=data.sequence.pad_value,
         )
         if self.load_path is not None:
             load(self.load_path, net, self.run)
@@ -163,10 +160,7 @@ class Trainer:
             assert len(bootstrap_Q) == bellman_number
             values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
             return Dataset(
-                bellman_delta=self.bellman_delta,
-                n_actions=a,
-                sequence=sequence,
-                values=values,
+                bellman_delta=self.bellman_delta, sequence=sequence, values=values
             )
 
         def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
