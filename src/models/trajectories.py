@@ -1,4 +1,5 @@
 import random
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Optional
 
@@ -44,7 +45,7 @@ class GPT2(nn.Module):
         return hidden_states.last_hidden_state
 
 
-class Model(Base):
+class Model(Base, ABC):
     def __init__(
         self,
         bellman_delta: int,
@@ -63,7 +64,12 @@ class Model(Base):
         if bellman_delta > 1:
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
         self.n_rotations = n_rotations
+        self.obs_encoder = self.build_obs_encoder()
         self.pad_value = pad_value
+
+    @abstractmethod
+    def build_obs_encoder(self, **kwargs):
+        pass
 
     def build_sequence_network(self, **kwargs):
         return GPT2(**kwargs)
@@ -79,10 +85,10 @@ class Model(Base):
         done: torch.Tensor = self.offset(x.done)
         next_obs: torch.Tensor = self.offset(x.next_obs)
         rewards: torch.Tensor = self.offset(x.rewards)
-        obs = self.embedding(x.obs.long())
+        obs = self.obs_encoder(x.obs.long())
         actions = self.embedding(actions.long())
         done = self.embedding(done.long())
-        next_obs = self.embedding(next_obs.long())
+        next_obs = self.obs_encoder(next_obs.long())
         rewards = self.embedding(rewards.long())
         discrete = torch.stack(
             [
@@ -213,3 +219,16 @@ class Model(Base):
                 optimizer.step()
         assert torch.all(updated)
         return agg_outputs, agg_loss
+
+
+class CastToLongLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor):
+        return x.long()
+
+
+class DiscreteObsModel(Model):
+    def build_obs_encoder(self):
+        return nn.Sequential(CastToLongLayer(), self.embedding)
