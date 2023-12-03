@@ -1,20 +1,20 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-import gym
-import gym.spaces
+import gymnasium
 import torch
+from gymnasium.spaces import Discrete, Space
 
 
-class Env(gym.Env, ABC):
+class Env(gymnasium.Env, ABC):
     @property
     @abstractmethod
-    def action_space(self) -> gym.spaces.Discrete:
+    def action_space(self) -> Discrete:
         pass
 
     @property
     @abstractmethod
-    def observation_space(self) -> gym.Space:
+    def observation_space(self) -> Space:
         pass
 
     @property
