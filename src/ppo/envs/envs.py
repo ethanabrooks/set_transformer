@@ -3,6 +3,7 @@ import pyglet
 import torch
 from gymnasium.spaces.box import Box
 
+from envs.base import Env
 from ppo.envs.dummy_vec_env import DummyVecEnv
 from ppo.envs.monitor import Monitor
 from ppo.envs.subproc_vec_env import SubprocVecEnv
@@ -13,12 +14,22 @@ pyglet.options["headless"] = True
 import miniworld  # noqa: F401, E402
 
 
+class BaseEnvWrapper(gym.Wrapper, Env):
+    @property
+    def action_space(self) -> gym.spaces.Discrete:
+        return self.env.action_space
+
+    @property
+    def observation_space(self) -> gym.Space:
+        return self.env.observation_space
+
+
 def make_env(env_id: str, seed: int):
     def _thunk():
         env: gym.Env = gym.make(env_id)
+        env = BaseEnvWrapper(env)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
-        print("seed", seed)
         env.reset(seed=seed)
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
