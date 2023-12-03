@@ -1,6 +1,5 @@
 bellman_delta: 2
 data_args:
-  q_load_path: null
   sample_from_trajectories: false
   sequence_args:
     grid_world_args:
