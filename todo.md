@@ -1,7 +1,8 @@
-Compare PPO and AD curves
-
-non-linear skipping?
-- dense reward
-- try skipping 10
-Evaluate over all input-orders
-Separately evaluate different numbers of updates
+- Log dataframe, not figure (for eval rollouts)
+- Implement early stopping for value estimates in rollout add
+- log rollout time
+- increase model size
+- replace . with tqdm
+- decrease test_interval
+- implement cql
+- think about how to implement multitask
