@@ -2,7 +2,7 @@ from typing import Optional
 
 from dataset.tabular import Dataset
 from sequence import make as make_sequence
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from values import make as make_values
 
 

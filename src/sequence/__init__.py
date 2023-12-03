@@ -1,6 +1,6 @@
 from grid_world.base import GridWorld
-from sequence.base import Sequence
 from sequence.cross_product import Sequence as SampleUniformSequence
+from sequence.grid_world_base import Sequence
 from sequence.trajectories import Sequence as SampleTrajectoriesSequence
 
 

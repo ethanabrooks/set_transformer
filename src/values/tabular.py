@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from values.base import Values as BaseValues
 
 
