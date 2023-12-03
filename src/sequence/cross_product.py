@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 
 from grid_world.base import GridWorld
-from sequence.base import Sequence as BaseSequence
+from sequence.grid_world_base import Sequence as BaseSequence
 from utils import Transition
 
 

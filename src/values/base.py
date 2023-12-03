@@ -4,7 +4,7 @@ from typing import Optional
 
 import torch
 
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 
 
 @dataclass(frozen=True)
