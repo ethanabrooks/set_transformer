@@ -1,6 +1,5 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from functools import lru_cache
 
 import numpy as np
 import torch
@@ -16,7 +15,6 @@ from values.base import Values
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     bellman_delta: int
-    n_actions: int
     sequence: Sequence
     values: Values
 
@@ -47,15 +45,6 @@ class Dataset(BaseDataset):
     @abstractmethod
     def target_q(self, idx: int, n_bellman: int):
         raise NotImplementedError
-
-    @property
-    def n_tokens(self):
-        return 1 + int(self.pad_value)
-
-    @property
-    @lru_cache()
-    def pad_value(self):
-        return 1 + self.sequence.max_discrete_value
 
     def __getitem__(self, idx) -> DataPoint:
         idx, n_bellman = np.unravel_index(

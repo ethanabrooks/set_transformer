@@ -53,8 +53,8 @@ def train(
     print("Create net... ", end="", flush=True)
     net = SetTransformer(
         **model_args,
-        n_actions=train_data.n_actions,
-        n_tokens=train_data.n_tokens,
+        n_actions=train_data.sequence.n_actions,
+        n_tokens=train_data.sequence.n_tokens,
     )
     if load_path is not None:
         load(load_path, net, run)
