@@ -10,6 +10,15 @@ from sequence.base import Sequence as Base
 from utils import Transition
 
 
+def max_discrete_value(transitions: Transition[torch.Tensor]):
+    return max(
+        transitions.actions.max(),
+        transitions.next_states.max(),
+        transitions.rewards.max(),
+        transitions.states.max(),
+    )
+
+
 @dataclass(frozen=True)
 class Sequence(Base, ABC):
     grid_world: GridWorldWithValues
@@ -28,16 +37,9 @@ class Sequence(Base, ABC):
             grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
         return cls(
-            gamma=grid_world.gamma, grid_world=grid_world, transitions=transitions
+            gamma=grid_world.gamma,
+            grid_world=grid_world,
+            n_actions=grid_world.n_actions,
+            pad_value=max_discrete_value(transitions) + 1,
+            transitions=transitions,
         )
-
-    @property
-    def max_discrete_value(self):
-        transitions = self.transitions
-        pad_value: torch.Tensor = 1 + max(
-            transitions.actions.max(),
-            transitions.next_states.max(),
-            transitions.rewards.max(),
-            transitions.states.max(),
-        )
-        return pad_value.item()
