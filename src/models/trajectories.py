@@ -73,23 +73,30 @@ class Model(Base):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if unmasked_actions is None:
             unmasked_actions = x.actions
+        b, l, a = x.action_probs.shape
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
         done: torch.Tensor = self.offset(x.done)
         next_obs: torch.Tensor = self.offset(x.next_obs)
         rewards: torch.Tensor = self.offset(x.rewards)
+        obs = self.embedding(x.obs.long())
+        actions = self.embedding(actions.long())
+        done = self.embedding(done.long())
+        next_obs = self.embedding(next_obs.long())
+        rewards = self.embedding(rewards.long())
         discrete = torch.stack(
             [
-                x.obs,
+                obs,
                 actions,
                 done,
                 next_obs,
                 rewards,
             ],
-            dim=-1,
+            dim=-2,
         )
-        discrete: torch.Tensor = self.embedding(discrete.long())
-        _, _, _, d = discrete.shape
+        d = self.n_hidden
+        t = 5
+        assert [*discrete.shape] == [b, l, t, d]
         values = (x.input_q * x.action_probs).sum(-1)
         values = self.positional_encoding(values)
         if self.bellman_delta > 1:
