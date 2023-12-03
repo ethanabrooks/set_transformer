@@ -15,7 +15,11 @@ from utils import set_seed
 def train(
     *args,
     dummy_vec_env: bool,
+    evaluator_args: dict,
     grid_world_args: dict,
+    lr: float,
+    model_args: dict,
+    n_plot: dict,
     partial_observation: bool,
     rmse_bellman: float,
     run: Run,
@@ -23,6 +27,7 @@ def train(
     sequence_args: dict,
     test_size: int,
     time_limit: int,
+    train_args: dict,
     train_size: int,
     config: Optional[str] = None,
     **kwargs,
@@ -55,12 +60,15 @@ def train(
 
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
-    return Trainer().compute_values(
+    trainer = Trainer(
+        **kwargs, rmse_bellman=rmse_bellman, run=run, sequence=sequence, **train_args
+    )
+    return trainer.train(
         *args,
         envs=envs,
-        **kwargs,
+        evaluator_args=evaluator_args,
+        lr=lr,
+        model_args=model_args,
+        n_plot=n_plot,
         partial_observation=partial_observation,
-        rmse_bellman=rmse_bellman,
-        run=run,
-        sequence=sequence,
     )
