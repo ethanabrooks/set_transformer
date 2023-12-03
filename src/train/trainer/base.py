@@ -19,7 +19,7 @@ from envs.subproc_vec_env import SubprocVecEnv
 from evaluate import log as log_evaluation
 from evaluate import rollout
 from metrics import Metrics, compute_rmse, get_metrics
-from models.trajectories import Model
+from models.trajectories import DiscreteObsModel, Model
 from sequence.grid_world_base import Sequence
 from utils import DataPoint, decay_lr, load, save
 from values.bootstrap import Values as BootstrapValues
@@ -83,7 +83,7 @@ class Trainer:
         n_tokens = max(
             sequence.n_tokens, len(sequence.grid_world.Q) * 2
         )  # double for padding
-        net = Model(
+        net = DiscreteObsModel(
             bellman_delta=bellman_delta,
             **model_args,
             n_actions=sequence.n_actions,
