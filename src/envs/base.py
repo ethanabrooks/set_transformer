@@ -18,13 +18,11 @@ class Env(gym.Env, ABC):
         pass
 
     @property
-    @abstractmethod
-    def policy(self) -> torch.Tensor:
+    def policy(self) -> Optional[torch.Tensor]:
         pass
 
     @property
-    @abstractmethod
-    def values(self) -> torch.Tensor:
+    def values(self) -> Optional[torch.Tensor]:
         pass
 
     def optimal(self, state: torch.Tensor) -> Optional[torch.Tensor]:
