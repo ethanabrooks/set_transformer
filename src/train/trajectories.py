@@ -12,28 +12,15 @@ from train.trainer.grid_world import Trainer
 from utils import set_seed
 
 
-def train(
-    dummy_vec_env: bool,
-    evaluator_args: dict,
+def make_grid_world_sequence_and_env_fn(
     grid_world_args: dict,
-    lr: float,
-    model_args: dict,
-    n_plot: dict,
     partial_observation: bool,
     rmse_bellman: float,
-    run: Run,
     seed: int,
     sequence_args: dict,
-    test_size: int,
     time_limit: int,
-    train_args: dict,
     train_size: int,
-    config: Optional[str] = None,
-    **kwargs,
 ):
-    del config
-    set_seed(seed)
-
     def make_grid_world(n_tasks: int, seed: int):
         return GridWorld.make(
             **grid_world_args, n_tasks=n_tasks, seed=seed, terminal_transitions=None
@@ -57,12 +44,35 @@ def train(
             time_limit=time_limit,
         )
 
-    env_fns = list(map(make_env, range(test_size)))
+    return sequence, make_env
+
+
+def train(
+    dummy_vec_env: bool,
+    evaluator_args: dict,
+    load_path: Optional[str],
+    lr: float,
+    model_args: dict,
+    n_plot: dict,
+    rmse_bellman: float,
+    run: Run,
+    seed: int,
+    test_size: int,
+    train_args: dict,
+    config: Optional[str] = None,
+    **kwargs,
+):
+    del config
+    set_seed(seed)
+    sequence, env_fn = make_grid_world_sequence_and_env_fn(
+        **kwargs, rmse_bellman=rmse_bellman, seed=seed
+    )
+    env_fns = list(map(env_fn, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
-    trainer = Trainer.make(
+    trainer: Trainer = Trainer.make(
         envs=envs,
         evaluator_args=evaluator_args,
-        **kwargs,
+        load_path=load_path,
         lr=lr,
         model_args=model_args,
         n_plot=n_plot,
