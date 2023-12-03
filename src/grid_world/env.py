@@ -39,12 +39,12 @@ class Env(Env):
     def convert_2d_to_1d(self, state: torch.Tensor):
         return self.grid_world.convert_2d_to_1d(state)
 
-    def optimal(self, state: torch.Tensor) -> Optional[float]:
+    def optimal(self, state: "int | torch.Tensor") -> Optional[float]:
+        if isinstance(state, torch.Tensor):
+            state = state.long().item()
         if isinstance(self.grid_world, GridWorldWithValues):
             return (
-                self.grid_world.optimally_improved_policy_values[:, state.long().item()]
-                .max()
-                .item()
+                self.grid_world.optimally_improved_policy_values[:, state].max().item()
             )
 
     def reset(self, state: Optional[torch.Tensor] = None):
@@ -55,7 +55,7 @@ class Env(Env):
             current_state = state
         self.current_state = current_state.item()
         self.time_remaining = self.time_limit
-        return self.current_state
+        return self.current_state, {}
 
     def step(self, action: Union[torch.Tensor, int]):
         info = dict()
@@ -69,14 +69,14 @@ class Env(Env):
         else:
             time_remaining = self.time_remaining
             self.time_remaining -= 1
-        i: dict
-        r: torch.Tensor
-        d: torch.Tensor
-        current_state, r, d, i = self.grid_world.step_fn(
+        info: dict
+        reward: torch.Tensor
+        done: torch.Tensor
+        current_state, reward, done, truncated, info = self.grid_world.step_fn(
             states=current_state, actions=action, time_remaining=time_remaining
         )
         self.current_state = current_state.item()
-        reward = r.item()
-        done = d.item()
-        info.update(i)
-        return self.current_state, reward, done, info
+        reward = reward.item()
+        done = done.item()
+        info.update(info)
+        return self.current_state, reward, done, truncated, info

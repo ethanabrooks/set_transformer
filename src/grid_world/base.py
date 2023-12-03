@@ -471,7 +471,7 @@ class GridWorld:
                 A = torch.multinomial(self.Pi[arange, S1], 1).squeeze(1).long()
 
             # Convert current current_states to indices
-            S2, R, D, _ = self.step_fn(
+            S2, R, D, T, _ = self.step_fn(
                 states=S1, actions=A, time_remaining=time_remaining
             )
 
@@ -481,7 +481,7 @@ class GridWorld:
             action_probs[:, t] = self.Pi[arange, S1]
             next_states[:, t] = S2
             rewards[:, t] = R
-            done[:, t] = D
+            done[:, t] = D | T
             if time_remaining is not None:
                 time_remaining -= 1
                 time_remaining[D] = time_limit
@@ -532,9 +532,11 @@ class GridWorld:
         next_states = next_states.reshape(shape)
         rewards = rewards.reshape(shape)
         done = done.reshape(shape)
-        if time_remaining is not None:
-            done = done | (time_remaining == 0)
-        return next_states, rewards, done, {}
+        if time_remaining is None:
+            truncated = False
+        else:
+            truncated = time_remaining == 0
+        return next_states, rewards, done, truncated, {}
 
     def visualize_policy(self, Pi: torch.Tensor):
         dims = len(Pi.shape)
