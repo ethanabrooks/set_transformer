@@ -2,11 +2,13 @@ import itertools
 import math
 import shutil
 import time
+from abc import abstractmethod
 from dataclasses import asdict, dataclass, replace
 from typing import Counter, Optional
 
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -19,7 +21,7 @@ from envs.subproc_vec_env import SubprocVecEnv
 from evaluate import log as log_evaluation
 from evaluate import rollout
 from metrics import Metrics, compute_rmse, get_metrics
-from models.trajectories import DiscreteObsModel, Model
+from models.trajectories import Model
 from sequence.grid_world_base import Sequence
 from utils import DataPoint, decay_lr, load, save
 from values.bootstrap import Values as BootstrapValues
@@ -63,6 +65,11 @@ class Trainer:
     test_interval: int
 
     @classmethod
+    @abstractmethod
+    def build_model(cls, **kwargs) -> nn.Module:
+        pass
+
+    @classmethod
     def make(
         cls,
         baseline: bool,
@@ -85,7 +92,7 @@ class Trainer:
         n_tokens = max(
             sequence.n_tokens, len(sequence.grid_world.Q) * 2
         )  # double for padding
-        net = DiscreteObsModel(
+        net = cls.build_model(
             bellman_delta=bellman_delta,
             **model_args,
             n_actions=sequence.n_actions,
@@ -117,6 +124,9 @@ class Trainer:
             run=run,
             sequence=sequence,
         )
+
+    def get_ground_truth(self, bellman_number: int) -> Optional[torch.Tensor]:
+        pass
 
     def train(self, lr: float):
         b, l = self.sequence.transitions.rewards.shape
@@ -158,8 +168,7 @@ class Trainer:
 
         assert torch.all(bootstrap_Q[0] == 0)
         sequence = self.sequence
-        Q = sequence.grid_world.Q
-        ground_truth = Q[1 : 1 + bellman_number]  # omit Q_0 from ground_truth
+        ground_truth = self.get_ground_truth(bellman_number)
 
         test_log = {}
         counter = Counter()
@@ -180,29 +189,6 @@ class Trainer:
             )
             return {f"{prefix}/{k}": v for k, v in asdict(metrics).items()}
 
-        def update_plots():
-            grid_world = sequence.grid_world
-            plot_indices = self.plot_indices
-            q_per_state = torch.empty(len(plot_indices), grid_world.n_states, a)
-            q_per_state[
-                torch.arange(len(plot_indices))[:, None],
-                sequence.transitions.states[plot_indices],
-            ] = Q[-1, plot_indices]
-            stacked = torch.stack(
-                [q_per_state, grid_world.Q[bellman_number, plot_indices]]
-            )
-
-            Pi = grid_world.Pi[None, plot_indices]
-            v_per_state: torch.Tensor = stacked * Pi
-            v_per_state = v_per_state.sum(-1)
-            v_per_state = torch.unbind(v_per_state, dim=1)
-            for i, plot_value in enumerate(v_per_state):
-                fig = grid_world.visualize_values(plot_value)
-                if wandb.run is not None:
-                    self.run.log(
-                        {f"plot {i}/bellman {bellman_number}": wandb.Image(fig)}
-                    )
-
         train_data = make_dataset(bootstrap_Q)
         tick = time.time()
         pbar = None
@@ -212,7 +198,7 @@ class Trainer:
                 assert torch.all(updated)
             updated = torch.zeros_like(Q)
 
-            q, b, l, a = Q.shape
+            q, b, l, _ = Q.shape
             epoch_rmse = compute_rmse(
                 train_data.values.Q,
                 Q[
@@ -261,7 +247,7 @@ class Trainer:
             pbar.refresh()
             done = epoch_rmse <= stop_at_rmse
             if done:
-                update_plots()
+                self.update_plots(bellman_number=bellman_number, Q=Q)
                 save(self.run, self.net)
             if self.baseline:
                 run_evaluation = e % self.test_interval == 0
@@ -297,7 +283,7 @@ class Trainer:
                     train_log = {k: v / counter["n"] for k, v in counter.items()}
                     test_log.update(bellman_number=bellman_number)
                     repeated_log = {f"repeat/{k}": v for k, v in test_log.items()}
-                    update_plots()
+                    self.update_plots(bellman_number=bellman_number, Q=Q)
 
                     train_log.update(
                         epoch=e,
@@ -336,3 +322,6 @@ class Trainer:
                     **self.metrics_args,
                 )
                 counter.update(asdict(metrics), n=1)
+
+    def update_plots(self, bellman_number: int, Q: torch.Tensor):
+        pass
