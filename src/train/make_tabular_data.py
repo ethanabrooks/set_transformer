@@ -1,5 +1,3 @@
-from typing import Optional
-
 from dataset.tabular import Dataset
 from grid_world.base import GridWorld
 from sequence import make_grid_world_sequence
@@ -20,7 +18,6 @@ def make_sequence(
 def make_data(
     bellman_delta: int,
     dataset_args: dict,
-    q_load_path: Optional[str],
     sequence_args: dict,
     sample_from_trajectories: bool,
     seed: int,
@@ -32,9 +29,7 @@ def make_data(
         seed=seed,
     )
     values = make_values(
-        load_path=q_load_path,
-        sequence=sequence,
-        sample_from_trajectories=sample_from_trajectories,
+        sequence=sequence, sample_from_trajectories=sample_from_trajectories
     )
     dataset: Dataset = Dataset(
         **dataset_args,
