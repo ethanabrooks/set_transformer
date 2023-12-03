@@ -1,4 +1,4 @@
-inherit_from: trajectories
+inherit_from: grid-world
 train_args:
   alpha: 0.1
   baseline: true
