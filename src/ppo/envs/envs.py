@@ -1,5 +1,3 @@
-import os
-
 import gymnasium as gym
 import pyglet
 import torch
@@ -15,15 +13,11 @@ pyglet.options["headless"] = True
 import miniworld  # noqa: F401, E402
 
 
-def make_env(env_id: str, seed: int, rank: int, log_dir: str):
+def make_env(env_id: str, seed: int):
     def _thunk():
         env: gym.Env = gym.make(env_id)
 
-        env = Monitor(
-            env=env,
-            filename=None if log_dir is None else os.path.join(log_dir, str(rank)),
-            allow_early_resets=True,
-        )
+        env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
@@ -41,14 +35,10 @@ def make_vec_envs(
     seed: int,
     num_processes: int,
     gamma: float,
-    log_dir: str,
     device: torch.device,
     dummy_vec_env: bool,
-):
-    envs = [
-        make_env(env_id=env_name, seed=seed, rank=i, log_dir=log_dir)
-        for i in range(num_processes)
-    ]
+) -> "VecPyTorch":
+    envs = [make_env(env_id=env_name, seed=seed) for i in range(num_processes)]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)
