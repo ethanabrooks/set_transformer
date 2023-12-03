@@ -89,15 +89,12 @@ class Trainer:
             grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
             sequence = replace(sequence, grid_world=grid_world)
         _, l = sequence.transitions.rewards.shape
-        n_tokens = max(
-            sequence.n_tokens, len(sequence.grid_world.Q) * 2
-        )  # double for padding
         net = cls.build_model(
             bellman_delta=bellman_delta,
             **model_args,
             n_actions=sequence.n_actions,
             n_ctx=l,
-            n_tokens=n_tokens,
+            n_tokens=sequence.n_tokens,
             pad_value=sequence.pad_value,
         )
         if load_path is not None:
