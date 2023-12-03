@@ -217,7 +217,7 @@ def log(
 ):
     def get_returns(key: str, df: pd.DataFrame):
         exponents = np.arange(len(df))
-        discounts = np.power(sequence.grid_world.gamma, exponents)
+        discounts = np.power(sequence.gamma, exponents)
         discounted = df[key] * discounts
         return discounted.sum()
 
