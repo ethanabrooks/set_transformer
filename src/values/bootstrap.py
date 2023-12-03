@@ -15,12 +15,15 @@ class Values(BaseValues):
     def compute_values(cls, bootstrap_Q: torch.Tensor, sequence: Sequence):
         grid_world = sequence.grid_world
         _, b, _, _ = bootstrap_Q.shape
-        Pi = grid_world.Pi[torch.arange(b)[:, None], sequence.transitions.next_states]
+        Pi = F.pad(sequence.transitions.action_probs[:, 1:], (0, 0, 0, 1))
+        Pi2 = grid_world.Pi[torch.arange(b)[:, None], sequence.transitions.next_states]
         bootstrap_Q = F.pad(bootstrap_Q[:, :, 1:], (0, 0, 0, 1))
         Pi = Pi[None].expand_as(bootstrap_Q)
         R = sequence.transitions.rewards[None, ...]
         done = sequence.transitions.done[None, ...]
         Q = R + sequence.gamma * ~done * (bootstrap_Q * Pi).sum(-1)
+        Q2 = R + sequence.gamma * ~done * (bootstrap_Q * Pi2).sum(-1)
+        assert torch.all(Q == Q2)
         return Q
 
     @classmethod
