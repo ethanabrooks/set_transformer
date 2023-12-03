@@ -17,9 +17,9 @@ def make_grid_world_sequence_and_env_fn(
     partial_observation: bool,
     rmse_bellman: float,
     seed: int,
-    sequence_args: dict,
     time_limit: int,
     train_size: int,
+    **kwargs: dict,
 ):
     def make_grid_world(n_tasks: int, seed: int):
         return GridWorld.make(
@@ -27,10 +27,10 @@ def make_grid_world_sequence_and_env_fn(
         )
 
     sequence = make_grid_world_sequence(
+        **kwargs,
         grid_world=make_grid_world(n_tasks=train_size, seed=seed),
         partial_observation=partial_observation,
         sample_from_trajectories=True,
-        **sequence_args,
         stop_at_rmse=rmse_bellman,
         time_limit=time_limit,
     )
