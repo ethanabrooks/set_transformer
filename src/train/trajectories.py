@@ -13,7 +13,6 @@ from utils import set_seed
 
 
 def train(
-    *args,
     dummy_vec_env: bool,
     evaluator_args: dict,
     grid_world_args: dict,
@@ -61,13 +60,14 @@ def train(
     env_fns = list(map(make_env, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
     trainer = Trainer.make(
-        **kwargs, rmse_bellman=rmse_bellman, run=run, sequence=sequence, **train_args
-    )
-    return trainer.train(
-        *args,
         envs=envs,
         evaluator_args=evaluator_args,
         lr=lr,
         model_args=model_args,
-        n_plot=n_plot,
+        **kwargs,
+        rmse_bellman=rmse_bellman,
+        run=run,
+        sequence=sequence,
+        **train_args,
     )
+    return trainer.train(lr=lr, n_plot=n_plot)
