@@ -1,4 +1,3 @@
-from grid_world.base import GridWorld
 from sequence.cross_product import Sequence as SampleUniformSequence
 from sequence.grid_world_base import Sequence
 from sequence.trajectories import Sequence as SampleTrajectoriesSequence
@@ -13,13 +12,3 @@ def make_grid_world_sequence(
         if sample_from_trajectories
         else SampleUniformSequence.make(**kwargs)
     )
-
-
-def make(
-    grid_world_args: dict,
-    seed: int,
-    **kwargs: dict,
-) -> Sequence:
-    grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
-    kwargs.update(grid_world=grid_world)
-    return make_grid_world_sequence(**kwargs)

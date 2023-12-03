@@ -1,9 +1,20 @@
 from typing import Optional
 
 from dataset.tabular import Dataset
-from sequence import make as make_sequence
+from grid_world.base import GridWorld
+from sequence import make_grid_world_sequence
 from sequence.grid_world_base import Sequence
 from values import make as make_values
+
+
+def make_sequence(
+    grid_world_args: dict,
+    seed: int,
+    **kwargs: dict,
+) -> Sequence:
+    grid_world = GridWorld.make(**grid_world_args, seed=seed, terminal_transitions=None)
+    kwargs.update(grid_world=grid_world)
+    return make_grid_world_sequence(**kwargs)
 
 
 def make_data(
@@ -18,7 +29,7 @@ def make_data(
         partial_observation=False,  # Not implemented
         **sequence_args,
         sample_from_trajectories=sample_from_trajectories,
-        seed=seed
+        seed=seed,
     )
     values = make_values(
         load_path=q_load_path,
@@ -30,6 +41,6 @@ def make_data(
         bellman_delta=bellman_delta,
         n_actions=len(sequence.grid_world.deltas),
         sequence=sequence,
-        values=values
+        values=values,
     )
     return dataset
