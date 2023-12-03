@@ -25,7 +25,7 @@ from grid_world.values import GridWorldWithValues
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
 from sequence import make_sequence
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from utils import DataPoint, decay_lr, load, save, set_seed
 from values.bootstrap import Values as BootstrapValues
 
