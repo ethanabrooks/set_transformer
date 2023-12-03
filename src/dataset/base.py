@@ -16,6 +16,7 @@ from values.base import Values
 @dataclass(frozen=True)
 class Dataset(BaseDataset):
     bellman_delta: int
+    n_actions: int
     sequence: Sequence
     values: Values
 
@@ -46,10 +47,6 @@ class Dataset(BaseDataset):
     @abstractmethod
     def target_q(self, idx: int, n_bellman: int):
         raise NotImplementedError
-
-    @property
-    def n_actions(self):
-        return len(self.sequence.grid_world.deltas)
 
     @property
     def n_tokens(self):
