@@ -3,7 +3,7 @@ from dataclasses import dataclass, replace
 import torch
 
 import wandb
-from models.trajectories import DiscreteObsModel
+from models.trajectories import GridWorldModel
 from sequence.grid_world_base import Sequence
 from train.trainer.base import Trainer as Base
 
@@ -14,7 +14,7 @@ class Trainer(Base):
 
     @classmethod
     def build_model(cls, **kwargs):
-        return DiscreteObsModel(**kwargs)
+        return GridWorldModel(**kwargs)
 
     @classmethod
     def make(cls, baseline: bool, sequence: Sequence, **kwargs):

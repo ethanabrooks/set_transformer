@@ -65,10 +65,15 @@ class Model(Base, ABC):
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
         self.n_rotations = n_rotations
         self.obs_encoder = self.build_obs_encoder()
+        self.rew_encoder = self.build_rew_encoder()
         self.pad_value = pad_value
 
     @abstractmethod
-    def build_obs_encoder(self, **kwargs):
+    def build_obs_encoder(self, **kwargs) -> nn.Module:
+        pass
+
+    @abstractmethod
+    def build_rew_encoder(self, **kwargs) -> nn.Module:
         pass
 
     def build_sequence_network(self, **kwargs):
@@ -89,7 +94,7 @@ class Model(Base, ABC):
         actions = self.embedding(actions.long())
         done = self.embedding(done.long())
         next_obs = self.obs_encoder(next_obs.long())
-        rewards = self.embedding(rewards.long())
+        rewards: torch.Tensor = self.rew_encoder(rewards.long())
         discrete = torch.stack(
             [
                 obs,
@@ -229,6 +234,9 @@ class CastToLongLayer(nn.Module):
         return x.long()
 
 
-class DiscreteObsModel(Model):
+class GridWorldModel(Model):
     def build_obs_encoder(self):
+        return nn.Sequential(CastToLongLayer(), self.embedding)
+
+    def build_rew_encoder(self):
         return nn.Sequential(CastToLongLayer(), self.embedding)
