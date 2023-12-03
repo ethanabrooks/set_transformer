@@ -1,5 +1,6 @@
 import itertools
 import math
+import shutil
 import time
 from dataclasses import asdict, dataclass, replace
 from typing import Counter, Optional
@@ -9,6 +10,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 import wandb
@@ -200,6 +202,7 @@ class Trainer:
 
         train_data = make_dataset(bootstrap_Q)
         tick = time.time()
+        pbar = None
 
         for e in itertools.count():
             if updated is not None:
@@ -244,6 +247,15 @@ class Trainer:
             train_data = make_dataset(bootstrap_Q)
             train_loader = DataLoader(train_data, batch_size=self.n_batch, shuffle=True)
             epoch_step = start_step + e * len(train_loader)
+            remaining = epoch_rmse - stop_at_rmse
+            if pbar is None:
+                pbar = tqdm(
+                    total=round(remaining, 3),
+                    desc=f"Stage {bellman_number} progress",
+                    ncols=shutil.get_terminal_size().columns,
+                )
+            pbar.n = max(0, min(pbar.total, round(pbar.total - remaining, 3)))
+            pbar.refresh()
             done = epoch_rmse <= stop_at_rmse
             if done:
                 update_plots()
@@ -295,7 +307,6 @@ class Trainer:
                     )
                     train_log = {f"train/{k}": v for k, v in train_log.items()}
                     counter = Counter()
-                    print(".", end="", flush=True)
                     if self.run is not None:
                         wandb.log(dict(**repeated_log, **train_log), step=step)
                 if done:
