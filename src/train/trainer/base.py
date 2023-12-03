@@ -40,6 +40,91 @@ class Evaluator:
 
 @dataclass
 class Trainer:
+    def compute_values(
+        self,
+        baseline: bool,
+        bellman_delta: int,
+        envs: SubprocVecEnv,
+        evaluator_args: dict,
+        lr: float,
+        model_args: dict,
+        n_plot: int,
+        partial_observation: bool,
+        rmse_bellman: float,
+        rmse_training_final: float,
+        rmse_training_intermediate: float,
+        run: Run,
+        sequence: Sequence,
+        train_args: dict,
+        load_path: Optional[str] = None,
+    ):
+        grid_world = sequence.grid_world
+        if baseline:
+            grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
+            sequence = replace(sequence, grid_world=grid_world)
+        b, l = sequence.transitions.rewards.shape
+        a = envs.action_space.n
+        Q = torch.zeros(1, b, l, a)
+        values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
+        data = Dataset(
+            bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
+        )
+        start_step = 0
+        n_tokens = max(
+            data.n_tokens, len(sequence.grid_world.Q) * 2
+        )  # double for padding
+        net = Model(
+            bellman_delta=bellman_delta,
+            **model_args,
+            n_actions=data.n_actions,
+            n_ctx=l,
+            n_tokens=n_tokens,
+            partial_observation=partial_observation,
+            pad_value=data.pad_value,
+        )
+        if load_path is not None:
+            load(load_path, net, run)
+        net = net.cuda()
+
+        evaluator = (
+            Evaluator(envs=envs, net=net, **evaluator_args)
+            if isinstance(net, Model)
+            else None
+        )
+        optimizer = optim.Adam(net.parameters(), lr=lr)
+        plot_indices = torch.randint(0, b, (n_plot,))
+        final = baseline
+
+        for bellman_number in itertools.count(1):
+            new_Q, step = self.train_bellman_iteration(
+                baseline=baseline,
+                bellman_delta=bellman_delta,
+                bellman_number=bellman_number,
+                bootstrap_Q=Q,
+                evaluator=evaluator,
+                load_path=load_path,
+                lr=lr,
+                net=net,
+                optimizer=optimizer,
+                plot_indices=plot_indices,
+                run=run,
+                sequence=sequence,
+                start_step=start_step,
+                stop_at_rmse=rmse_training_final
+                if final
+                else rmse_training_intermediate,
+                **train_args,
+            )
+            start_step = step
+            rmse = compute_rmse(Q[-1], new_Q[-1])
+            Q = F.pad(new_Q, (0, 0, 0, 0, 0, 0, 1, 0))
+            if run is not None:
+                wandb.log(dict(rmse=rmse), step=step)
+            if final:
+                return
+            if rmse <= rmse_bellman:
+                final = True
+
     def train_bellman_iteration(
         self,
         alpha: float,
@@ -237,88 +322,3 @@ class Trainer:
                     **metrics_args,
                 )
                 counter.update(asdict(metrics), n=1)
-
-    def compute_values(
-        self,
-        baseline: bool,
-        bellman_delta: int,
-        envs: SubprocVecEnv,
-        evaluator_args: dict,
-        lr: float,
-        model_args: dict,
-        n_plot: int,
-        partial_observation: bool,
-        rmse_bellman: float,
-        rmse_training_final: float,
-        rmse_training_intermediate: float,
-        run: Run,
-        sequence: Sequence,
-        train_args: dict,
-        load_path: Optional[str] = None,
-    ):
-        grid_world = sequence.grid_world
-        if baseline:
-            grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
-            sequence = replace(sequence, grid_world=grid_world)
-        b, l = sequence.transitions.rewards.shape
-        a = envs.action_space.n
-        Q = torch.zeros(1, b, l, a)
-        values = BootstrapValues.make(sequence=sequence, bootstrap_Q=Q)
-        data = Dataset(
-            bellman_delta=bellman_delta, n_actions=a, sequence=sequence, values=values
-        )
-        start_step = 0
-        n_tokens = max(
-            data.n_tokens, len(sequence.grid_world.Q) * 2
-        )  # double for padding
-        net = Model(
-            bellman_delta=bellman_delta,
-            **model_args,
-            n_actions=data.n_actions,
-            n_ctx=l,
-            n_tokens=n_tokens,
-            partial_observation=partial_observation,
-            pad_value=data.pad_value,
-        )
-        if load_path is not None:
-            load(load_path, net, run)
-        net = net.cuda()
-
-        evaluator = (
-            Evaluator(envs=envs, net=net, **evaluator_args)
-            if isinstance(net, Model)
-            else None
-        )
-        optimizer = optim.Adam(net.parameters(), lr=lr)
-        plot_indices = torch.randint(0, b, (n_plot,))
-        final = baseline
-
-        for bellman_number in itertools.count(1):
-            new_Q, step = self.train_bellman_iteration(
-                baseline=baseline,
-                bellman_delta=bellman_delta,
-                bellman_number=bellman_number,
-                bootstrap_Q=Q,
-                evaluator=evaluator,
-                load_path=load_path,
-                lr=lr,
-                net=net,
-                optimizer=optimizer,
-                plot_indices=plot_indices,
-                run=run,
-                sequence=sequence,
-                start_step=start_step,
-                stop_at_rmse=rmse_training_final
-                if final
-                else rmse_training_intermediate,
-                **train_args,
-            )
-            start_step = step
-            rmse = compute_rmse(Q[-1], new_Q[-1])
-            Q = F.pad(new_Q, (0, 0, 0, 0, 0, 0, 1, 0))
-            if run is not None:
-                wandb.log(dict(rmse=rmse), step=step)
-            if final:
-                return
-            if rmse <= rmse_bellman:
-                final = True
