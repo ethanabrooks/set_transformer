@@ -120,7 +120,7 @@ class Trainer:
         start_step = 0
 
         for bellman_number in itertools.count(1):
-            new_Q, step = self.train_bellman_iteration(
+            new_Q, step = self.train_curriculum_stage(
                 bellman_number=bellman_number,
                 bootstrap_Q=Q,
                 lr=lr,
@@ -140,7 +140,7 @@ class Trainer:
             if rmse <= self.rmse_bellman:
                 final = True
 
-    def train_bellman_iteration(
+    def train_curriculum_stage(
         self,
         bellman_number: int,
         bootstrap_Q: torch.Tensor,
