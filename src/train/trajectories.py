@@ -70,5 +70,4 @@ def train(
         lr=lr,
         model_args=model_args,
         n_plot=n_plot,
-        partial_observation=partial_observation,
     )
