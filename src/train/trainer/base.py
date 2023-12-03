@@ -3,7 +3,7 @@ import math
 import shutil
 import time
 from abc import abstractmethod
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from typing import Counter, Optional
 
 import pandas as pd
@@ -22,7 +22,7 @@ from evaluate import log as log_evaluation
 from evaluate import rollout
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
-from sequence.grid_world_base import Sequence
+from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save
 from values.bootstrap import Values as BootstrapValues
 
@@ -84,10 +84,6 @@ class Trainer:
         sequence: Sequence,
         **kwargs,
     ):
-        grid_world = sequence.grid_world
-        if baseline:
-            grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
-            sequence = replace(sequence, grid_world=grid_world)
         _, l = sequence.transitions.rewards.shape
         net = cls.build_model(
             bellman_delta=bellman_delta,
