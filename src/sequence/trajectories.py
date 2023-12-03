@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from grid_world.base import GridWorld
 from grid_world.values import GridWorldWithValues
-from sequence.base import Sequence as BaseSequence
+from sequence.grid_world_base import Sequence as BaseSequence
 from utils import Transition
 
 

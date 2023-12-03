@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from values.base import Values as BaseValues
 
 

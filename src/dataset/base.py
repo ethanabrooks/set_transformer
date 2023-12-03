@@ -9,7 +9,7 @@ from torch.utils.data import Dataset as BaseDataset
 
 from models.set_transformer import SetTransformer
 from models.trajectories import DataPoint
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from values.base import Values
 
 

@@ -4,7 +4,7 @@ import torch
 
 from artifacts import download_and_return_root, get_run
 from metrics import compute_rmse
-from sequence.base import Sequence
+from sequence.grid_world_base import Sequence
 from values.cross_product import Values as SampleCrossProductValues
 from values.tabular import Values
 
