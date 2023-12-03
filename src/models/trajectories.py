@@ -84,23 +84,23 @@ class Model(Base, ABC):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if unmasked_actions is None:
             unmasked_actions = x.actions
-        b, l, a = x.action_probs.shape
         action_probs: torch.Tensor = self.offset(x.action_probs)
         actions: torch.Tensor = self.offset(x.actions)
         done: torch.Tensor = self.offset(x.done)
         next_obs: torch.Tensor = self.offset(x.next_obs)
         rewards: torch.Tensor = self.offset(x.rewards)
-        obs = self.obs_encoder(x.obs.long())
-        actions = self.embedding(actions.long())
-        done = self.embedding(done.long())
-        next_obs = self.obs_encoder(next_obs.long())
+        b, l, *o = x.obs.shape
+        obs: torch.Tensor = self.obs_encoder(x.obs.reshape(b * l, *o))
+        actions: torch.Tensor = self.embedding(actions.long())
+        done: torch.Tensor = self.embedding(done.long())
+        next_obs: torch.Tensor = self.obs_encoder(next_obs.reshape(b * l, *o))
         rewards: torch.Tensor = self.rew_encoder(rewards.long())
         discrete = torch.stack(
             [
-                obs,
+                obs.reshape(b, l, self.n_hidden),
                 actions,
                 done,
-                next_obs,
+                next_obs.reshape(b, l, self.n_hidden),
                 rewards,
             ],
             dim=-2,
