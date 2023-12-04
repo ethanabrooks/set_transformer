@@ -114,8 +114,9 @@ def rollout(
                         x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
                     )
             output = input_q.cpu()
+            progress = 1 - (l - t) / rollout_length
             action = output[:, -1].argmax(-1)
-            action_probs[t] = torch.eye(a)[action]
+            action_probs[t] = progress * torch.eye(a)[action] + (1 - progress) / a
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
 
         actions[t] = action
