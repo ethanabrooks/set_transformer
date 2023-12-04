@@ -16,6 +16,7 @@ from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 import wandb
+from dataset.baseline import Dataset as BaselineDataset
 from dataset.trajectories import Dataset
 from envs.subproc_vec_env import SubprocVecEnv
 from evaluate import log as log_evaluation
@@ -128,7 +129,7 @@ class Trainer:
         b, l = self.sequence.transitions.rewards.shape
         a = self.sequence.n_actions
         Q = torch.zeros(1, b, l, a)
-        final = self.baseline
+        final = False
         start_step = 0
 
         for bellman_number in itertools.count(1):
@@ -175,8 +176,14 @@ class Trainer:
         def make_dataset(bootstrap_Q: torch.Tensor):
             assert len(bootstrap_Q) == bellman_number
             values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
-            return Dataset(
-                bellman_delta=self.bellman_delta, sequence=sequence, values=values
+            return (
+                BaselineDataset(
+                    bellman_delta=self.bellman_delta, sequence=sequence, values=values
+                )
+                if self.baseline
+                else Dataset(
+                    bellman_delta=self.bellman_delta, sequence=sequence, values=values
+                )
             )
 
         def _get_metrics(prefix: str, outputs: torch.Tensor, targets: torch.Tensor):
@@ -190,7 +197,7 @@ class Trainer:
         pbar = None
 
         for e in itertools.count():
-            if updated is not None:
+            if updated is not None and not self.baseline:
                 assert torch.all(updated)
             updated = torch.zeros_like(Q)
 
@@ -245,10 +252,7 @@ class Trainer:
             if done:
                 self.update_plots(bellman_number=bellman_number, Q=Q)
                 save(self.run, self.net)
-            if self.baseline:
-                run_evaluation = e % self.test_interval == 0
-            else:
-                run_evaluation = done and (bellman_number % self.test_interval == 0)
+            run_evaluation = done and (bellman_number % self.test_interval == 0)
             if bellman_number == 1 and e == 0:
                 run_evaluation = True
             if self.evaluator is None:

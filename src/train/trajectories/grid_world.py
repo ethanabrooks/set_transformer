@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import torch
 
@@ -15,14 +15,6 @@ class Trainer(Base):
     @classmethod
     def build_model(cls, **kwargs):
         return GridWorldModel(**kwargs)
-
-    @classmethod
-    def make(cls, baseline: bool, sequence: Sequence, **kwargs):
-        grid_world = sequence.grid_world
-        if baseline:
-            grid_world = replace(grid_world, Q=grid_world.Q[[0, -1]])
-            sequence = replace(sequence, grid_world=grid_world)
-        return super().make(baseline=baseline, **kwargs, sequence=sequence)
 
     def get_ground_truth(self, bellman_number: int):
         Q = self.sequence.grid_world.Q
