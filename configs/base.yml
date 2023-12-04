@@ -22,7 +22,6 @@ train_args:
   decay_args:
     final_step: 500_000
     warmup_steps: 10_000
-
   log_interval: 50
   metrics_args: {}
   n_batch: 250

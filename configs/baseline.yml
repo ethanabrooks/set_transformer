@@ -1,5 +1,5 @@
 inherit_from: grid-world
 train_args:
-  alpha: 0.001
+  alpha: 0.0000
   baseline: true
   test_interval: 1000
