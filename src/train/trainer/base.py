@@ -30,10 +30,13 @@ from values.bootstrap import Values as BootstrapValues
 @dataclass
 class Evaluator:
     envs: SubprocVecEnv
+    max_iterations: Optional[int]
     net: Model
     rollout_length: int
 
     def rollout(self, iterations: int) -> pd.DataFrame:
+        if self.max_iterations is not None:
+            iterations = min(iterations, self.max_iterations)
         return rollout(
             envs=self.envs,
             iterations=iterations,

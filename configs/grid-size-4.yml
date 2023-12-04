@@ -1,3 +1,5 @@
+evaluator_args:
+  max_iterations: 6
 grid_world_args:
   grid_size: 4
 inherit_from: grid-world
