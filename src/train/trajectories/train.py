@@ -10,9 +10,9 @@ from grid_world.values import GridWorldWithValues
 from ppo.envs.envs import make_env as make_ppo_env
 from sequence import make_grid_world_sequence
 from sequence.ppo import Sequence as PPOSequence
-from train.trainer.base import Trainer
-from train.trainer.grid_world import Trainer as GridWorldTrainer
-from train.trainer.miniworld import Trainer as MiniWorldTrainer
+from train.trajectories.base import Trainer
+from train.trajectories.grid_world import Trainer as GridWorldTrainer
+from train.trajectories.miniworld import Trainer as MiniWorldTrainer
 from utils import set_seed
 
 
