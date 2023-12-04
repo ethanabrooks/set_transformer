@@ -1,4 +1,4 @@
-inherit_from: grid-world
+inherit_from: grid-size-4
 train_args:
   alpha: 0.0000
   baseline: true
