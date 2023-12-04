@@ -4,7 +4,7 @@ import torch
 
 from models.trajectories import MiniWorldModel
 from sequence.grid_world_base import Sequence
-from train.trainer.base import Trainer as Base
+from train.trajectories.base import Trainer as Base
 
 
 @dataclass(frozen=True)

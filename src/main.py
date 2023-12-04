@@ -19,7 +19,7 @@ from wandb.sdk.wandb_run import Run
 import wandb
 from param_space import param_space
 from train.tabular import train as train_tabular_fn
-from train.trajectories import train as train_trajectories_fn
+from train.trajectories.train import train as train_trajectories_fn
 
 tree = CommandTree()
 
