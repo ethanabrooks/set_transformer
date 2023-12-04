@@ -143,10 +143,7 @@ class GridWorld:
             assert [*is_wall.shape] == [b, g, a]
         goals = torch.randint(0, g, (b,))
 
-        alpha = torch.ones(a)
-        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
-            (b, s)
-        )  # random policies
+        Pi: torch.Tensor = torch.ones((b, s, a)) / a  # random policies
         assert [*Pi.shape] == [b, s, a]
         hashcode = cls.compute_hashcode(
             deltas=deltas,
