@@ -26,6 +26,6 @@ train_args:
   metrics_args: {}
   n_batch: 250
   rmse_training_final: 0.002
-  rmse_training_intermediate: 0.007
+  rmse_training_intermediate: 0.006
   test_interval: 1
 train_trajectories: true
