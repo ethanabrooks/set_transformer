@@ -30,12 +30,14 @@ from values.bootstrap import Values as BootstrapValues
 @dataclass
 class Evaluator:
     envs: SubprocVecEnv
+    gradual_randomness_decay: bool
     net: Model
     rollout_length: int
 
     def rollout(self, iterations: int) -> pd.DataFrame:
         return rollout(
             envs=self.envs,
+            gradual_randomness_decay=self.gradual_randomness_decay,
             iterations=iterations,
             net=self.net,
             rollout_length=self.rollout_length,
