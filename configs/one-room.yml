@@ -9,7 +9,7 @@ inherit_from: base
 load_path: null
 log_interval: 1
 lr: 3e-4
-num_processes: 1
+num_processes: 10
 num_steps: 2048
 num_updates: 1
 optim_args:
