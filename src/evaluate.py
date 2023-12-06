@@ -43,6 +43,7 @@ class StepResult:
 
 def rollout(
     envs: SubprocVecEnv,
+    gradual_randomness_decay: bool,
     iterations: int,
     net: Model,
     rollout_length: int,
@@ -114,9 +115,13 @@ def rollout(
                         x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
                     )
             output = input_q.cpu()
-            randomness = (l - t) / rollout_length
-            action = output[:, -1].argmax(-1)
-            action_probs[t] = (1 - randomness) * torch.eye(a)[action] + randomness / a
+            best_action = output[:, -1].argmax(-1)
+            action_prob = torch.eye(a)[best_action]
+            if gradual_randomness_decay:
+                randomness = ((l - t) / rollout_length) ** 2
+                action_probs[t] = (1 - randomness) * action_prob + randomness / a
+            else:
+                action_probs[t] = action_prob
             action = torch.multinomial(action_probs[t], 1).squeeze(-1)
 
         actions[t] = action

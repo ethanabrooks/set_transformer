@@ -1,4 +1,5 @@
 evaluator_args:
+  gradual_randomness_decay: false
   rollout_length: ${trajectory_length}
 lr: 0.0005
 model_args:
