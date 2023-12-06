@@ -3,6 +3,7 @@ evaluator_args:
 grid_world_args:
   absorbing_state: false
   dense_reward: false
+  dirichlet_concentration: 1
   gamma: 0.99
   grid_size: 2
   heldout_goals: []
