@@ -2,7 +2,6 @@ import math
 import os
 import random
 import time
-import warnings
 from dataclasses import dataclass
 from typing import Generic, NamedTuple, Optional, TypeVar
 
@@ -74,10 +73,6 @@ def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
         progress = np.clip(progress, 0.0, 1.0)
         lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
     return lr * lr_mult
-
-
-def filter_torchrl_warnings():
-    warnings.filterwarnings("ignore", module="torchrl._utils")
 
 
 def load(

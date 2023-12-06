@@ -6,23 +6,18 @@ from typing import Optional
 
 import numpy as np
 import torch
-from tensordict import TensorDict
+from gymnasium.spaces import Discrete
 from torch.optim import Adam
 from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 from ppo import utils
 from ppo.agent import Agent
+from ppo.data_storage import DataStorage
 from ppo.envs.envs import VecPyTorch, make_vec_envs
-from ppo.replay_buffer import create_replay_buffer
-from ppo.storage import RolloutStorage
+from ppo.rollout_storage import RolloutStorage
 from ppo.utils import get_vec_normalize
-from utils import Transition, filter_torchrl_warnings
-
-filter_torchrl_warnings()
-
-
-from torchrl.data import ReplayBuffer  # noqa: E402
+from utils import Transition
 
 
 def train(
@@ -94,14 +89,20 @@ def train(
     start = time.time()
 
     # replay_buffer
-    replay_buffer_dir = Path("/tmp" if run is None else run.dir) / "replay-buffer"
-    replay_buffer_size = num_updates * num_steps
-    replay_buffers = [
-        create_replay_buffer(
-            directory=replay_buffer_dir, size=replay_buffer_size, index=i
-        )
-        for i in range(num_processes)
-    ]
+    replay_buffer_dir = Path("/tmp" if run is None else run.dir)
+    action_space = envs.action_space
+    if isinstance(action_space, Discrete):
+        action_probs_shape = (action_space.n,)
+    else:
+        raise NotImplementedError(f"action_space: {action_space}")
+    data_storage = DataStorage.make(
+        path=DataStorage.make_path(replay_buffer_dir),
+        num_timesteps=num_updates * num_steps,
+        num_processes=num_processes,
+        obs_shape=envs.observation_space.shape,
+        action_dtype=envs.action_space.dtype,
+        action_probs_shape=action_probs_shape,
+    )
 
     for j in tqdm(range(num_updates)):
         if not disable_linear_lr_decay:
@@ -138,12 +139,18 @@ def train(
                 obs=prev_obs,
                 next_obs=obs,
             )
-            transitions = TensorDict(
-                {k: v for k, v in asdict(transition).items() if v is not None},
-                batch_size=[num_processes],
+
+            def to_numpy():
+                for k, v in asdict(transition).items():
+                    if isinstance(v, torch.Tensor):
+                        v = v.cpu().numpy()
+                    assert isinstance(v, np.ndarray)
+                    yield k, v
+
+            data_storage.insert(
+                timestep=j * num_steps + step,
+                transition=Transition[np.ndarray](**dict(to_numpy())),
             )
-            for buffer, transition in zip(replay_buffers, transitions):
-                buffer.add(transition)
 
             info: dict
             for info in infos:
@@ -202,9 +209,4 @@ def train(
             if run is not None:
                 run.log(log, step=total_num_steps)
 
-    replay_buffer: ReplayBuffer = create_replay_buffer(
-        directory=replay_buffer_dir, size=replay_buffer_size * num_processes, index=None
-    )
-    for buffer in replay_buffers:
-        replay_buffer.extend(buffer[:])
-    return replay_buffer
+    return data_storage

@@ -16,3 +16,4 @@ time_limit: null
 train_size: 1000
 trajectory_length: 64
 use_exploration_policy: false
+use_grid_world: true
