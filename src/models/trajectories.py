@@ -11,7 +11,7 @@ from transformers import GPT2Config, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 
 from models.set_transformer import SetTransformer as Base
-from ppo.networks import Flatten
+from ppo.networks import Flatten, init_conv
 from utils import DataPoint
 
 
@@ -239,14 +239,14 @@ class MiniWorldModel(Model):
     def build_obs_encoder(self):
         return nn.Sequential(
             NormalizeLayer(),
-            nn.Conv2d(3, 32, 8, stride=4),
+            init_conv(nn.Conv2d(3, 32, 8, stride=4)),
             nn.ReLU(),
-            nn.Conv2d(32, 64, 4, stride=2),
+            init_conv(nn.Conv2d(32, 64, 4, stride=2)),
             nn.ReLU(),
-            nn.Conv2d(64, 32, 3, stride=1),
+            init_conv(nn.Conv2d(64, 32, 3, stride=1)),
             nn.ReLU(),
             Flatten(),
-            nn.Linear(32 * 4 * 6, self.n_hidden),
+            init_conv(nn.Linear(32 * 4 * 6, self.n_hidden)),
             nn.ReLU(),
         )
 

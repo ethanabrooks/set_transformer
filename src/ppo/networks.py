@@ -95,28 +95,30 @@ class Network(nn.Module):
         return x, hxs
 
 
+def init_conv(module: nn.Module):
+    return init(
+        module,
+        nn.init.orthogonal_,
+        lambda x: nn.init.constant_(x, 0),
+        nn.init.calculate_gain("relu"),
+    )
+
+
 class CNNBase(Network):
     def __init__(
         self, num_inputs: int, recurrent: bool = False, hidden_size: int = 512
     ):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
-        init_ = lambda m: init(
-            m,
-            nn.init.orthogonal_,
-            lambda x: nn.init.constant_(x, 0),
-            nn.init.calculate_gain("relu"),
-        )
-
         self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)),
+            init_conv(nn.Conv2d(num_inputs, 32, 8, stride=4)),
             nn.ReLU(),
-            init_(nn.Conv2d(32, 64, 4, stride=2)),
+            init_conv(nn.Conv2d(32, 64, 4, stride=2)),
             nn.ReLU(),
-            init_(nn.Conv2d(64, 32, 3, stride=1)),
+            init_conv(nn.Conv2d(64, 32, 3, stride=1)),
             nn.ReLU(),
             Flatten(),
-            init_(nn.Linear(32 * 4 * 6, hidden_size)),
+            init_conv(nn.Linear(32 * 4 * 6, hidden_size)),
             nn.ReLU(),
         )
 
