@@ -101,6 +101,7 @@ class GridWorld:
         cls,
         absorbing_state: bool,
         dense_reward: bool,
+        dirichlet_concentration: float,
         gamma: float,
         grid_size: int,
         heldout_goals: list[tuple[int, int]],
@@ -143,8 +144,9 @@ class GridWorld:
             assert [*is_wall.shape] == [b, g, a]
         goals = torch.randint(0, g, (b,))
 
-        alpha = torch.ones(a)
-        Pi: torch.Tensor = torch.distributions.Dirichlet(alpha).sample(
+        Pi: torch.Tensor = torch.distributions.Dirichlet(
+            dirichlet_concentration * torch.ones(a)
+        ).sample(
             (b, s)
         )  # random policies
         assert [*Pi.shape] == [b, s, a]
