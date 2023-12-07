@@ -23,9 +23,9 @@ pyglet.options["headless_device"] = headless_device
 import miniworld  # noqa: F401, E402
 
 
-def make_env(env_id: str, seed: int):
+def make_env(env_name: str, seed: int):
     def _thunk():
-        env: gym.Env = gym.make(env_id)
+        env: gym.Env = gym.make(env_name)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
@@ -47,8 +47,11 @@ def make_vec_envs(
     gamma: float,
     device: torch.device,
     dummy_vec_env: bool,
+    **kwargs,
 ) -> "VecPyTorch":
-    envs = [make_env(env_id=env_name, seed=seed) for i in range(num_processes)]
+    envs = [
+        make_env(env_name=env_name, seed=seed, **kwargs) for i in range(num_processes)
+    ]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)
