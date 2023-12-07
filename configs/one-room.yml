@@ -19,6 +19,7 @@ seed: 1
 test_size: 20
 train_args:
   count_threshold: 10
+  n_batch: 50
 trajectory_length: 256
 update_args:
   clip_param: 0.2
