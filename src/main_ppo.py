@@ -4,6 +4,7 @@ import urllib
 from pathlib import Path
 
 import tomli
+import wandb
 from dollar_lambda import CommandTree, argument, option
 from git import Repo
 from omegaconf import DictConfig, OmegaConf
@@ -11,7 +12,6 @@ from ray import tune
 from ray.air.integrations.wandb import setup_wandb
 from rich import print
 
-import wandb
 from param_space import param_space
 from ppo.train import train
 
@@ -119,13 +119,13 @@ def log(
 
 
 @tree.command(parsers=parsers)
-def no_log(config, dummy_vec_env: bool = False, load_path: str = None):
+def no_log(config: dict, load_path: str = None):
     config = get_config(config)
     if load_path is not None:
         config = wandb.Api().run(load_path).config
         del config["config"]
         del config["relative_commit"]
-    config.update(dummy_vec_env=dummy_vec_env, load_path=load_path)
+    config.update(load_path=load_path)
     return train(**config, run=None)
 
 

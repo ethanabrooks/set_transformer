@@ -34,9 +34,9 @@ class BaseEnvWrapper(gym.Wrapper, Env):
         return self.env.observation_space
 
 
-def make_env(env_id: str, seed: int):
+def make_env(env_name: str, seed: int, **kwargs):
     def _thunk():
-        env: gym.Env = gym.make(env_id)
+        env: gym.Env = gym.make(env_name, **kwargs)
         env = BaseEnvWrapper(env)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
@@ -59,8 +59,11 @@ def make_vec_envs(
     gamma: float,
     device: torch.device,
     dummy_vec_env: bool,
+    **kwargs,
 ) -> "VecPyTorch":
-    envs = [make_env(env_id=env_name, seed=seed) for i in range(num_processes)]
+    envs = [
+        make_env(env_name=env_name, seed=seed, **kwargs) for i in range(num_processes)
+    ]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)
