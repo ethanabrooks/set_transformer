@@ -1,3 +1,6 @@
+import os
+from warnings import warn
+
 import gymnasium as gym
 import pyglet
 import torch
@@ -10,6 +13,13 @@ from ppo.envs.subproc_vec_env import SubprocVecEnv
 from ppo.envs.vec_normalize import VecNormalize
 
 pyglet.options["headless"] = True
+try:
+    headless_device = int(os.environ["CUDA_VISIBLE_DEVICES"])
+except (KeyError, ValueError):
+    warn("CUDA_VISIBLE_DEVICES not set, defaulting to 0.")
+    headless_device = 0
+pyglet.options["headless_device"] = headless_device
+
 
 import miniworld  # noqa: F401, E402
 
