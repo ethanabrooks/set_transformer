@@ -25,7 +25,7 @@ def train(
     disable_linear_lr_decay: bool,
     disable_proper_time_limits: bool,
     dummy_vec_env: bool,
-    env_name: str,
+    env_args: dict,
     gae_lambda: float,
     gamma: float,
     load_path: str,
@@ -50,7 +50,7 @@ def train(
     envs: VecPyTorch = make_vec_envs(
         device=device,
         dummy_vec_env=dummy_vec_env,
-        env_name=env_name,
+        **env_args,
         gamma=gamma,
         num_processes=num_processes,
         seed=seed,
