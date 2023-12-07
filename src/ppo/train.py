@@ -104,7 +104,7 @@ def train(
         action_probs_shape=action_probs_shape,
     )
 
-    for j in tqdm(range(num_updates)):
+    for j in range(num_updates):
         if not disable_linear_lr_decay:
             # decrease learning rate linearly
             utils.update_linear_schedule(
@@ -114,7 +114,7 @@ def train(
                 initial_lr=lr,
             )
 
-        for step in range(num_steps):
+        for step in tqdm(range(num_steps), desc=f"Update {j}/{num_updates}"):
             # Sample actions
             with torch.no_grad():
                 action, action_metadata = agent.act(
