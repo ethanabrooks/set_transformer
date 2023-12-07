@@ -1,5 +1,5 @@
 import time
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
@@ -18,6 +18,18 @@ from ppo.envs.envs import VecPyTorch, make_vec_envs
 from ppo.rollout_storage import RolloutStorage
 from ppo.utils import get_vec_normalize
 from utils import Transition
+
+
+def get_state(infos: list[dict]) -> np.ndarray:
+    def generate():
+        for info in infos:
+            state = info.get("state")
+            if state is not None:
+                yield state
+
+    arrays = list(generate())
+    if arrays:
+        return np.stack(arrays)
 
 
 def train(
@@ -80,7 +92,10 @@ def train(
         recurrent_hidden_state_size=agent.recurrent_hidden_state_size,
     )
 
-    obs = envs.reset()
+    obs, infos = envs.reset()
+    state = get_state(infos)
+    if state is None:
+        state = obs
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
@@ -96,12 +111,13 @@ def train(
     else:
         raise NotImplementedError(f"action_space: {action_space}")
     data_storage = DataStorage.make(
-        path=DataStorage.make_path(replay_buffer_dir),
+        action_dtype=envs.action_space.dtype,
+        action_probs_shape=action_probs_shape,
         num_timesteps=num_updates * num_steps,
         num_processes=num_processes,
         obs_shape=envs.observation_space.shape,
-        action_dtype=envs.action_space.dtype,
-        action_probs_shape=action_probs_shape,
+        path=DataStorage.make_path(replay_buffer_dir),
+        state_shape=state.shape[1:],
     )
 
     for j in range(num_updates):
@@ -122,23 +138,28 @@ def train(
                     rnn_hxs=rollouts.recurrent_hidden_states[step],
                     masks=rollouts.masks[step],
                 )
+
             prev_obs = obs
             # Obser reward and next obs
             obs, reward, done, truncated, infos = envs.step(action)
+            next_state = get_state(infos)
+            if next_state is None:
+                next_state = obs
 
             terminal = done | truncated
             action_probs = action_metadata.probs
             assert torch.allclose(action_probs.sum(dim=-1), torch.ones(1).cuda())
             transition = Transition(
-                states=prev_obs,
+                states=state,
                 actions=action.squeeze(-1),
                 action_probs=action_probs,
-                next_states=obs,
+                next_states=next_state,
                 rewards=reward,
                 done=terminal,
                 obs=prev_obs,
                 next_obs=obs,
             )
+            state = next_state
 
             def to_numpy():
                 for k, v in asdict(transition).items():

@@ -1,10 +1,13 @@
 import os
+from dataclasses import asdict, dataclass
 from warnings import warn
 
 import gymnasium as gym
+import numpy as np
 import pyglet
 import torch
 from gymnasium.spaces.box import Box
+from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from envs.base import Env
 from ppo.envs.dummy_vec_env import DummyVecEnv
@@ -21,7 +24,33 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
-import miniworld  # noqa: F401, E402
+from miniworld.entity import Box as MiniWorldBox  # noqa: E402
+from miniworld.envs.oneroom import OneRoomS6Fast  # noqa: E402
+
+
+class CustomOneRoomS6Fast(OneRoomS6Fast):
+    @property
+    def state(self):
+        box: MiniWorldBox = self.box
+        return np.concatenate(
+            [
+                box.pos,
+                self.agent.pos,
+                self.agent.dir_vec,
+                self.agent.right_vec,
+            ]
+        )
+
+    def reset(self, *args, **kwargs):
+        obs, info = super().reset(*args, **kwargs)
+        info.update(state=self.state)
+        return obs, info
+
+    def step(self, action):
+        info: dict
+        obs, reward, done, truncated, info = super().step(action)
+        info.update(state=self.state)
+        return obs, reward, done, truncated, info
 
 
 class BaseEnvWrapper(gym.Wrapper, Env):
@@ -36,7 +65,9 @@ class BaseEnvWrapper(gym.Wrapper, Env):
 
 def make_env(env_name: str, seed: int, **kwargs):
     def _thunk():
-        env: gym.Env = gym.make(env_name, **kwargs)
+        env: gym.Env = CustomOneRoomS6Fast(**kwargs)
+        env = PassiveEnvChecker(env)
+        env = OrderEnforcing(env)
         env = BaseEnvWrapper(env)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
@@ -120,9 +151,9 @@ class VecPyTorch(gym.Wrapper):
         # TODO: Fix data types
 
     def reset(self):
-        obs = self.venv.reset()
+        obs, info = self.venv.reset()
         obs = torch.from_numpy(obs).float().to(self.device)
-        return obs
+        return obs, info
 
     def step(self, action: torch.Tensor):
         action = action.detach().cpu().numpy()
