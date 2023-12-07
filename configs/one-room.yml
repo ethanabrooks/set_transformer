@@ -15,7 +15,7 @@ ppo_args:
   dummy_vec_env: true
   gae_lambda: 0.95
   lr: 3e-4
-  num_processes: 10
+  num_processes: 1
   num_steps: 2048
   num_updates: 1
   recurrent_policy: false
