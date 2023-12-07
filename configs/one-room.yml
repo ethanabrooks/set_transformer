@@ -17,7 +17,7 @@ ppo_args:
   lr: 3e-4
   num_processes: 1
   num_steps: 2048
-  num_updates: 1
+  num_updates: 10
   recurrent_policy: false
   update_args:
     clip_param: 0.2
