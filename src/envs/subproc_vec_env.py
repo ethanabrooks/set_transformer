@@ -52,7 +52,7 @@ def work(env: Env, command: Command, data):
     elif command == Command.RESET:
         return env.reset()
     elif command == Command.OPTIMAL:
-        return env.optimal(data)
+        return env.get_wrapper_attr("optimal")(data)
     elif command == Command.POLICY:
         return env.policy
     elif command == Command.STEP:
