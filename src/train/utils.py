@@ -1,9 +1,9 @@
 import torch
 from matplotlib import pyplot as plt
-from matplotlib.cm import viridis
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.cm import hot
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 
-assert isinstance(viridis, ListedColormap)
+assert isinstance(hot, LinearSegmentedColormap)
 
 
 def plot_trajectory(
@@ -40,8 +40,8 @@ def plot_trajectory(
         # Normalize Q and rewards for color mapping
 
         for x, y, dx, dy, q, r in zip(x, y, dx, dy, episode_q, episode_rewards):
-            color_q = viridis(norm_q(q))
-            color_r = viridis(norm_rewards(r))
+            color_q = hot(norm_q(q))
+            color_r = hot(norm_rewards(r))
             # Arrow for Q-value (line)
             ax.arrow(
                 x,
