@@ -16,7 +16,9 @@ from wandb.sdk.wandb_run import Run
 
 from envs.subproc_vec_env import SubprocVecEnv
 from models.trajectories import GPT2, Model
+from ppo.train import get_state
 from sequence.base import Sequence
+from train.utils import plot_trajectories
 from utils import DataPoint
 
 
@@ -64,7 +66,9 @@ def rollout(
     next_obs = torch.zeros((l, n, *o), dtype=torch.float32)
     obs = torch.full((l, n, *o), fill_value, dtype=torch.float32)
     rewards = torch.full((l, n), fill_value, dtype=torch.float32)
+    Q = torch.full((l, n, a), fill_value, dtype=torch.float32)
     optimals = None
+    states = None
 
     for i, o in enumerate(observation):
         optimal = envs.optimal(i, o)
@@ -115,7 +119,8 @@ def rollout(
                         x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
                     )
             output = input_q.cpu()
-            best_action = output[:, -1].argmax(-1)
+            Q[t] = output[:, -1]
+            best_action = Q[t].argmax(-1)
             action_prob = torch.eye(a)[best_action]
             if gradual_randomness_decay:
                 randomness = ((l - t) / rollout_length) ** 2
@@ -137,6 +142,12 @@ def rollout(
         rewards[t] = torch.from_numpy(step.reward)
         dones[t] = torch.from_numpy(step.done)
         observation = torch.from_numpy(step.observation)
+        state = get_state(info_list)
+        if state is not None:
+            if states is None:
+                _, *s = state.shape
+                states = torch.full((l, n, *s), fill_value, dtype=torch.float32)
+            states[t] = torch.from_numpy(state)
 
         # record episode timesteps
         timesteps[t] = timestep
@@ -162,11 +173,17 @@ def rollout(
         episode=episodes,
         idx=idx,
         obs=obs,
+        Q=Q[
+            torch.arange(l)[:, None],
+            torch.arange(n)[None, :],
+            actions,
+        ],
         rewards=rewards,
         timesteps=timesteps,
     )
-    if optimals is not None:
-        data["optimals"] = optimals
+    for k, v in dict(optimals=optimals, states=states).items():
+        if v is not None:
+            data[k] = v
 
     def process(x: torch.Tensor) -> "int | float | np.ndarray":
         x = x.reshape(n * l, -1).squeeze(-1)
@@ -244,6 +261,23 @@ def log(
         graphs["regret"] = metrics
     plot_log = {}
     test_log = {}
+    if "states" in df.columns:
+        first_index = complete_episodes[complete_episodes.idx == 0]
+
+        def tensor(k: str):
+            return torch.from_numpy(first_index[k].to_numpy())[None]
+
+        for i, fig in enumerate(
+            plot_trajectories(
+                done=tensor("dones"),
+                Q=tensor("Q"),
+                rewards=tensor("rewards"),
+                states=torch.from_numpy(np.stack(first_index["states"]))[None],
+            )
+        ):
+            # fig.savefig(f"plot_{i}.png")
+            plot_log[f"trajectories/{i}"] = wandb.Image(fig)
+
     for name, metrics in graphs.items():
         means = metrics.groupby("episode").mean()
         sems = metrics.groupby("episode").sem()
