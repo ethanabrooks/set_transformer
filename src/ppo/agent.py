@@ -7,7 +7,7 @@ from gym import Space
 from torch.optim import Optimizer
 
 from ppo.distributions import Bernoulli, Categorical, DiagGaussian
-from ppo.networks import CNNBase, MLPBase, Network
+from ppo.networks import CNNBase
 from ppo.rollout_storage import RolloutStorage, Sample
 
 
@@ -24,21 +24,13 @@ class Agent(nn.Module):
         self,
         obs_shape: tuple[int, ...],
         action_space: Space,
-        base=None,
         base_kwargs: Optional[dict] = None,
     ):
         super(Agent, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
-        if base is None:
-            if len(obs_shape) == 3:
-                base = CNNBase
-            elif len(obs_shape) == 1:
-                base = MLPBase
-            else:
-                raise NotImplementedError
 
-        self.base: Network = base(obs_shape[0], **base_kwargs)
+        self.base: CNNBase = CNNBase(obs_shape[0], **base_kwargs)
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
