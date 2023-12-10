@@ -71,7 +71,7 @@ def train(
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
-        base_kwargs={"recurrent": recurrent_policy},
+        recurrent=recurrent_policy,
     )
     if load_path is not None:
         state_dict: dict = torch.load(load_path)
