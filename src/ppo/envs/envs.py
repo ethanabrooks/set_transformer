@@ -141,14 +141,17 @@ class VecPyTorch(gym.Wrapper):
         self.device = device
         # TODO: Fix data types
 
+    def obs_to_tensor(self, obs: np.ndarray) -> list[torch.Tensor]:
+        return torch.from_numpy(obs).float().to(self.device)
+
     def reset(self):
+        obs: np.ndarray
         obs, info = self.venv.reset()
-        obs = torch.from_numpy(obs).float().to(self.device)
-        return obs, info
+        return self.obs_to_tensor(obs), info
 
     def step(self, action: torch.Tensor):
         action = action.detach().cpu().numpy()
         obs, reward, done, truncated, info = self.venv.step(action)
-        obs = torch.from_numpy(obs).float().to(self.device)
+        obs = self.obs_to_tensor(obs)
         reward = torch.from_numpy(reward).float()
         return obs, reward, done, truncated, info
