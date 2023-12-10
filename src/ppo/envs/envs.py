@@ -88,7 +88,7 @@ class SequenceEnv(CustomOneRoomS6Fast):
         reward = 0
         termination = False
         if self.near(self.target_obj):
-            reward += self._reward()
+            reward = 1
             try:
                 self.target_obj = next(self.obj_iter)
             except StopIteration:
