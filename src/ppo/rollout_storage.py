@@ -8,23 +8,23 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 @dataclass
 class Sample:
-    obs: torch.Tensor
-    rnn_hxs: torch.Tensor
     actions: torch.Tensor
-    value_preds: torch.Tensor
-    returns: torch.Tensor
-    masks: torch.Tensor
-    old_action_log_probs: torch.Tensor
     adv_targets: torch.Tensor
+    obs: torch.Tensor
+    old_action_log_probs: torch.Tensor
+    masks: torch.Tensor
+    returns: torch.Tensor
+    rnn_hxs: torch.Tensor
+    value_preds: torch.Tensor
 
 
 class RolloutStorage(object):
     def __init__(
         self,
-        num_steps: int,
-        num_processes: int,
-        obs_shape: tuple[int, ...],
         action_space: Space,
+        num_processes: int,
+        num_steps: int,
+        obs_shape: tuple[int, ...],
         recurrent_hidden_state_size: int,
     ):
         self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
@@ -64,14 +64,14 @@ class RolloutStorage(object):
 
     def insert(
         self,
-        obs: torch.Tensor,
-        rnn_hxs: torch.Tensor,
         actions: torch.Tensor,
-        log_probs: torch.Tensor,
-        value: torch.Tensor,
-        rewards: torch.Tensor,
-        masks: torch.Tensor,
         bad_masks: torch.Tensor,
+        log_probs: torch.Tensor,
+        masks: torch.Tensor,
+        obs: torch.Tensor,
+        rewards: torch.Tensor,
+        rnn_hxs: torch.Tensor,
+        value: torch.Tensor,
     ):
         self.obs[self.step + 1].copy_(obs)
         self.recurrent_hidden_states[self.step + 1].copy_(rnn_hxs)
@@ -200,14 +200,14 @@ class RolloutStorage(object):
         num_envs_per_batch = num_processes // num_mini_batch
         perm = torch.randperm(num_processes)
         for start_ind in range(0, num_processes, num_envs_per_batch):
-            obs_batch = []
-            recurrent_hidden_states_batch = []
             actions_batch = []
-            value_preds_batch = []
-            return_batch = []
-            masks_batch = []
-            old_action_log_probs_batch = []
             adv_targ = []
+            masks_batch = []
+            obs_batch = []
+            old_action_log_probs_batch = []
+            recurrent_hidden_states_batch = []
+            return_batch = []
+            value_preds_batch = []
 
             for offset in range(num_envs_per_batch):
                 ind = perm[start_ind + offset]
@@ -250,12 +250,12 @@ class RolloutStorage(object):
             adv_targ = flatten(adv_targ)
 
             yield Sample(
-                obs=obs_batch,
-                rnn_hxs=recurrent_hidden_states_batch,
                 actions=actions_batch,
-                value_preds=value_preds_batch,
-                returns=return_batch,
-                masks=masks_batch,
-                old_action_log_probs=old_action_log_probs_batch,
                 adv_targets=adv_targ,
+                masks=masks_batch,
+                obs=obs_batch,
+                old_action_log_probs=old_action_log_probs_batch,
+                returns=return_batch,
+                rnn_hxs=recurrent_hidden_states_batch,
+                value_preds=value_preds_batch,
             )

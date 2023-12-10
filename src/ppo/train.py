@@ -71,7 +71,7 @@ def train(
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
-        base_kwargs={"recurrent": recurrent_policy},
+        recurrent=recurrent_policy,
     )
     if load_path is not None:
         state_dict: dict = torch.load(load_path)
@@ -184,21 +184,21 @@ def train(
             bad_masks = torch.from_numpy(~truncated)
 
             rollouts.insert(
-                obs=obs,
                 actions=action,
-                rewards=reward,
-                masks=masks,
                 bad_masks=bad_masks,
-                rnn_hxs=action_metadata.rnn_hxs,
                 log_probs=action_metadata.log_probs,
+                masks=masks,
+                obs=obs,
+                rewards=reward,
+                rnn_hxs=action_metadata.rnn_hxs,
                 value=action_metadata.value,
             )
 
         with torch.no_grad():
             next_value = agent.get_value(
-                rollouts.obs[-1],
-                rollouts.recurrent_hidden_states[-1],
-                rollouts.masks[-1],
+                inputs=rollouts.obs[-1],
+                masks=rollouts.masks[-1],
+                rnn_hxs=rollouts.recurrent_hidden_states[-1],
             ).detach()
 
         rollouts.compute_returns(
