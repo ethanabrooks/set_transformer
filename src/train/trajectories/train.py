@@ -57,7 +57,7 @@ def make_ppo_sequence_and_env_fn(env_args: dict, ppo_args: dict, seed: int, **kw
     )
 
     def make_env(i: int):
-        return make_ppo_env(**env_args, seed=seed + i)
+        return make_ppo_env(**env_args, rank=i, seed=seed + i)
 
     return sequence, make_env
 

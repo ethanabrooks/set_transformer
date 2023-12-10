@@ -1,5 +1,4 @@
 import os
-from dataclasses import asdict, dataclass
 from warnings import warn
 
 import gymnasium as gym
@@ -28,6 +27,10 @@ from miniworld.envs.oneroom import OneRoomS6Fast  # noqa: E402
 
 
 class CustomOneRoomS6Fast(OneRoomS6Fast):
+    def __init__(self, *args, rank: int, **kwargs):
+        self.rank = rank
+        super().__init__(*args, **kwargs)
+
     @property
     def state(self):
         box: Box = self.box
@@ -42,13 +45,13 @@ class CustomOneRoomS6Fast(OneRoomS6Fast):
 
     def reset(self, *args, **kwargs):
         obs, info = super().reset(*args, **kwargs)
-        info.update(state=self.state)
+        info.update(state=self.state, task=self.rank)
         return obs, info
 
     def step(self, action):
         info: dict
         obs, reward, done, truncated, info = super().step(action)
-        info.update(state=self.state)
+        info.update(state=self.state, task=self.rank)
         return obs, reward, done, truncated, info
 
 
@@ -90,7 +93,8 @@ def make_vec_envs(
     **kwargs,
 ) -> "VecPyTorch":
     envs = [
-        make_env(env_name=env_name, seed=seed, **kwargs) for i in range(num_processes)
+        make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
+        for i in range(num_processes)
     ]
 
     envs: SubprocVecEnv = (
