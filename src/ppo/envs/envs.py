@@ -59,7 +59,15 @@ class CustomOneRoomS6Fast(OneRoomS6Fast):
 
 
 class SequenceEnv(CustomOneRoomS6Fast):
-    def __init__(self, *args, n_sequence: int, n_objects: int, rank: int, **kwargs):
+    def __init__(
+        self,
+        *args,
+        n_sequence: int,
+        n_objects: int,
+        n_permutations: int,
+        rank: int,
+        **kwargs,
+    ):
         assert n_sequence >= 1
         assert n_objects >= n_sequence
         self.objects = [
@@ -68,7 +76,7 @@ class SequenceEnv(CustomOneRoomS6Fast):
             for color in COLOR_NAMES
         ][:n_objects]
 
-        permutations = list(itertools.permutations(self.objects))
+        permutations = list(itertools.permutations(self.objects))[:n_permutations]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence, rank=rank)
 
