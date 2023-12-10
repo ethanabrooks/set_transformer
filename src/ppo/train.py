@@ -1,5 +1,5 @@
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
