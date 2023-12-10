@@ -38,6 +38,7 @@ class Command(Enum):
     OBSERVATION_SPACE = auto()
     RESET = auto()
     STEP = auto()
+    TASK_SPACE = auto()
 
 
 def work(env: Env, command: Command, data):
@@ -52,6 +53,8 @@ def work(env: Env, command: Command, data):
         if d or t:
             s, _ = env.reset()
         return s, r, d, t, i
+    elif command == Command.TASK_SPACE:
+        return env.get_wrapper_attr("task_space")
     raise RuntimeError(f"Unknown command {command}")
 
 
@@ -112,6 +115,10 @@ class SubprocVecEnv(gym.Env):
     @property
     def observation_space(self) -> gym.Space:
         return self.send_to_first(Command.OBSERVATION_SPACE, None)
+
+    @property
+    def task_space(self) -> gym.Space:
+        return self.send_to_first(Command.TASK_SPACE, None)
 
     def close(self):
         if self.waiting:
