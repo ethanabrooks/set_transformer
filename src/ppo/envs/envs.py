@@ -9,6 +9,7 @@ from gymnasium.spaces.box import Box as BoxSpace
 from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from envs.base import Env
+from ppo.envs.base import Env as PPOEnv
 from ppo.envs.dummy_vec_env import DummyVecEnv
 from ppo.envs.monitor import Monitor
 from ppo.envs.subproc_vec_env import SubprocVecEnv
@@ -55,7 +56,11 @@ class CustomOneRoomS6Fast(OneRoomS6Fast):
         return obs, reward, done, truncated, info
 
 
-class BaseEnvWrapper(gym.Wrapper, Env):
+class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
+    def __init__(self, env: PPOEnv, n_tasks: int):
+        super().__init__(env)
+        self.n_tasks = n_tasks
+
     @property
     def action_space(self) -> gym.spaces.Discrete:
         return self.env.action_space
@@ -64,13 +69,17 @@ class BaseEnvWrapper(gym.Wrapper, Env):
     def observation_space(self) -> Box:
         return self.env.observation_space
 
+    @property
+    def task_space(self) -> gym.spaces.Discrete:
+        return gym.spaces.Discrete(self.n_tasks)
 
-def make_env(env_name: str, seed: int, **kwargs):
+
+def make_env(env_name: str, n_tasks: int, seed: int, **kwargs):
     def _thunk():
         env: gym.Env = CustomOneRoomS6Fast(**kwargs)
         env = PassiveEnvChecker(env)
         env = OrderEnforcing(env)
-        env = BaseEnvWrapper(env)
+        env = BaseEnvWrapper(env, n_tasks=n_tasks)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
@@ -92,6 +101,7 @@ def make_vec_envs(
     dummy_vec_env: bool,
     **kwargs,
 ) -> "VecPyTorch":
+    kwargs.update(n_tasks=num_processes)  # TODO: Allow n_tasks < num_processes
     envs = [
         make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
         for i in range(num_processes)
@@ -159,3 +169,7 @@ class VecPyTorch(gym.Wrapper):
         obs = self.obs_to_tensor(obs)
         reward = torch.from_numpy(reward).float()
         return obs, reward, done, truncated, info
+
+    @property
+    def task_space(self):
+        return self.venv.task_space

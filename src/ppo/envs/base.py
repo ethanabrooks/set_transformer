@@ -16,6 +16,11 @@ class Env(gym.Env, ABC):
     def observation_space(self) -> Box:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def task_space(self) -> Discrete:
+        raise NotImplementedError
+
     @abstractmethod
     def reset(self) -> np.ndarray:
         raise NotImplementedError
