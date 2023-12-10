@@ -1,18 +1,19 @@
 from abc import ABC, abstractmethod
 
-import gym
+import gymnasium as gym
 import numpy as np
+from gymnasium.spaces import Box, Discrete
 
 
 class Env(gym.Env, ABC):
     @property
     @abstractmethod
-    def action_space(self):
+    def action_space(self) -> Discrete:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def observation_space(self):
+    def observation_space(self) -> Box:
         raise NotImplementedError
 
     @abstractmethod
