@@ -16,7 +16,7 @@ from wandb.sdk.wandb_run import Run
 
 from envs.subproc_vec_env import SubprocVecEnv
 from models.trajectories import GPT2, Model
-from ppo.train import get_state
+from ppo.train import infos_to_array
 from sequence.base import Sequence
 from train.utils import plot_trajectories
 from utils import DataPoint
@@ -142,7 +142,7 @@ def rollout(
         rewards[t] = torch.from_numpy(step.reward)
         dones[t] = torch.from_numpy(step.done)
         observation = torch.from_numpy(step.observation)
-        state = get_state(info_list)
+        state = infos_to_array(info_list, "state")
         if state is not None:
             if states is None:
                 _, *s = state.shape
