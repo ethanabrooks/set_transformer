@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+import wandb
 from gym.spaces import Box, Discrete, MultiDiscrete, Space
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -13,7 +14,6 @@ from tqdm import tqdm
 from transformers import GPT2Config
 from wandb.sdk.wandb_run import Run
 
-import wandb
 from envs.subproc_vec_env import SubprocVecEnv
 from models.trajectories import GPT2, Model
 from sequence.base import Sequence
