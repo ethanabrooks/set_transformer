@@ -8,6 +8,9 @@ lr: 5e-4
 optim_args:
   eps: 1e-5
 ppo_args:
+  agent_args:
+    hidden_size: 512
+    recurrent: false
   disable_gae: false
   disable_linear_lr_decay: false
   disable_proper_time_limits: false
@@ -18,7 +21,6 @@ ppo_args:
   num_processes: 1
   num_steps: 2048
   num_updates: 10
-  recurrent_policy: false
   update_args:
     clip_param: 0.2
     entropy_coef: 0

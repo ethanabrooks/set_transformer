@@ -33,6 +33,7 @@ def infos_to_array(infos: list[dict], key: str) -> np.ndarray:
 
 
 def train(
+    agent_args: dict,
     disable_gae: bool,
     disable_linear_lr_decay: bool,
     disable_proper_time_limits: bool,
@@ -47,7 +48,6 @@ def train(
     num_steps: int,
     num_updates: int,
     optim_args: dict,
-    recurrent_policy: bool,
     run: Optional[Run],
     seed: int,
     update_args: dict,
@@ -71,7 +71,7 @@ def train(
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
-        recurrent=recurrent_policy,
+        **agent_args,
     )
     if load_path is not None:
         state_dict: dict = torch.load(load_path)
@@ -183,21 +183,21 @@ def train(
             bad_masks = torch.from_numpy(~truncated)
 
             rollouts.insert(
-                obs=obs,
                 actions=action,
-                rewards=reward,
-                masks=masks,
                 bad_masks=bad_masks,
-                rnn_hxs=action_metadata.rnn_hxs,
                 log_probs=action_metadata.log_probs,
+                masks=masks,
+                obs=obs,
+                rewards=reward,
+                rnn_hxs=action_metadata.rnn_hxs,
                 value=action_metadata.value,
             )
 
         with torch.no_grad():
             next_value = agent.get_value(
-                rollouts.obs[-1],
-                rollouts.recurrent_hidden_states[-1],
-                rollouts.masks[-1],
+                inputs=rollouts.obs[-1],
+                masks=rollouts.masks[-1],
+                rnn_hxs=rollouts.recurrent_hidden_states[-1],
             ).detach()
 
         rollouts.compute_returns(
