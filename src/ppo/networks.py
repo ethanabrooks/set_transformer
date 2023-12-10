@@ -1,6 +1,9 @@
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
+from gymnasium.spaces import Discrete
 
 from ppo.utils import init
 
@@ -104,11 +107,10 @@ def init_conv(module: nn.Module):
     )
 
 
-class CNNBase(Network):
-    def __init__(self, hidden_size: int, num_inputs: int, recurrent: bool):
-        super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
-
-        self.main = nn.Sequential(
+class CNN(nn.Module):
+    def __init__(self, num_inputs: int, hidden_size: int) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
             init_conv(nn.Conv2d(num_inputs, 32, 8, stride=4)),
             nn.ReLU(),
             init_conv(nn.Conv2d(32, 64, 4, stride=2)),
@@ -120,6 +122,41 @@ class CNNBase(Network):
             nn.ReLU(),
         )
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net.forward(x / 255.0)
+
+
+class CNNWithTaskEmbedding(CNN):
+    def __init__(self, *args, hidden_size: int, num_embeddings: int, **kwargs):
+        super().__init__(*args, hidden_size=hidden_size, **kwargs)
+        self.embedding = nn.Embedding(
+            num_embeddings=num_embeddings, embedding_dim=hidden_size
+        )
+
+    def forward(self, x: torch.Tensor, task: torch.Tensor):
+        obs_embedding = super().forward(x)
+        rank_embedding = self.embedding(task)
+        return obs_embedding + rank_embedding
+
+
+class CNNBase(Network):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_inputs: int,
+        recurrent: bool,
+        task_space: Optional[Discrete],
+    ):
+        super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
+        if task_space is None:
+            self.main = CNN(num_inputs, hidden_size)
+        else:
+            self.main = CNNWithTaskEmbedding(
+                hidden_size=hidden_size,
+                num_embeddings=task_space.n,
+                num_inputs=num_inputs,
+            )
+
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
@@ -128,8 +165,17 @@ class CNNBase(Network):
 
         self.train()
 
-    def forward(self, inputs: torch.Tensor, rnn_hxs: torch.Tensor, masks: torch.Tensor):
-        x = self.main(inputs / 255.0)
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        rnn_hxs: torch.Tensor,
+        masks: torch.Tensor,
+        tasks: Optional[torch.Tensor] = None,
+    ):
+        if tasks is None:
+            x = self.main(inputs)
+        else:
+            x = self.main(inputs, tasks)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
