@@ -15,6 +15,7 @@ class Sample:
     masks: torch.Tensor
     returns: torch.Tensor
     rnn_hxs: torch.Tensor
+    tasks: torch.Tensor
     value_preds: torch.Tensor
 
 
@@ -28,6 +29,7 @@ class RolloutStorage(object):
         recurrent_hidden_state_size: int,
     ):
         self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
+        self.tasks = torch.zeros(num_steps + 1, num_processes, dtype=torch.long)
         self.recurrent_hidden_states = torch.zeros(
             num_steps + 1, num_processes, recurrent_hidden_state_size
         )
@@ -53,6 +55,7 @@ class RolloutStorage(object):
 
     def to(self, device: torch.device):
         self.obs = self.obs.to(device)
+        self.tasks = self.tasks.to(device)
         self.recurrent_hidden_states = self.recurrent_hidden_states.to(device)
         self.rewards = self.rewards.to(device)
         self.value_preds = self.value_preds.to(device)
@@ -71,9 +74,11 @@ class RolloutStorage(object):
         obs: torch.Tensor,
         rewards: torch.Tensor,
         rnn_hxs: torch.Tensor,
+        tasks: torch.Tensor,
         value: torch.Tensor,
     ):
         self.obs[self.step + 1].copy_(obs)
+        self.tasks[self.step + 1].copy_(tasks)
         self.recurrent_hidden_states[self.step + 1].copy_(rnn_hxs)
         self.actions[self.step].copy_(actions)
         self.action_log_probs[self.step].copy_(log_probs)
@@ -86,6 +91,7 @@ class RolloutStorage(object):
 
     def after_update(self):
         self.obs[0].copy_(self.obs[-1])
+        self.tasks[0].copy_(self.tasks[-1])
         self.recurrent_hidden_states[0].copy_(self.recurrent_hidden_states[-1])
         self.masks[0].copy_(self.masks[-1])
         self.bad_masks[0].copy_(self.bad_masks[-1])
@@ -166,6 +172,7 @@ class RolloutStorage(object):
         )
         for indices in sampler:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
+            tasks_batch = self.tasks[:-1].view(-1, *self.tasks.size()[2:])[indices]
             recurrent_hidden_states_batch = self.recurrent_hidden_states[:-1].view(
                 -1, self.recurrent_hidden_states.size(-1)
             )[indices]
@@ -181,6 +188,7 @@ class RolloutStorage(object):
 
             yield Sample(
                 obs=obs_batch,
+                tasks=tasks_batch,
                 rnn_hxs=recurrent_hidden_states_batch,
                 actions=actions_batch,
                 value_preds=value_preds_batch,
@@ -207,11 +215,13 @@ class RolloutStorage(object):
             old_action_log_probs_batch = []
             recurrent_hidden_states_batch = []
             return_batch = []
+            tasks_batch = []
             value_preds_batch = []
 
             for offset in range(num_envs_per_batch):
                 ind = perm[start_ind + offset]
                 obs_batch.append(self.obs[:-1, ind])
+                tasks_batch.append(self.tasks[:-1, ind])
                 recurrent_hidden_states_batch.append(
                     self.recurrent_hidden_states[0:1, ind]
                 )
@@ -257,5 +267,6 @@ class RolloutStorage(object):
                 old_action_log_probs=old_action_log_probs_batch,
                 returns=return_batch,
                 rnn_hxs=recurrent_hidden_states_batch,
+                tasks=tasks_batch,
                 value_preds=value_preds_batch,
             )
