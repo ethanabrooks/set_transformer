@@ -24,21 +24,17 @@ class Agent(nn.Module):
         self,
         obs_shape: tuple[int, ...],
         action_space: Space,
-        base=None,
-        base_kwargs: Optional[dict] = None,
+        **kwargs,
     ):
         super(Agent, self).__init__()
-        if base_kwargs is None:
-            base_kwargs = {}
-        if base is None:
-            if len(obs_shape) == 3:
-                base = CNNBase
-            elif len(obs_shape) == 1:
-                base = MLPBase
-            else:
-                raise NotImplementedError
+        if len(obs_shape) == 3:
+            base = CNNBase
+        elif len(obs_shape) == 1:
+            base = MLPBase
+        else:
+            raise NotImplementedError
 
-        self.base: Network = base(obs_shape[0], **base_kwargs)
+        self.base: Network = base(num_inputs=obs_shape[0], **kwargs)
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
@@ -61,17 +57,24 @@ class Agent(nn.Module):
         """Size of rnn_hx."""
         return self.base.recurrent_hidden_state_size
 
-    def forward(self, inputs, rnn_hxs, masks):
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        rnn_hxs: torch.Tensor,
+        masks: torch.Tensor,
+    ):
         raise NotImplementedError
 
     def act(
         self,
         inputs: torch.Tensor,
-        rnn_hxs: torch.Tensor,
         masks: torch.Tensor,
+        rnn_hxs: torch.Tensor,
         deterministic: bool = False,
     ) -> tuple[torch.Tensor, ActMetadata]:
-        value, actor_features, rnn_hxs = self.base.forward(inputs, rnn_hxs, masks)
+        value, actor_features, rnn_hxs = self.base.forward(
+            inputs=inputs, rnn_hxs=rnn_hxs, masks=masks
+        )
         dist = self.dist.forward(actor_features)
 
         if deterministic:
@@ -85,19 +88,24 @@ class Agent(nn.Module):
         )
 
     def get_value(
-        self, inputs: torch.Tensor, rnn_hxs: torch.Tensor, masks: torch.Tensor
+        self,
+        inputs: torch.Tensor,
+        masks: torch.Tensor,
+        rnn_hxs: torch.Tensor,
     ) -> torch.Tensor:
-        value, _, _ = self.base(inputs, rnn_hxs, masks)
+        value, _, _ = self.base.forward(inputs=inputs, rnn_hxs=rnn_hxs, masks=masks)
         return value
 
     def evaluate_actions(
         self,
-        obs: torch.Tensor,
-        rnn_hxs: torch.Tensor,
-        masks: torch.Tensor,
         action: torch.Tensor,
+        obs: torch.Tensor,
+        masks: torch.Tensor,
+        rnn_hxs: torch.Tensor,
     ):
-        value, actor_features, rnn_hxs = self.base(obs, rnn_hxs, masks)
+        value, actor_features, rnn_hxs = self.base.forward(
+            inputs=obs, rnn_hxs=rnn_hxs, masks=masks
+        )
         dist = self.dist.forward(actor_features)
 
         action_log_probs = dist.log_probs(action)
@@ -140,10 +148,10 @@ class Agent(nn.Module):
             for sample in data_generator:
                 # Reshape to do in a single forward pass for all steps
                 dist_entropy, action_metadata = self.evaluate_actions(
+                    action=sample.actions,
+                    masks=sample.masks,
                     obs=sample.obs,
                     rnn_hxs=sample.rnn_hxs,
-                    masks=sample.masks,
-                    action=sample.actions,
                 )
 
                 ratio = torch.exp(
