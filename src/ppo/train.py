@@ -191,6 +191,7 @@ def train(
                 obs=obs,
                 rewards=reward,
                 rnn_hxs=action_metadata.rnn_hxs,
+                tasks=torch.from_numpy(infos_to_array(infos, "task")).to(device),
                 value=action_metadata.value,
             )
 

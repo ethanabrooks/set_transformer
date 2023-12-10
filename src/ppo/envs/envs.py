@@ -27,9 +27,10 @@ import miniworld  # noqa: F401, E402
 
 
 class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
-    def __init__(self, env: PPOEnv, n_tasks: int):
+    def __init__(self, env: PPOEnv, n_tasks: int, rank: int):
         super().__init__(env)
         self.n_tasks = n_tasks
+        self.rank = rank
 
     @property
     def action_space(self) -> gym.spaces.Discrete:
@@ -43,11 +44,22 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
     def task_space(self) -> gym.spaces.Discrete:
         return gym.spaces.Discrete(self.n_tasks)
 
+    def reset(self, *args, **kwargs):
+        obs, info = super().reset(*args, **kwargs)
+        info.update(task=self.rank)
+        return obs, info
 
-def make_env(env_name: str, n_tasks: int, seed: int, **kwargs):
+    def step(self, action):
+        info: dict
+        obs, reward, done, truncated, info = super().step(action)
+        info.update(task=self.rank)
+        return obs, reward, done, truncated, info
+
+
+def make_env(env_name: str, n_tasks: int, rank: int, seed: int, **kwargs):
     def _thunk():
         env: gym.Env = gym.make(env_name, **kwargs)
-        env = BaseEnvWrapper(env, n_tasks=n_tasks)
+        env = BaseEnvWrapper(env, n_tasks=n_tasks, rank=rank)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
@@ -73,7 +85,8 @@ def make_vec_envs(
 ) -> "VecPyTorch":
     kwargs.update(n_tasks=num_processes)  # TODO: Allow n_tasks < num_processes
     envs = [
-        make_env(env_name=env_name, seed=seed, **kwargs) for i in range(num_processes)
+        make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
+        for i in range(num_processes)
     ]
 
     envs: SubprocVecEnv = (
