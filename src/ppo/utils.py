@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 
-from ppo.envs.envs import VecNormalize
+from ppo.envs.vec_normalize import VecNormalize
 
 
 def get_vec_normalize(venv):

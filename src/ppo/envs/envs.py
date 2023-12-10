@@ -13,7 +13,6 @@ from envs.base import Env
 from ppo.envs.dummy_vec_env import DummyVecEnv
 from ppo.envs.monitor import Monitor
 from ppo.envs.subproc_vec_env import SubprocVecEnv
-from ppo.envs.vec_normalize import VecNormalize
 
 pyglet.options["headless"] = True
 try:
@@ -59,7 +58,7 @@ class BaseEnvWrapper(gym.Wrapper, Env):
         return self.env.action_space
 
     @property
-    def observation_space(self) -> gym.Space:
+    def observation_space(self) -> Box:
         return self.env.observation_space
 
 
@@ -74,9 +73,7 @@ def make_env(env_name: str, seed: int, **kwargs):
         env.reset(seed=seed)
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
-        obs_shape = env.observation_space.shape
-        if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
-            env = TransposeImage(env, op=[2, 0, 1])
+        env = TransposeImage(env, op=[2, 0, 1])
 
         return env
 
@@ -101,12 +98,6 @@ def make_vec_envs(
         if dummy_vec_env or len(envs) == 1
         else SubprocVecEnv.make(envs)
     )
-
-    if len(envs.observation_space.shape) == 1:
-        if gamma is None:
-            envs = VecNormalize(envs, ret=False)
-        else:
-            envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 
