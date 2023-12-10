@@ -63,9 +63,9 @@ class SequenceEnv(CustomOneRoomS6Fast):
         assert n_sequence >= 1
         assert n_objects >= n_sequence
         self.objects = [
-            obj
+            obj_type(color=color)
+            for obj_type in [Box, Ball, Key]
             for color in COLOR_NAMES
-            for obj in [Box(color=color), Ball(color=color), Key(color=color)]
         ][:n_objects]
 
         permutations = list(itertools.permutations(self.objects))
