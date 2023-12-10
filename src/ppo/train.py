@@ -20,10 +20,10 @@ from ppo.utils import get_vec_normalize
 from utils import Transition
 
 
-def get_state(infos: list[dict]) -> np.ndarray:
+def infos_to_array(infos: list[dict], key: str) -> np.ndarray:
     def generate():
         for info in infos:
-            state = info.get("state")
+            state = info.get(key)
             if state is not None:
                 yield state
 
@@ -93,7 +93,7 @@ def train(
     )
 
     obs, infos = envs.reset()
-    state = get_state(infos)
+    state = infos_to_array(infos, "state")
     if state is None:
         state = obs
     rollouts.obs[0].copy_(obs)
@@ -142,7 +142,7 @@ def train(
 
             # Obser reward and next obs
             obs, reward, done, truncated, infos = envs.step(action)
-            next_state = get_state(infos)
+            next_state = infos_to_array(infos, "state")
             if next_state is None:
                 next_state = obs
 
