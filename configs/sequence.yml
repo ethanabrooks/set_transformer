@@ -1,0 +1,7 @@
+env_args:
+  env_name: SEQUENCE
+  n_objects: 2
+  n_sequence: 2
+inherit_from: miniworld
+ppo_args:
+  num_processes: ${env_args.n_sequence}

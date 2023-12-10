@@ -1,4 +1,6 @@
+import itertools
 import os
+from enum import Enum, auto
 from warnings import warn
 
 import gymnasium as gym
@@ -23,7 +25,7 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
-from miniworld.entity import Box  # noqa: E402
+from miniworld.entity import COLOR_NAMES, Ball, Box, Key  # noqa: E402
 from miniworld.envs.oneroom import OneRoomS6Fast  # noqa: E402
 
 
@@ -56,6 +58,49 @@ class CustomOneRoomS6Fast(OneRoomS6Fast):
         return obs, reward, done, truncated, info
 
 
+class SequenceEnv(CustomOneRoomS6Fast):
+    def __init__(self, *args, n_sequence: int, n_objects: int, rank: int, **kwargs):
+        assert n_sequence >= 1
+        assert n_objects >= n_sequence
+        self.objects = [
+            obj
+            for color in COLOR_NAMES
+            for obj in [Box(color=color), Ball(color=color), Key(color=color)]
+        ][:n_objects]
+
+        permutations = list(itertools.permutations(self.objects))
+        self.sequence = permutations[rank % len(permutations)][:n_sequence]
+        super().__init__(*args, **kwargs, rank=rank)
+
+    def _gen_world(self):
+        super()._gen_world()
+        for obj in self.objects:
+            self.place_entity(obj)
+
+    def reset(self, *args, **kwargs):
+        self.obj_iter = iter(self.sequence)
+        self.target_obj = next(self.obj_iter)
+        obs, info = super().reset(*args, **kwargs)
+        return obs, info
+
+    def step(self, action: np.ndarray):
+        obs, _, _, truncated, info = super().step(action)
+        reward = 0
+        termination = False
+        if self.near(self.target_obj):
+            reward += self._reward()
+            try:
+                self.target_obj = next(self.obj_iter)
+            except StopIteration:
+                termination = True
+        return obs, reward, termination, truncated, info
+
+
+class EnvType(Enum):
+    ONE_ROOM = auto()
+    SEQUENCE = auto()
+
+
 class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
     def __init__(self, env: PPOEnv, n_tasks: int):
         super().__init__(env)
@@ -75,8 +120,15 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
 
 
 def make_env(env_name: str, n_tasks: int, seed: int, **kwargs):
+    env_type = EnvType[env_name]
+
     def _thunk():
-        env: gym.Env = CustomOneRoomS6Fast(**kwargs)
+        if env_type == EnvType.ONE_ROOM:
+            env: gym.Env = CustomOneRoomS6Fast(**kwargs)
+        elif env_type == EnvType.SEQUENCE:
+            env: gym.Env = SequenceEnv(**kwargs)
+        else:
+            raise ValueError(f"Unknown env_type: {env_type}")
         env = PassiveEnvChecker(env)
         env = OrderEnforcing(env)
         env = BaseEnvWrapper(env, n_tasks=n_tasks)
