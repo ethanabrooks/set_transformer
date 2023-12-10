@@ -3,11 +3,16 @@ from typing import Optional
 
 import gymnasium
 import torch
+from gymnasium.spaces import Discrete
 
 
 class Env(gymnasium.Env, ABC):
     @property
     def policy(self) -> Optional[torch.Tensor]:
+        pass
+
+    @property
+    def task_space(self) -> Optional[Discrete]:
         pass
 
     @property

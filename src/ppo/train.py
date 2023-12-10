@@ -183,6 +183,9 @@ def train(
             masks = torch.from_numpy(~(done | truncated))
             bad_masks = torch.from_numpy(~truncated)
 
+            tasks = infos_to_array(infos, "task")
+            if tasks is not None:
+                tasks = torch.from_numpy(tasks).to(device)
             rollouts.insert(
                 actions=action,
                 bad_masks=bad_masks,
@@ -191,6 +194,7 @@ def train(
                 obs=obs,
                 rewards=reward,
                 rnn_hxs=action_metadata.rnn_hxs,
+                tasks=tasks,
                 value=action_metadata.value,
             )
 
