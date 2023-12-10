@@ -6,7 +6,7 @@ import gymnasium as gym
 import numpy as np
 import pyglet
 import torch
-from gymnasium.spaces.box import Box
+from gymnasium.spaces.box import Box as BoxSpace
 from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from envs.base import Env
@@ -24,14 +24,14 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
-from miniworld.entity import Box as MiniWorldBox  # noqa: E402
+from miniworld.entity import Box  # noqa: E402
 from miniworld.envs.oneroom import OneRoomS6Fast  # noqa: E402
 
 
 class CustomOneRoomS6Fast(OneRoomS6Fast):
     @property
     def state(self):
-        box: MiniWorldBox = self.box
+        box: Box = self.box
         return np.concatenate(
             [
                 box.pos,
@@ -129,9 +129,9 @@ class TransposeImage(TransposeObs):
         super(TransposeImage, self).__init__(env)
         assert len(op) == 3, "Error: Operation, " + str(op) + ", must be dim3"
         self.op = op
-        assert isinstance(self.observation_space, Box)
+        assert isinstance(self.observation_space, BoxSpace)
         obs_shape = self.observation_space.shape
-        self.observation_space = Box(
+        self.observation_space = BoxSpace(
             self.observation_space.low[0, 0, 0],
             self.observation_space.high[0, 0, 0],
             [obs_shape[self.op[0]], obs_shape[self.op[1]], obs_shape[self.op[2]]],
