@@ -70,7 +70,7 @@ class SequenceEnv(CustomOneRoomS6Fast):
 
         permutations = list(itertools.permutations(self.objects))
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
-        super().__init__(*args, **kwargs, rank=rank)
+        super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence, rank=rank)
 
     def _gen_world(self):
         super()._gen_world()
