@@ -7,7 +7,7 @@ from gym import Space
 from torch.optim import Optimizer
 
 from ppo.distributions import Bernoulli, Categorical, DiagGaussian
-from ppo.networks import CNNBase
+from ppo.networks import CNNBase, CNNWithTaskEmbedding
 from ppo.rollout_storage import RolloutStorage, Sample
 
 
@@ -59,9 +59,10 @@ class Agent(nn.Module):
         masks: torch.Tensor,
         rnn_hxs: torch.Tensor,
         deterministic: bool = False,
+        **kwargs,
     ) -> tuple[torch.Tensor, ActMetadata]:
         value, actor_features, rnn_hxs = self.base.forward(
-            inputs=inputs, rnn_hxs=rnn_hxs, masks=masks
+            inputs=inputs, rnn_hxs=rnn_hxs, masks=masks, **kwargs
         )
         dist = self.dist.forward(actor_features)
 
@@ -76,12 +77,11 @@ class Agent(nn.Module):
         )
 
     def get_value(
-        self,
-        inputs: torch.Tensor,
-        masks: torch.Tensor,
-        rnn_hxs: torch.Tensor,
+        self, inputs: torch.Tensor, masks: torch.Tensor, rnn_hxs: torch.Tensor, **kwargs
     ) -> torch.Tensor:
-        value, _, _ = self.base.forward(inputs=inputs, rnn_hxs=rnn_hxs, masks=masks)
+        value, _, _ = self.base.forward(
+            inputs=inputs, rnn_hxs=rnn_hxs, masks=masks, **kwargs
+        )
         return value
 
     def evaluate_actions(
@@ -90,9 +90,10 @@ class Agent(nn.Module):
         obs: torch.Tensor,
         masks: torch.Tensor,
         rnn_hxs: torch.Tensor,
+        **kwargs,
     ):
         value, actor_features, rnn_hxs = self.base.forward(
-            inputs=obs, rnn_hxs=rnn_hxs, masks=masks
+            inputs=obs, rnn_hxs=rnn_hxs, masks=masks, **kwargs
         )
         dist = self.dist.forward(actor_features)
 
@@ -135,11 +136,13 @@ class Agent(nn.Module):
             sample: Sample
             for sample in data_generator:
                 # Reshape to do in a single forward pass for all steps
+                condition_on_task = isinstance(self.base.main, CNNWithTaskEmbedding)
                 dist_entropy, action_metadata = self.evaluate_actions(
                     action=sample.actions,
                     masks=sample.masks,
                     obs=sample.obs,
                     rnn_hxs=sample.rnn_hxs,
+                    **(dict(tasks=sample.tasks) if condition_on_task else {}),
                 )
 
                 ratio = torch.exp(

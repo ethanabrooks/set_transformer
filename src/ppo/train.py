@@ -34,6 +34,7 @@ def infos_to_array(infos: list[dict], key: str) -> np.ndarray:
 
 def train(
     agent_args: dict,
+    condition_on_task: bool,
     disable_gae: bool,
     disable_linear_lr_decay: bool,
     disable_proper_time_limits: bool,
@@ -71,6 +72,7 @@ def train(
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
+        task_space=envs.task_space if condition_on_task else None,
         **agent_args,
     )
     if load_path is not None:
@@ -137,6 +139,7 @@ def train(
                     inputs=rollouts.obs[step],
                     rnn_hxs=rollouts.recurrent_hidden_states[step],
                     masks=rollouts.masks[step],
+                    **(dict(tasks=rollouts.tasks[-1]) if condition_on_task else {}),
                 )
 
             prev_obs = obs
@@ -199,6 +202,7 @@ def train(
                 inputs=rollouts.obs[-1],
                 masks=rollouts.masks[-1],
                 rnn_hxs=rollouts.recurrent_hidden_states[-1],
+                **(dict(tasks=rollouts.tasks[-1]) if condition_on_task else {}),
             ).detach()
 
         rollouts.compute_returns(

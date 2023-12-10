@@ -11,6 +11,7 @@ ppo_args:
   agent_args:
     hidden_size: 512
     recurrent: false
+  condition_on_task: false
   disable_gae: false
   disable_linear_lr_decay: false
   disable_proper_time_limits: false
