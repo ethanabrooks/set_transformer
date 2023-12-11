@@ -23,3 +23,4 @@ update_args:
   num_mini_batch: 32
   ppo_epoch: 10
   value_loss_coef: 0.5
+use_replay_buffer: false
