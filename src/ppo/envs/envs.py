@@ -48,9 +48,9 @@ class Debug(OneRoomS6Fast):
 
     def reset(self, *args, **kwargs):
         obs, info = super().reset(*args, **kwargs)
-        info.update(state=self.state, task=self.rank)
         self.reward_action = self.np_random.choice([0, 1])
-        obs = self.reward_action * np.ones_like(obs)
+        info.update(state=self.state, task=self.reward_action)
+        obs = np.ones_like(obs)
         self._step = 0
         return obs, info
 
