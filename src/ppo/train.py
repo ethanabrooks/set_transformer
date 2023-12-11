@@ -51,6 +51,7 @@ def train(
     run: Optional[Run],
     seed: int,
     update_args: dict,
+    use_replay_buffer: bool,
 ):
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True  # noqa: Vulture
@@ -104,7 +105,7 @@ def train(
     start = time.time()
 
     action_space = envs.action_space
-    if isinstance(action_space, Discrete):
+    if use_replay_buffer and isinstance(action_space, Discrete):
         replay_buffer_dir = Path("/tmp" if run is None else run.dir)
         action_probs_shape = (action_space.n,)
         data_storage = DataStorage.make(
@@ -232,4 +233,5 @@ def train(
             if run is not None:
                 run.log(log, step=total_num_steps)
 
-    return data_storage
+    if use_replay_buffer:
+        return data_storage
