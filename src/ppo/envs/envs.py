@@ -29,6 +29,43 @@ from miniworld.entity import COLOR_NAMES, Ball, Box, Key  # noqa: E402
 from miniworld.envs.oneroom import OneRoomS6Fast  # noqa: E402
 
 
+class Debug(OneRoomS6Fast):
+    def __init__(self, *args, rank: int, **kwargs):
+        self.rank = rank
+        super().__init__(*args, **kwargs)
+
+    @property
+    def state(self):
+        box: Box = self.box
+        return np.concatenate(
+            [
+                box.pos,
+                self.agent.pos,
+                self.agent.dir_vec,
+                self.agent.right_vec,
+            ]
+        )
+
+    def reset(self, *args, **kwargs):
+        obs, info = super().reset(*args, **kwargs)
+        info.update(state=self.state, task=self.rank)
+        self.reward_action = self.np_random.choice([0, 1])
+        obs = self.reward_action * np.ones_like(obs)
+        self._step = 0
+        return obs, info
+
+    def step(self, action):
+        info: dict
+        obs, reward, done, truncated, info = super().step(action)
+        info.update(state=self.state, task=self.rank)
+        obs = np.ones_like(obs)
+        success = self._step == 1 and action == self.reward_action
+        reward = float(success)
+        done = bool(success)
+        self._step += 1
+        return obs, reward, done, truncated, info
+
+
 class CustomOneRoomS6Fast(OneRoomS6Fast):
     def __init__(self, *args, rank: int, **kwargs):
         self.rank = rank
@@ -105,6 +142,7 @@ class SequenceEnv(CustomOneRoomS6Fast):
 
 
 class EnvType(Enum):
+    DEBUG = auto()
     ONE_ROOM = auto()
     SEQUENCE = auto()
 
@@ -131,7 +169,9 @@ def make_env(env_name: str, n_tasks: int, seed: int, **kwargs):
     env_type = EnvType[env_name]
 
     def _thunk():
-        if env_type == EnvType.ONE_ROOM:
+        if env_type == EnvType.DEBUG:
+            env: gym.Env = Debug(**kwargs)
+        elif env_type == EnvType.ONE_ROOM:
             env: gym.Env = CustomOneRoomS6Fast(**kwargs)
         elif env_type == EnvType.SEQUENCE:
             env: gym.Env = SequenceEnv(**kwargs)
