@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from gymnasium.spaces import Discrete
 from torch.optim import Adam
-from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
 from ppo import utils
@@ -132,7 +131,7 @@ def train(
                 initial_lr=lr,
             )
 
-        for step in tqdm(range(num_steps), desc=f"Update {j}/{num_updates}"):
+        for step in range(num_steps):
             # Sample actions
             with torch.no_grad():
                 action, action_metadata = agent.act(
@@ -223,6 +222,18 @@ def train(
             total_num_steps = (j + 1) * num_processes * num_steps
             end = time.time()
             mean_reward = np.mean(episode_rewards)
+            print(
+                "Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".format(
+                    j,
+                    total_num_steps,
+                    int(total_num_steps / (end - start)),
+                    len(episode_rewards),
+                    np.mean(episode_rewards),
+                    np.median(episode_rewards),
+                    np.min(episode_rewards),
+                    np.max(episode_rewards),
+                )
+            )
 
             log = dict(
                 updates=j,
