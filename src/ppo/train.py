@@ -1,5 +1,4 @@
 import time
-from collections import deque
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
@@ -97,7 +96,7 @@ def train(
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
-    episode_rewards = deque(maxlen=10)
+    episode_rewards = []
 
     start = time.time()
 
@@ -231,6 +230,7 @@ def train(
                 action_loss=action_loss,
                 dist_entropy=dist_entropy,
             )
+            episode_rewards = []
             if run is not None:
                 run.log(log, step=total_num_steps)
         if (j + 1) % save_interval == 0 and run is not None:
