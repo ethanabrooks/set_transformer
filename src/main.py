@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Set
 
 import tomli
+import wandb
 from dollar_lambda import CommandTree, argument, option
 from git import Repo
 from omegaconf import DictConfig, OmegaConf
@@ -16,10 +17,9 @@ from ray.air.integrations.wandb import setup_wandb
 from rich import print
 from wandb.sdk.wandb_run import Run
 
-import wandb
 from param_space import param_space
 from train.tabular import train as train_tabular_fn
-from train.trajectories import train as train_trajectories_fn
+from train.trajectories.train import train as train_trajectories_fn
 
 tree = CommandTree()
 

@@ -1,11 +1,11 @@
 from dataclasses import dataclass, replace
 
 import torch
-
 import wandb
+
 from models.trajectories import GridWorldModel
 from sequence.grid_world_base import Sequence
-from train.trainer.base import Trainer as Base
+from train.trajectories.base import Trainer as Base
 
 
 @dataclass(frozen=True)
