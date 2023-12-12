@@ -96,9 +96,7 @@ class Network(nn.Module):
 
 
 class CNNBase(Network):
-    def __init__(
-        self, num_inputs: int, recurrent: bool = False, hidden_size: int = 512
-    ):
+    def __init__(self, hidden_size: int, num_inputs: int, recurrent: bool):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
         init_ = lambda m: init(
