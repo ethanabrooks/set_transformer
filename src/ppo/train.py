@@ -80,7 +80,7 @@ def train(
         recurrent_hidden_state_size=agent.recurrent_hidden_state_size,
     )
 
-    obs = envs.reset()
+    obs, infos = envs.reset()
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 

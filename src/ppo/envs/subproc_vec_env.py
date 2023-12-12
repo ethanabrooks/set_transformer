@@ -7,7 +7,7 @@ from multiprocessing import Pipe, Process
 from multiprocessing.connection import Connection
 from typing import Callable, Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from envs.base import Env
@@ -125,8 +125,8 @@ class SubprocVecEnv(gym.Env):
 
     def reset(self, n: Optional[int] = None) -> np.ndarray:
         if n is None:
-            observations, _ = zip(*self.send_to_all(Command.RESET, None))
-            return np.stack(observations)
+            observations, infos = zip(*self.send_to_all(Command.RESET, None))
+            return np.stack(observations), infos
         else:
             return self.send_to_nth(n, Command.RESET, None)
 
