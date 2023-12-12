@@ -1,2 +1,2 @@
-env_name: ONE_ROOM
+env_name: PICKUP
 inherit_from: miniworld

@@ -33,9 +33,7 @@ class EnvType(Enum):
     SEQUENCE = auto()
 
 
-def make_env(env_name: str, rank: int, seed: int, **kwargs):
-    env_type = EnvType[env_name]
-
+def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
     def _thunk():
         if env_type == EnvType.ONE_ROOM:
             env: gym.Env = OneRoom(**kwargs)
@@ -62,18 +60,14 @@ def make_env(env_name: str, rank: int, seed: int, **kwargs):
 
 
 def make_vec_envs(
-    env_name: str,
-    seed: int,
+    env_type: EnvType,
     num_processes: int,
     gamma: float,
     device: torch.device,
     dummy_vec_env: bool,
     **kwargs,
 ) -> "VecPyTorch":
-    envs = [
-        make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
-        for i in range(num_processes)
-    ]
+    envs = [make_env(env_type=env_type, rank=i, **kwargs) for i in range(num_processes)]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)
