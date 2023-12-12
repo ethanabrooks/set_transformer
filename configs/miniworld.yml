@@ -1,0 +1,39 @@
+dummy_vec_env: true
+env_args:
+  env_name: MiniWorld-OneRoomS6Fast-v0
+gamma: 0.99
+inherit_from: base
+load_path: null
+lr: 5e-4
+optim_args:
+  eps: 1e-5
+ppo_args:
+  agent_args:
+    hidden_size: 512
+    recurrent: false
+  disable_gae: false
+  disable_linear_lr_decay: false
+  disable_proper_time_limits: false
+  dummy_vec_env: true
+  gae_lambda: 0.95
+  log_interval: 50
+  lr: 3e-4
+  num_processes: 1
+  num_steps: 2048
+  num_updates: 1
+  update_args:
+    clip_param: 0.2
+    entropy_coef: 0
+    max_grad_norm: 0.5
+    num_mini_batch: 32
+    ppo_epoch: 10
+    value_loss_coef: 0.5
+  use_replay_buffer: true
+seed: 1
+test_size: 20
+train_args:
+  count_threshold: 10
+  log_interval: 1000
+  n_batch: 50
+trajectory_length: 256
+use_grid_world: false
