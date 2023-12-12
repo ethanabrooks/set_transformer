@@ -16,8 +16,7 @@ from ppo.agent import Agent
 from ppo.data_storage import DataStorage
 from ppo.envs.envs import EnvType, VecPyTorch, make_vec_envs
 from ppo.rollout_storage import RolloutStorage
-from ppo.utils import get_vec_normalize
-from utils import Transition
+from utils import Transition, load, save
 
 
 def infos_to_array(infos: list[dict], key: str) -> np.ndarray:
@@ -50,6 +49,7 @@ def train(
     num_updates: int,
     optim_args: dict,
     run: Optional[Run],
+    save_interval: int,
     seed: int,
     update_args: dict,
     use_replay_buffer: bool,
@@ -78,13 +78,7 @@ def train(
         **agent_args,
     )
     if load_path is not None:
-        state_dict: dict = torch.load(load_path)
-        vec_norm = get_vec_normalize(envs)
-        if vec_norm is not None:
-            ob_rms = state_dict.pop("ob_rms")
-            vec_norm.eval()
-            vec_norm.ob_rms = ob_rms
-        agent.load_state_dict(state_dict)
+        load(load_path, agent, run=None)
     agent.to(device)
 
     optimizer = Adam(agent.parameters(), lr=lr, **optim_args)
@@ -217,13 +211,14 @@ def train(
             not disable_proper_time_limits,
         )
 
-        value_loss, action_loss, dist_entropy = agent.update(
-            optimizer=optimizer, rollouts=rollouts, **update_args
-        )
+        if load_path is None:
+            value_loss, action_loss, dist_entropy = agent.update(
+                optimizer=optimizer, rollouts=rollouts, **update_args
+            )
 
         rollouts.after_update()
 
-        if j % log_interval == 0 and len(episode_rewards) > 1:
+        if load_path is None and (j % log_interval == 0) and len(episode_rewards) > 1:
             total_num_steps = (j + 1) * num_processes * num_steps
             end = time.time()
             mean_reward = np.mean(episode_rewards)
@@ -238,6 +233,8 @@ def train(
             )
             if run is not None:
                 run.log(log, step=total_num_steps)
+        if (j + 1) % save_interval == 0 and run is not None:
+            save(run, agent)
 
     if use_replay_buffer:
         return data_storage
