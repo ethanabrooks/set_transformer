@@ -64,6 +64,7 @@ def rollout(
     next_obs = torch.zeros((l, n, *o), dtype=torch.float32)
     obs = torch.full((l, n, *o), fill_value, dtype=torch.float32)
     rewards = torch.full((l, n), fill_value, dtype=torch.float32)
+    Q = torch.full((l, n, a), fill_value, dtype=torch.float32)
     optimals = None
 
     for i, o in enumerate(observation):
@@ -115,7 +116,8 @@ def rollout(
                         x._replace(input_q=input_q, n_bellman=n_bellman), optimizer=None
                     )
             output = input_q.cpu()
-            best_action = output[:, -1].argmax(-1)
+            Q[t] = output[:, -1]
+            best_action = Q[t].argmax(-1)
             action_prob = torch.eye(a)[best_action]
             if gradual_randomness_decay:
                 randomness = ((l - t) / rollout_length) ** 2
@@ -162,6 +164,11 @@ def rollout(
         episode=episodes,
         idx=idx,
         obs=obs,
+        Q=Q[
+            torch.arange(l)[:, None],
+            torch.arange(n)[None, :],
+            actions,
+        ],
         rewards=rewards,
         timesteps=timesteps,
     )
