@@ -25,12 +25,13 @@ class Sequence(OneRoom):
             for color in COLOR_NAMES
         ][:n_objects]
 
-        permutations = list(itertools.permutations(self.objects))[:n_permutations]
+        permutations = list(itertools.permutations(range(n_objects)))[:n_permutations]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
         self.observation_space = BoxSpace(
             low=-np.inf, high=np.inf, shape=self.state.shape
         )
+        self.eye = np.eye(len(self.objects))
 
     @property
     def state(self) -> np.ndarray:
@@ -51,7 +52,7 @@ class Sequence(OneRoom):
 
     def reset(self, *args, **kwargs):
         self.obj_iter = iter(self.sequence)
-        self.target_obj = next(self.obj_iter)
+        self.target_obj_id = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
         obs = self.state
         return obs, info
@@ -60,10 +61,10 @@ class Sequence(OneRoom):
         obs, _, _, truncated, info = super().step(action)
         reward = 0
         termination = False
-        if self.near(self.target_obj):
+        if self.near(self.objects[self.target_obj_id]):
             reward = 1
             try:
-                self.target_obj = next(self.obj_iter)
+                self.target_obj_id = next(self.obj_iter)
             except StopIteration:
                 termination = True
         obs = self.state

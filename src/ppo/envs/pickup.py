@@ -98,7 +98,7 @@ class Pickup(MiniWorldEnv, utils.EzPickle):
         self.objects = list(generate())
         for object in self.objects:
             self.place_entity(object)
-            self.target_obj = object
+        self.target_obj_id = 0
 
         self.place_agent()
 
