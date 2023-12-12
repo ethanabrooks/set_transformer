@@ -5,6 +5,7 @@ disable_gae: false
 disable_linear_lr_decay: false
 disable_proper_time_limits: false
 dummy_vec_env: false
+env_args: {}
 gae_lambda: 0.95
 gamma: 0.99
 load_path: null

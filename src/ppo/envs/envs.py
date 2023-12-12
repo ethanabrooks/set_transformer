@@ -67,9 +67,7 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
         return obs, reward, done, truncated, info
 
 
-def make_env(env_name: str, n_tasks: int, rank: int, seed: int, **kwargs):
-    env_type = EnvType[env_name]
-
+def make_env(env_type: EnvType, n_tasks: int, rank: int, seed: int, **kwargs):
     def _thunk():
         if env_type == EnvType.ONE_ROOM:
             env: gym.Env = OneRoom(**kwargs)
@@ -99,8 +97,7 @@ def make_env(env_name: str, n_tasks: int, rank: int, seed: int, **kwargs):
 
 
 def make_vec_envs(
-    env_name: str,
-    seed: int,
+    env_type: EnvType,
     num_processes: int,
     gamma: float,
     device: torch.device,
@@ -108,10 +105,7 @@ def make_vec_envs(
     **kwargs,
 ) -> "VecPyTorch":
     kwargs.update(n_tasks=num_processes)  # TODO: Allow n_tasks < num_processes
-    envs = [
-        make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
-        for i in range(num_processes)
-    ]
+    envs = [make_env(rank=i, env_type=env_type, **kwargs) for i in range(num_processes)]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)
