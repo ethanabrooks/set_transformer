@@ -1,4 +1,5 @@
 import os
+from enum import Enum, auto
 from warnings import warn
 
 import gymnasium as gym
@@ -6,6 +7,7 @@ import numpy as np
 import pyglet
 import torch
 from gymnasium.spaces.box import Box
+from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from envs.base import Env
 from ppo.envs.base import Env as PPOEnv
@@ -23,7 +25,16 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
-import miniworld  # noqa: F401, E402
+from ppo.envs.one_room import OneRoom  # noqa: E402
+from ppo.envs.pickup import Pickup  # noqa: E402
+from ppo.envs.sequence import Sequence  # noqa: E402
+
+
+class EnvType(Enum):
+    CHEETAH = auto()
+    ONE_ROOM = auto()
+    PICKUP = auto()
+    SEQUENCE = auto()
 
 
 class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
@@ -57,8 +68,21 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
 
 
 def make_env(env_name: str, n_tasks: int, rank: int, seed: int, **kwargs):
+    env_type = EnvType[env_name]
+
     def _thunk():
-        env: gym.Env = gym.make(env_name, **kwargs)
+        if env_type == EnvType.ONE_ROOM:
+            env: gym.Env = OneRoom(**kwargs)
+        elif env_type == EnvType.CHEETAH:
+            env: gym.Env = gym.make("HalfCheetah-v2")
+        elif env_type == EnvType.PICKUP:
+            env: gym.Env = Pickup(**kwargs)
+        elif env_type == EnvType.SEQUENCE:
+            env: gym.Env = Sequence(**kwargs, rank=rank)
+        else:
+            raise ValueError(f"Unknown env_type: {env_type}")
+        env = PassiveEnvChecker(env)
+        env = OrderEnforcing(env)
         env = BaseEnvWrapper(env, n_tasks=n_tasks, rank=rank)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
