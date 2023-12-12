@@ -8,7 +8,7 @@ from torch.optim import Optimizer
 
 from ppo.distributions import Bernoulli, Categorical, DiagGaussian
 from ppo.networks import CNNBase, MLPBase, Network
-from ppo.storage import RolloutStorage, Sample
+from ppo.rollout_storage import RolloutStorage, Sample
 
 
 @dataclass
