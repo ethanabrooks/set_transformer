@@ -108,9 +108,9 @@ class VecPyTorch(gym.Wrapper):
         # TODO: Fix data types
 
     def reset(self):
-        obs = self.venv.reset()
+        obs, info = self.venv.reset()
         obs = torch.from_numpy(obs).float().to(self.device)
-        return obs
+        return obs, info
 
     def step(self, action: torch.Tensor):
         action = action.detach().cpu().numpy()

@@ -61,8 +61,8 @@ class VecNormalize(gym.Wrapper):
 
     def reset(self):
         self.ret = np.zeros(self.venv.n_processes)
-        obs = self.venv.reset()
-        return self._obfilt(obs)
+        obs, info = self.venv.reset()
+        return self._obfilt(obs), info
 
     def train(self):
         self.training = True
