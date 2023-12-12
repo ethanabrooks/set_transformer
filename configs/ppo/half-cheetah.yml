@@ -1,5 +1,5 @@
 agent_args:
   hidden_size: 64
 env_args:
-  env_name: HalfCheetah-v2
+  env_name: CHEETAH
 inherit_from: base
