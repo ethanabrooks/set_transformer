@@ -113,7 +113,7 @@ def make_vec_envs(
         else SubprocVecEnv.make(envs)
     )
 
-    if len(envs.observation_space.shape) == 1:
+    if env_type == EnvType.CHEETAH:
         if gamma is None:
             envs = VecNormalize(envs, ret=False)
         else:
