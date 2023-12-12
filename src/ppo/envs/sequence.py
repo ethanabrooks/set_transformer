@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+from gymnasium.spaces.box import Box as BoxSpace
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 
 from ppo.envs.one_room import OneRoom
@@ -27,16 +28,20 @@ class Sequence(OneRoom):
         permutations = list(itertools.permutations(self.objects))[:n_permutations]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
+        self.observation_space = BoxSpace(
+            low=-np.inf, high=np.inf, shape=self.state.shape
+        )
 
     @property
-    def state(self):
+    def state(self) -> np.ndarray:
         return np.concatenate(
             [
                 *[obj.pos for obj in self.objects],
                 self.agent.pos,
                 self.agent.dir_vec,
                 self.agent.right_vec,
-            ]
+            ],
+            dtype=np.float32,
         )
 
     def _gen_world(self):
@@ -48,6 +53,7 @@ class Sequence(OneRoom):
         self.obj_iter = iter(self.sequence)
         self.target_obj = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
+        obs = self.state
         return obs, info
 
     def step(self, action: np.ndarray):
@@ -60,4 +66,5 @@ class Sequence(OneRoom):
                 self.target_obj = next(self.obj_iter)
             except StopIteration:
                 termination = True
+        obs = self.state
         return obs, reward, termination, truncated, info
