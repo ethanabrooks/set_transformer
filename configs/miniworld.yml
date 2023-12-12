@@ -20,7 +20,7 @@ ppo_args:
   lr: 3e-4
   num_processes: 1
   num_steps: 2048
-  num_updates: 1
+  num_updates: 10
   update_args:
     clip_param: 0.2
     entropy_coef: 0
