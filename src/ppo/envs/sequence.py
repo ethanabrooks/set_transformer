@@ -27,11 +27,11 @@ class Sequence(OneRoom):
 
         permutations = list(itertools.permutations(range(n_objects)))[:n_permutations]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
+        self.eye = np.eye(len(self.objects))
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
         self.observation_space = BoxSpace(
             low=-np.inf, high=np.inf, shape=self.state.shape
         )
-        self.eye = np.eye(len(self.objects))
 
     @property
     def state(self) -> np.ndarray:
@@ -41,6 +41,7 @@ class Sequence(OneRoom):
                 self.agent.pos,
                 self.agent.dir_vec,
                 self.agent.right_vec,
+                self.eye[self.target_obj_id],
             ],
             dtype=np.float32,
         )
