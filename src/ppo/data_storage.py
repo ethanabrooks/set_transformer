@@ -13,15 +13,17 @@ class DataStorage:
 
     @staticmethod
     def make(
-        path: Path,
-        num_timesteps: int,
-        num_processes,
-        obs_shape: tuple[int, ...],
         action_dtype: type,
         action_probs_shape: tuple[int, ...],
+        num_processes,
+        num_timesteps: int,
+        obs_shape: tuple[int, ...],
+        path: Path,
+        state_shape: tuple[int, ...],
     ):
         *action_shape, _ = action_probs_shape
-        state_type = (np.float32, obs_shape)
+        obs_type = (np.float32, obs_shape)
+        state_type = (np.float32, state_shape)
 
         transition_type = Transition[tuple[int, ...]](
             states=state_type,
@@ -30,8 +32,8 @@ class DataStorage:
             rewards=(np.float32, ()),
             done=(bool, ()),
             next_states=state_type,
-            obs=state_type,
-            next_obs=state_type,
+            obs=obs_type,
+            next_obs=obs_type,
         )
         dtype = np.dtype(
             [(k, dt, shape) for k, (dt, shape) in asdict(transition_type).items()]
