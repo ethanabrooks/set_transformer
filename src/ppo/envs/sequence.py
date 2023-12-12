@@ -1,7 +1,7 @@
 import itertools
 
 import numpy as np
-from miniworld.entity import COLOR_NAMES, Ball, Box, Key
+from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 
 from ppo.envs.one_room import OneRoom
 
@@ -18,7 +18,7 @@ class Sequence(OneRoom):
     ):
         assert n_sequence >= 1
         assert n_objects >= n_sequence
-        self.objects = [
+        self.objects: list[Entity] = [
             obj_type(color=color)
             for obj_type in [Box, Ball, Key]
             for color in COLOR_NAMES
@@ -27,6 +27,17 @@ class Sequence(OneRoom):
         permutations = list(itertools.permutations(self.objects))[:n_permutations]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
+
+    @property
+    def state(self):
+        return np.concatenate(
+            [
+                *[obj.pos for obj in self.objects],
+                self.agent.pos,
+                self.agent.dir_vec,
+                self.agent.right_vec,
+            ]
+        )
 
     def _gen_world(self):
         super()._gen_world()
