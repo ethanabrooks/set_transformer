@@ -36,6 +36,10 @@ class FixedNormal(torch.distributions.Normal):
     def mode(self):
         return self.mean
 
+    @property
+    def probs(self):
+        return None
+
 
 # Bernoulli
 class FixedBernoulli(torch.distributions.Bernoulli):
