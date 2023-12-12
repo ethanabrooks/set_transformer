@@ -1,4 +1,5 @@
 import os
+from enum import Enum, auto
 from warnings import warn
 
 import gymnasium as gym
@@ -6,6 +7,7 @@ import numpy as np
 import pyglet
 import torch
 from gymnasium.spaces.box import Box
+from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from ppo.envs.dummy_vec_env import DummyVecEnv
 from ppo.envs.monitor import Monitor
@@ -21,12 +23,30 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
-import miniworld  # noqa: F401, E402
+from ppo.envs.one_room import OneRoom  # noqa: E402
+from ppo.envs.sequence import Sequence  # noqa: E402
 
 
-def make_env(env_name: str, seed: int):
+class EnvType(Enum):
+    CHEETAH = auto()
+    ONE_ROOM = auto()
+    SEQUENCE = auto()
+
+
+def make_env(env_name: str, rank: int, seed: int, **kwargs):
+    env_type = EnvType[env_name]
+
     def _thunk():
-        env: gym.Env = gym.make(env_name)
+        if env_type == EnvType.ONE_ROOM:
+            env: gym.Env = OneRoom(**kwargs)
+        elif env_type == EnvType.CHEETAH:
+            env: gym.Env = gym.make("HalfCheetah-v2")
+        elif env_type == EnvType.SEQUENCE:
+            env: gym.Env = Sequence(**kwargs, rank=rank)
+        else:
+            raise ValueError(f"Unknown env_type: {env_type}")
+        env = PassiveEnvChecker(env)
+        env = OrderEnforcing(env)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
@@ -51,7 +71,8 @@ def make_vec_envs(
     **kwargs,
 ) -> "VecPyTorch":
     envs = [
-        make_env(env_name=env_name, seed=seed, **kwargs) for i in range(num_processes)
+        make_env(env_name=env_name, rank=i, seed=seed, **kwargs)
+        for i in range(num_processes)
     ]
 
     envs: SubprocVecEnv = (
