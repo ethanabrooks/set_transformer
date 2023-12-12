@@ -1,5 +1,4 @@
 agent_args:
   hidden_size: 64
-env_args:
-  env_name: CHEETAH
+env_name: CHEETAH
 inherit_from: base

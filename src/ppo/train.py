@@ -14,7 +14,7 @@ from wandb.sdk.wandb_run import Run
 from ppo import utils
 from ppo.agent import Agent
 from ppo.data_storage import DataStorage
-from ppo.envs.envs import VecPyTorch, make_vec_envs
+from ppo.envs.envs import EnvType, VecPyTorch, make_vec_envs
 from ppo.rollout_storage import RolloutStorage
 from ppo.utils import get_vec_normalize
 from utils import Transition
@@ -38,6 +38,7 @@ def train(
     disable_linear_lr_decay: bool,
     disable_proper_time_limits: bool,
     dummy_vec_env: bool,
+    env_name: str,
     env_args: dict,
     gae_lambda: float,
     gamma: float,
@@ -59,11 +60,13 @@ def train(
 
     torch.set_num_threads(1)
     device = torch.device("cuda")
+    env_type = EnvType[env_name]
 
     envs: VecPyTorch = make_vec_envs(
         device=device,
         dummy_vec_env=dummy_vec_env,
         **env_args,
+        env_type=env_type,
         gamma=gamma,
         num_processes=num_processes,
         seed=seed,
