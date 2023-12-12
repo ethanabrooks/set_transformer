@@ -11,11 +11,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import wandb
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
-import wandb
 from dataset.trajectories import Dataset
 from envs.subproc_vec_env import SubprocVecEnv
 from evaluate import log as log_evaluation
