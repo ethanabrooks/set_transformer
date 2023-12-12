@@ -109,7 +109,9 @@ class MujocoEnv(Env):
 
     # -----------------------------
 
-    def reset(self, seed: Optional[int] = None):
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[dict] = None
+    ) -> np.ndarray:
         if seed is not None:
             self.seed(seed)
         self.sim.reset()
