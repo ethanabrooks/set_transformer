@@ -51,6 +51,9 @@ class Sequence(OneRoom):
         for obj in self.objects:
             self.place_entity(obj)
 
+    def intersect(self, *args, **kwargs):  # noqa: Vulture
+        pass
+
     def reset(self, *args, **kwargs):
         self.obj_iter = iter(self.sequence)
         self.target_obj_id = next(self.obj_iter)
