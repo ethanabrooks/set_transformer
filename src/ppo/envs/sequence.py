@@ -58,6 +58,7 @@ class Sequence(OneRoom):
         self.obj_iter = iter(self.sequence)
         self.target_obj_id = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
+        info.update(task=self.target_obj_id)
         obs = self.state
         return obs, info
 
@@ -72,6 +73,7 @@ class Sequence(OneRoom):
             except StopIteration:
                 termination = True
         obs = self.state
+        info.update(task=self.target_obj_id)
         return obs, reward, termination, truncated, info
 
     def calculate_optimal_action(self):  # noqa: Vulture
