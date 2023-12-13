@@ -1,3 +1,5 @@
+agent_args:
+  recurrent: false
 env_args:
   n_objects: 1
   n_permutations: 1
