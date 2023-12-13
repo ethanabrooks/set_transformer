@@ -57,13 +57,15 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
 
     def reset(self, *args, **kwargs):
         obs, info = super().reset(*args, **kwargs)
-        info.update(task=self.rank)
+        if "task" not in info:
+            info.update(task=self.rank)
         return obs, info
 
     def step(self, action):
         info: dict
         obs, reward, done, truncated, info = super().step(action)
-        info.update(task=self.rank)
+        if "task" not in info:
+            info.update(task=self.rank)
         return obs, reward, done, truncated, info
 
 
