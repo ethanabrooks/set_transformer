@@ -4,6 +4,7 @@ from matplotlib.cm import hot
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 assert isinstance(hot, LinearSegmentedColormap)
+MAX_PLOTS = 30
 
 
 def plot_trajectory(
@@ -17,6 +18,7 @@ def plot_trajectory(
     [ep_boundaries] = done.nonzero(as_tuple=True)
     if len(ep_boundaries) == 0:
         return
+    ep_boundaries = ep_boundaries[:MAX_PLOTS]
 
     fig: plt.Figure
     axes: list[plt.Axes]
