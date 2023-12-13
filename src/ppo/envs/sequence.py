@@ -73,3 +73,36 @@ class Sequence(OneRoom):
                 termination = True
         obs = self.state
         return obs, reward, termination, truncated, info
+
+    def calculate_optimal_action(self):  # noqa: Vulture
+        # Vector from agent to target object
+        target_pos = self.objects[self.target_obj_id].pos[[0, 2]]
+        agent_pos = self.agent.pos[[0, 2]]
+        print("target_pos", target_pos)
+        print("agent pos", agent_pos)
+        agent_to_target = target_pos - agent_pos
+        print("distance", np.linalg.norm(agent_to_target))
+
+        # Angle between agent's direction vector and agent-to-target vector
+        dir_vec = self.agent.dir_vec[[0, 2]]
+
+        angle = get_angle(dir_vec, agent_to_target)
+        angle = np.degrees(angle)
+
+        # Decide the action
+        if abs(angle) < 45:
+            # Move forward
+            print(angle, "Move forward")
+            return self.actions.move_forward
+        else:
+            # Turn left or right
+            if angle < 0:
+                print(angle, "Turn left")
+                return self.actions.turn_left
+            else:
+                print(angle, "Turn right")
+                return self.actions.turn_right
+
+
+def get_angle(v1: np.ndarray, v2: np.ndarray):
+    return np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
