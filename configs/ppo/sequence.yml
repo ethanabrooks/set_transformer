@@ -6,3 +6,5 @@ env_args:
   n_sequence: 1
 env_name: SEQUENCE
 inherit_from: miniworld
+update_args:
+  num_mini_batch: 32
