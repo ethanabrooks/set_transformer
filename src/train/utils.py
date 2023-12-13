@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 from matplotlib import pyplot as plt
 from matplotlib.cm import hot, hsv
@@ -12,7 +14,7 @@ def plot_trajectory(
     done: torch.Tensor,
     pos: torch.Tensor,
     dir_vec: torch.Tensor,
-    q_vals: torch.Tensor,
+    q_vals: Optional[torch.Tensor],
     rewards: torch.Tensor,
 ):
     [ep_boundaries] = done.nonzero(as_tuple=True)
@@ -36,25 +38,27 @@ def plot_trajectory(
 
         episode_dir = dir_vec[ep_start : ep_boundary + 1]
         dx, dy = 0.1 * episode_dir.T
-        episode_q = q_vals[ep_start : ep_boundary + 1]
+        if q_vals is not None:
+            episode_q = q_vals[ep_start : ep_boundary + 1]
+            for x, y, dx, dy, q in zip(x, y, dx, dy, episode_q):
+                color_q = hot(norm_q(q))
+                # Arrow for Q-value (line)
+                ax.arrow(
+                    x,
+                    y,
+                    dx,
+                    dy,
+                    head_width=0.2,
+                    head_length=0.2,
+                    fc=color_q,
+                    ec="black",
+                )
         episode_rewards = rewards[ep_start : ep_boundary + 1]
 
         # Normalize Q and rewards for color mapping
 
-        for x, y, dx, dy, q, r in zip(x, y, dx, dy, episode_q, episode_rewards):
-            color_q = hot(norm_q(q))
+        for x, y, dx, dy, r in zip(x, y, dx, dy, episode_rewards):
             color_r = hot(norm_rewards(r))
-            # Arrow for Q-value (line)
-            ax.arrow(
-                x,
-                y,
-                dx,
-                dy,
-                head_width=0.2,
-                head_length=0.2,
-                fc=color_q,
-                ec="black",
-            )
             # Arrow for reward (head)
             ax.arrow(
                 x,
