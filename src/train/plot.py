@@ -1,6 +1,6 @@
 import torch
 from matplotlib import pyplot as plt
-from matplotlib.cm import hot
+from matplotlib.cm import hot, hsv
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 assert isinstance(hot, LinearSegmentedColormap)
@@ -8,7 +8,7 @@ MAX_PLOTS = 30
 
 
 def plot_trajectory(
-    box: torch.Tensor,
+    boxes: list[torch.Tensor],
     done: torch.Tensor,
     pos: torch.Tensor,
     dir_vec: torch.Tensor,
@@ -68,8 +68,10 @@ def plot_trajectory(
                 length_includes_head=True,
             )
 
-        episode_goal = box[ep_boundary]
-        ax.scatter(*episode_goal, color="red")
+        for i, box in enumerate(boxes):
+            episode_goal = box[ep_boundary]
+            color = hsv(i / len(boxes))
+            ax.scatter(*episode_goal, color=color)
         ax.set_xlim(0, 6)
         ax.set_ylim(0, 6)
 
@@ -83,16 +85,20 @@ def plot_trajectories(
     b, l = Q.shape
     assert [*done.shape] == [b, l]
     assert [*rewards.shape] == [b, l]
-    assert [*states.shape] == [b, l, 4 * 3]
-    states = states.reshape(b, l, 4, 3)
-    states = states[:, :, [[x] for x in range(4)], [[0, 2]]]
-    box, pos, dir_vec, _ = states.unbind(-2)
+    assert [*states.shape][:-1] == [b, l]
+    states = states.reshape(b, l, -1, 3)[..., [0, 2]]
+    *boxes, pos, dir_vec, _ = states.unbind(2)
 
-    for box, pos, dir_vec, done, q_vals, rewards in zip(
-        box, pos, dir_vec, done, Q, rewards
+    for *boxes, pos, dir_vec, done, q_vals, rewards in zip(
+        *boxes, pos, dir_vec, done, Q, rewards
     ):
         fig = plot_trajectory(
-            box=box, done=done, pos=pos, dir_vec=dir_vec, q_vals=q_vals, rewards=rewards
+            boxes=boxes,
+            done=done,
+            pos=pos,
+            dir_vec=dir_vec,
+            q_vals=q_vals,
+            rewards=rewards,
         )
         if fig is None:
             continue
