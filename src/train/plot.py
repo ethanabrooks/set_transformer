@@ -92,6 +92,7 @@ def plot_trajectories(
     assert [*states.shape][:-1] == [b, l]
     states = states.reshape(b, l, -1, 3)[..., [0, 2]]
     *boxes, pos, dir_vec, _ = states.unbind(2)
+    done[:, -1] = True
 
     for *boxes, pos, dir_vec, done, q_vals, rewards in zip(
         *boxes, pos, dir_vec, done, Q, rewards
