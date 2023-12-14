@@ -1,7 +1,7 @@
 env_args:
   n_objects: 3
   n_permutations: 6
-  n_sequence: 3
+  n_sequence: 2
 env_name: SEQUENCE
 inherit_from: miniworld
 ppo_args:
