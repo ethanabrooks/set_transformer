@@ -1,6 +1,7 @@
 import functools
 from dataclasses import dataclass
 from typing import Optional
+from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -262,7 +263,9 @@ def log(
     plot_log = {}
     test_log = {}
     if "states" in df.columns:
-        first_index = complete_episodes[complete_episodes.idx == 0]
+        first_index = complete_episodes[
+            complete_episodes.idx == complete_episodes.idx.iloc[0]
+        ]
 
         def tensor(k: str):
             return torch.from_numpy(first_index[k].to_numpy())[None]
@@ -287,6 +290,10 @@ def log(
         if run is None:
             graph = list(render_eval_metrics(*metrics, max_num=1))
             print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
+
+        if means.empty:
+            warn(f"No complete episodes for {name}.")
+            return plot_log, test_log
 
         fig: Figure
         ax: Axes

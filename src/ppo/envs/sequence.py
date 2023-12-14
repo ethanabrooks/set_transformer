@@ -38,7 +38,6 @@ class Sequence(OneRoom):
                 self.agent.pos,
                 self.agent.dir_vec,
                 self.agent.right_vec,
-                self.eye[self.target_obj_id],
             ],
             dtype=np.float32,
         )

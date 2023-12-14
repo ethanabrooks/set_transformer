@@ -33,14 +33,14 @@ def plot_trajectory(
     norm_rewards = Normalize(vmin=0, vmax=1)
     for ax, ep_boundary in zip(axes, ep_boundaries):
         episode_pos = pos[ep_start : ep_boundary + 1]
-        x, y = episode_pos.T
-        ax.plot(x, y)
+        xs, ys = episode_pos.T
+        ax.plot(xs, ys)
 
         episode_dir = dir_vec[ep_start : ep_boundary + 1]
-        dx, dy = 0.1 * episode_dir.T
+        dxs, dys = 0.1 * episode_dir.T
         if q_vals is not None:
             episode_q = q_vals[ep_start : ep_boundary + 1]
-            for x, y, dx, dy, q in zip(x, y, dx, dy, episode_q):
+            for x, y, dx, dy, q in zip(xs, ys, dxs, dys, episode_q):
                 color_q = hot(norm_q(q))
                 # Arrow for Q-value (line)
                 ax.arrow(
@@ -57,7 +57,7 @@ def plot_trajectory(
 
         # Normalize Q and rewards for color mapping
 
-        for x, y, dx, dy, r in zip(x, y, dx, dy, episode_rewards):
+        for x, y, dx, dy, r in zip(xs, ys, dxs, dys, episode_rewards):
             color_r = hot(norm_rewards(r))
             # Arrow for reward (head)
             ax.arrow(
@@ -89,16 +89,15 @@ def plot_trajectories(
     b, l = Q.shape
     assert [*done.shape] == [b, l]
     assert [*rewards.shape] == [b, l]
-    assert [*states.shape] == [b, l, 4 * 3]
-    states = states.reshape(b, l, 4, 3)
-    states = states[:, :, [[x] for x in range(4)], [[0, 2]]]
-    box, pos, dir_vec, _ = states.unbind(-2)
+    assert [*states.shape][:-1] == [b, l]
+    states = states.reshape(b, l, -1, 3)[..., [0, 2]]
+    *boxes, pos, dir_vec, _ = states.unbind(2)
 
-    for box, pos, dir_vec, done, q_vals, rewards in zip(
-        box, pos, dir_vec, done, Q, rewards
+    for *boxes, pos, dir_vec, done, q_vals, rewards in zip(
+        *boxes, pos, dir_vec, done, Q, rewards
     ):
         fig = plot_trajectory(
-            boxes=[box],
+            boxes=boxes,
             done=done,
             pos=pos,
             dir_vec=dir_vec,

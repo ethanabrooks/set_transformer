@@ -7,6 +7,7 @@ from envs.subproc_vec_env import SubprocVecEnv
 from grid_world.base import GridWorld
 from grid_world.env import Env
 from grid_world.values import GridWorldWithValues
+from ppo.envs.envs import EnvType
 from ppo.envs.envs import make_env as make_ppo_env
 from sequence import make_grid_world_sequence
 from sequence.ppo import Sequence as PPOSequence
@@ -52,14 +53,15 @@ def make_grid_world_sequence_and_env_fn(
 
 
 def make_ppo_sequence_and_env_fn(
-    env_args: dict, n_tasks: int, ppo_args: dict, seed: int, **kwargs
+    env_args: dict, env_name: str, ppo_args: dict, seed: int, **kwargs
 ):
     sequence = PPOSequence.make(
-        env_args=env_args, **kwargs, **ppo_args, run=None, seed=seed
+        env_args=env_args, env_name=env_name, **kwargs, **ppo_args, run=None, seed=seed
     )
 
     def make_env(i: int):
-        return make_ppo_env(**env_args, n_tasks=n_tasks, rank=i, seed=seed + i)
+        env_type = EnvType[env_name]
+        return make_ppo_env(**env_args, env_type=env_type, rank=i, seed=seed + i)
 
     return sequence, make_env
 
@@ -89,9 +91,7 @@ def train(
         )
 
     else:
-        sequence, env_fn = make_ppo_sequence_and_env_fn(
-            **kwargs, n_tasks=test_size, seed=seed
-        )
+        sequence, env_fn = make_ppo_sequence_and_env_fn(**kwargs, seed=seed)
 
     env_fns = list(map(env_fn, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
