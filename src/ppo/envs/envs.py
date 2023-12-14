@@ -6,7 +6,7 @@ import gymnasium as gym
 import numpy as np
 import pyglet
 import torch
-from gymnasium.spaces.box import Box
+from gymnasium.spaces import Box, Discrete
 from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
 from ppo.envs.dummy_vec_env import DummyVecEnv
@@ -122,6 +122,10 @@ class VecPyTorch(gym.Wrapper):
         self.venv = venv
         self.device = device
         # TODO: Fix data types
+
+    @property
+    def task_space(self) -> Discrete:
+        return self.venv.task_space
 
     def obs_to_tensor(self, obs: np.ndarray) -> list[torch.Tensor]:
         return torch.from_numpy(obs).float().to(self.device)
