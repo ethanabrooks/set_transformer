@@ -71,6 +71,11 @@ def train(
         seed=seed,
     )
 
+    use_tasks = envs.task_space is not None
+    if use_tasks:
+        agent_args.update(num_tasks=envs.task_space.n)
+    else:
+        agent_args.update(num_tasks=None)
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
@@ -129,10 +134,16 @@ def train(
         for step in tqdm(range(num_steps), desc=f"Update {j}/{num_updates}"):
             # Sample actions
             with torch.no_grad():
+                tasks = infos_to_array(infos, "task")
                 action, action_metadata = agent.act(
                     inputs=rollouts.obs[step],
                     rnn_hxs=rollouts.recurrent_hidden_states[step],
                     masks=rollouts.masks[step],
+                    **(
+                        {}
+                        if tasks is None
+                        else dict(tasks=torch.from_numpy(tasks).to(device))
+                    ),
                 )
 
             prev_obs = obs
