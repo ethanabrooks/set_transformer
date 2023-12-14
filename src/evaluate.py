@@ -312,4 +312,7 @@ def log(
 
         test_log[name] = means.iloc[-1]
         plot_log[name] = wandb.Image(fig)
+        plot_log[f"table/{name}"] = wandb.Table(
+            dataframe=metrics.reset_index(name=name)
+        )
     return plot_log, test_log
