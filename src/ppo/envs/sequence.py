@@ -1,7 +1,6 @@
 import itertools
 
 import numpy as np
-from gymnasium.spaces import Box as BoxSpace
 from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 
@@ -30,9 +29,6 @@ class Sequence(OneRoom):
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         self.eye = np.eye(len(self.objects))
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
-        self.observation_space = BoxSpace(
-            low=-np.inf, high=np.inf, shape=self.state.shape
-        )
 
     @property
     def state(self) -> np.ndarray:
@@ -64,7 +60,6 @@ class Sequence(OneRoom):
         self.target_obj_id = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
         info.update(task=self.target_obj_id)
-        obs = self.state
         return obs, info
 
     def step(self, action: np.ndarray):
@@ -77,7 +72,6 @@ class Sequence(OneRoom):
                 self.target_obj_id = next(self.obj_iter)
             except StopIteration:
                 termination = True
-        obs = self.state
         info.update(task=self.target_obj_id)
         return obs, reward, termination, truncated, info
 
