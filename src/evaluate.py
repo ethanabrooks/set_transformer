@@ -19,7 +19,7 @@ from envs.subproc_vec_env import SubprocVecEnv
 from models.trajectories import GPT2, Model
 from ppo.train import infos_to_array
 from sequence.base import Sequence
-from train.utils import plot_trajectories
+from train.plot import plot_trajectories
 from utils import DataPoint
 
 

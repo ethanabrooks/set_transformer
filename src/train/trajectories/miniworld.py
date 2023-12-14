@@ -5,8 +5,8 @@ import wandb
 
 from models.trajectories import MiniWorldModel
 from sequence.grid_world_base import Sequence
+from train.plot import plot_trajectories
 from train.trajectories.base import Trainer as Base
-from train.utils import plot_trajectories
 
 
 @dataclass(frozen=True)
