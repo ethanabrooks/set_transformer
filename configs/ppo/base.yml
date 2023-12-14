@@ -16,7 +16,6 @@ num_steps: 2048
 num_updates: 1000
 optim_args:
   eps: 1e-5
-plot_interval: 1
 save_interval: 5
 seed: 1
 update_args:

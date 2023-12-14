@@ -5,7 +5,6 @@ from typing import Optional
 
 import numpy as np
 import torch
-import wandb
 from gymnasium.spaces import Discrete
 from torch.optim import Adam
 from tqdm import tqdm
@@ -15,7 +14,6 @@ from ppo import utils
 from ppo.agent import Agent
 from ppo.data_storage import DataStorage
 from ppo.envs.envs import EnvType, VecPyTorch, make_vec_envs
-from ppo.plot import plot
 from ppo.rollout_storage import RolloutStorage
 from utils import Transition, load, save
 
@@ -49,7 +47,6 @@ def train(
     num_steps: int,
     num_updates: int,
     optim_args: dict,
-    plot_interval: int,
     run: Optional[Run],
     save_interval: int,
     seed: int,
@@ -233,18 +230,6 @@ def train(
         rollouts.after_update()
 
         total_num_steps = (j + 1) * num_processes * num_steps
-        if load_path is None and (j % plot_interval == 0):
-            if env_type == EnvType.SEQUENCE:
-                obs: torch.Tensor = rollouts.obs[1:, 0, : -env_args["n_objects"]].cpu()
-                obs: torch.Tensor = obs.reshape(len(obs), -1, 3)
-                l = obs.size(1)
-                obs = obs[:, [[i] for i in range(l)], [[0, 2]]]
-                masks = rollouts.masks[:, 0].cpu().clone()
-                masks[-1] = 0
-                fig = plot(env_args=env_args, env_type=env_type, rollouts=rollouts)
-                if None not in (run, fig):
-                    run.log(dict(fig=wandb.Image(fig)), step=total_num_steps)
-
         if j % log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
             mean_reward = np.mean(episode_rewards)
