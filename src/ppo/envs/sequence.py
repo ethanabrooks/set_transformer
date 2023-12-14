@@ -5,10 +5,11 @@ from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 from miniworld.math import intersect_circle_segs
 
+from ppo.envs.base import Env
 from ppo.envs.one_room import OneRoom
 
 
-class Sequence(OneRoom):
+class Sequence(OneRoom, Env):
     def __init__(
         self,
         *args,

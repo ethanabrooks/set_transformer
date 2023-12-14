@@ -39,33 +39,9 @@ class EnvType(Enum):
 
 
 class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
-    def __init__(self, env: PPOEnv, rank: int):
-        super().__init__(env)
-        self.rank = rank
-
-    @property
-    def action_space(self) -> gym.spaces.Discrete:
-        return self.env.action_space
-
-    @property
-    def observation_space(self) -> gym.Space:
-        return self.env.observation_space
-
     @property
     def task_space(self) -> Optional[gym.Space]:
-        try:
-            return self.env.task_space
-        except AttributeError:
-            return None
-
-    def reset(self, *args, **kwargs):
-        obs, info = super().reset(*args, **kwargs)
-        return obs, info
-
-    def step(self, action):
-        info: dict
-        obs, reward, done, truncated, info = super().step(action)
-        return obs, reward, done, truncated, info
+        return None
 
 
 def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
@@ -74,6 +50,7 @@ def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
             env: gym.Env = OneRoom(**kwargs)
         elif env_type == EnvType.CHEETAH:
             env: gym.Env = gym.make("HalfCheetah-v2")
+            env = BaseEnvWrapper(env)
         elif env_type == EnvType.PICKUP:
             env: gym.Env = Pickup(**kwargs)
         elif env_type == EnvType.SEQUENCE:
@@ -82,7 +59,6 @@ def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
             raise ValueError(f"Unknown env_type: {env_type}")
         env = PassiveEnvChecker(env)
         env = OrderEnforcing(env)
-        env = BaseEnvWrapper(env, rank=rank)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)

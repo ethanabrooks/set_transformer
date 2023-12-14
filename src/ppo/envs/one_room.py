@@ -2,8 +2,10 @@ import numpy as np
 from miniworld.entity import Box
 from miniworld.envs.oneroom import OneRoomS6Fast
 
+from ppo.envs.base import Env
 
-class OneRoom(OneRoomS6Fast):
+
+class OneRoom(OneRoomS6Fast, Env):
     @property
     def state(self):
         box: Box = self.box

@@ -4,6 +4,8 @@ from gymnasium import spaces, utils
 from miniworld.entity import COLOR_NAMES, Ball, Box, Key
 from miniworld.miniworld import MiniWorldEnv
 
+from ppo.envs.base import Env
+
 
 class IdMixin:
     def __init__(self, id: int, **kwargs) -> None:
@@ -23,7 +25,7 @@ class Key(IdMixin, Key):
     pass
 
 
-class Pickup(MiniWorldEnv, utils.EzPickle):
+class Pickup(MiniWorldEnv, utils.EzPickle, Env):
     """
     ## Description
 
