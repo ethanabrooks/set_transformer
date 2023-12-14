@@ -1,9 +1,9 @@
 agent_args:
   recurrent: false
 env_args:
-  n_objects: 2
-  n_permutations: 1
-  n_sequence: 2
+  n_objects: 3
+  n_permutations: 6
+  n_sequence: 3
 env_name: SEQUENCE
 inherit_from: miniworld
 update_args:
