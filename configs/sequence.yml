@@ -1,5 +1,5 @@
 env_args:
-  n_objects: 3
+  n_objects: 2
   n_permutations: 6
   n_sequence: 2
 env_name: SEQUENCE
