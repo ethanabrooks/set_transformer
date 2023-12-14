@@ -74,11 +74,12 @@ class RolloutStorage(object):
         obs: torch.Tensor,
         rewards: torch.Tensor,
         rnn_hxs: torch.Tensor,
-        tasks: torch.Tensor,
+        tasks: Optional[torch.Tensor],
         value: torch.Tensor,
     ):
         self.obs[self.step + 1].copy_(obs)
-        self.tasks[self.step + 1].copy_(tasks)
+        if tasks is not None:
+            self.tasks[self.step + 1].copy_(tasks)
         self.recurrent_hidden_states[self.step + 1].copy_(rnn_hxs)
         self.actions[self.step].copy_(actions)
         self.action_log_probs[self.step].copy_(log_probs)

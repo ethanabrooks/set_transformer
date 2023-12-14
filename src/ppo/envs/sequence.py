@@ -1,7 +1,8 @@
 import itertools
 
 import numpy as np
-from gymnasium.spaces.box import Box as BoxSpace
+from gymnasium.spaces import Box as BoxSpace
+from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 
 from ppo.envs.one_room import OneRoom
@@ -45,6 +46,10 @@ class Sequence(OneRoom):
             ],
             dtype=np.float32,
         )
+
+    @property
+    def task_space(self) -> Discrete:
+        return Discrete(len(self.objects))
 
     def _gen_world(self):
         super()._gen_world()

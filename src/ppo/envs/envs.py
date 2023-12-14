@@ -1,5 +1,6 @@
 import os
 from enum import Enum, auto
+from typing import Optional
 from warnings import warn
 
 import gymnasium as gym
@@ -38,9 +39,8 @@ class EnvType(Enum):
 
 
 class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
-    def __init__(self, env: PPOEnv, n_tasks: int, rank: int):
+    def __init__(self, env: PPOEnv, rank: int):
         super().__init__(env)
-        self.n_tasks = n_tasks
         self.rank = rank
 
     @property
@@ -52,24 +52,23 @@ class BaseEnvWrapper(gym.Wrapper, PPOEnv, Env):
         return self.env.observation_space
 
     @property
-    def task_space(self) -> gym.spaces.Discrete:
-        return gym.spaces.Discrete(self.n_tasks)
+    def task_space(self) -> Optional[gym.Space]:
+        try:
+            return self.env.task_space
+        except AttributeError:
+            return None
 
     def reset(self, *args, **kwargs):
         obs, info = super().reset(*args, **kwargs)
-        if "task" not in info:
-            info.update(task=self.rank)
         return obs, info
 
     def step(self, action):
         info: dict
         obs, reward, done, truncated, info = super().step(action)
-        if "task" not in info:
-            info.update(task=self.rank)
         return obs, reward, done, truncated, info
 
 
-def make_env(env_type: EnvType, n_tasks: int, rank: int, seed: int, **kwargs):
+def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
     def _thunk():
         if env_type == EnvType.ONE_ROOM:
             env: gym.Env = OneRoom(**kwargs)
@@ -83,7 +82,7 @@ def make_env(env_type: EnvType, n_tasks: int, rank: int, seed: int, **kwargs):
             raise ValueError(f"Unknown env_type: {env_type}")
         env = PassiveEnvChecker(env)
         env = OrderEnforcing(env)
-        env = BaseEnvWrapper(env, n_tasks=n_tasks, rank=rank)
+        env = BaseEnvWrapper(env, rank=rank)
 
         env = Monitor(env=env, filename=None, allow_early_resets=True)
         env.reset(seed=seed)
@@ -106,7 +105,6 @@ def make_vec_envs(
     dummy_vec_env: bool,
     **kwargs,
 ) -> "VecPyTorch":
-    kwargs.update(n_tasks=num_processes)  # TODO: Allow n_tasks < num_processes
     envs = [make_env(rank=i, env_type=env_type, **kwargs) for i in range(num_processes)]
 
     envs: SubprocVecEnv = (

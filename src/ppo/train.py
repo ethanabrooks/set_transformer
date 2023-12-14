@@ -74,6 +74,12 @@ def train(
         seed=seed,
     )
 
+    use_tasks = envs.task_space is not None
+    if use_tasks:
+        assert isinstance(envs.task_space, Discrete)
+        agent_args.update(num_tasks=envs.task_space.n)
+    else:
+        agent_args.update(num_tasks=None)
     agent = Agent(
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
@@ -132,10 +138,16 @@ def train(
         for step in tqdm(range(num_steps), desc=f"Update {j}/{num_updates}"):
             # Sample actions
             with torch.no_grad():
+                tasks = infos_to_array(infos, "task")
                 action, action_metadata = agent.act(
                     inputs=rollouts.obs[step],
                     rnn_hxs=rollouts.recurrent_hidden_states[step],
                     masks=rollouts.masks[step],
+                    **(
+                        {}
+                        if tasks is None
+                        else dict(tasks=torch.from_numpy(tasks).to(device))
+                    ),
                 )
 
             prev_obs = obs
@@ -182,7 +194,10 @@ def train(
             # If done then clean the history of observations.
             masks = torch.from_numpy(~(done | truncated))
             bad_masks = torch.from_numpy(~truncated)
-
+            tasks = infos_to_array(infos, "task")
+            if tasks is not None:
+                assert isinstance(tasks, np.ndarray)
+                tasks = torch.from_numpy(tasks).to(device)
             rollouts.insert(
                 actions=action,
                 bad_masks=bad_masks,
@@ -191,7 +206,7 @@ def train(
                 obs=obs,
                 rewards=reward,
                 rnn_hxs=action_metadata.rnn_hxs,
-                tasks=torch.from_numpy(infos_to_array(infos, "task")).to(device),
+                tasks=tasks,
                 value=action_metadata.value,
             )
 

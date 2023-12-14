@@ -66,15 +66,9 @@ class Agent(nn.Module):
         raise NotImplementedError
 
     def act(
-        self,
-        inputs: torch.Tensor,
-        masks: torch.Tensor,
-        rnn_hxs: torch.Tensor,
-        deterministic: bool = False,
+        self, deterministic: bool = False, **kwargs
     ) -> tuple[torch.Tensor, ActMetadata]:
-        value, actor_features, rnn_hxs = self.base.forward(
-            inputs=inputs, rnn_hxs=rnn_hxs, masks=masks
-        )
+        value, actor_features, rnn_hxs = self.base.forward(**kwargs)
         dist = self.dist.forward(actor_features)
 
         if deterministic:
@@ -100,12 +94,9 @@ class Agent(nn.Module):
         self,
         action: torch.Tensor,
         obs: torch.Tensor,
-        masks: torch.Tensor,
-        rnn_hxs: torch.Tensor,
+        **kwargs,
     ):
-        value, actor_features, rnn_hxs = self.base.forward(
-            inputs=obs, rnn_hxs=rnn_hxs, masks=masks
-        )
+        value, actor_features, rnn_hxs = self.base.forward(inputs=obs, **kwargs)
         dist = self.dist.forward(actor_features)
 
         action_log_probs = dist.log_probs(action)
@@ -152,6 +143,7 @@ class Agent(nn.Module):
                     masks=sample.masks,
                     obs=sample.obs,
                     rnn_hxs=sample.rnn_hxs,
+                    tasks=sample.tasks,
                 )
 
                 ratio = torch.exp(

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,9 +13,17 @@ class Flatten(nn.Module):
 
 
 class Network(nn.Module):
-    def __init__(self, recurrent: bool, recurrent_input_size: int, hidden_size: int):
+    def __init__(
+        self,
+        recurrent: bool,
+        recurrent_input_size: int,
+        hidden_size: int,
+        num_tasks: Optional[int] = None,
+    ):
         super(Network, self).__init__()
-
+        self.task_embedding = (
+            None if num_tasks is None else nn.Embedding(num_tasks, hidden_size)
+        )
         self._hidden_size = hidden_size
         self._recurrent = recurrent
 
@@ -105,8 +115,10 @@ def init_conv(module: nn.Module):
 
 
 class CNNBase(Network):
-    def __init__(self, hidden_size: int, num_inputs: int, recurrent: bool):
-        super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
+    def __init__(self, hidden_size: int, num_inputs: int, **kwargs):
+        super(CNNBase, self).__init__(
+            recurrent_input_size=hidden_size, hidden_size=hidden_size, **kwargs
+        )
 
         self.main = nn.Sequential(
             init_conv(nn.Conv2d(num_inputs, 32, 8, stride=4)),
@@ -128,8 +140,16 @@ class CNNBase(Network):
 
         self.train()
 
-    def forward(self, inputs: torch.Tensor, rnn_hxs: torch.Tensor, masks: torch.Tensor):
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        masks: torch.Tensor,
+        rnn_hxs: torch.Tensor,
+        tasks: torch.Tensor = None,
+    ):
         x = self.main(inputs / 255.0)
+        if tasks is not None and self.task_embedding is not None:
+            x = x + self.task_embedding(tasks)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
@@ -138,8 +158,13 @@ class CNNBase(Network):
 
 
 class MLPBase(Network):
-    def __init__(self, num_inputs: int, recurrent: bool = False, hidden_size: int = 64):
-        super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)
+    def __init__(self, num_inputs: int, recurrent: bool, hidden_size: int, **kwargs):
+        super(MLPBase, self).__init__(
+            recurrent=recurrent,
+            recurrent_input_size=num_inputs,
+            hidden_size=hidden_size,
+            **kwargs
+        )
 
         if recurrent:
             num_inputs = hidden_size
@@ -166,7 +191,13 @@ class MLPBase(Network):
 
         self.train()
 
-    def forward(self, inputs: torch.Tensor, rnn_hxs: torch.Tensor, masks: torch.Tensor):
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        masks: torch.Tensor,
+        rnn_hxs: torch.Tensor,
+        tasks: Optional[torch.Tensor] = None,
+    ):
         x = inputs
 
         if self.is_recurrent:
@@ -174,6 +205,10 @@ class MLPBase(Network):
 
         hidden_critic = self.critic(x)
         hidden_actor = self.actor(x)
+        if tasks is not None and self.task_embedding is not None:
+            tasks = self.task_embedding(tasks)
+            hidden_actor = hidden_actor + tasks
+            hidden_critic = hidden_critic + tasks
 
         values = self.critic_linear.forward(hidden_critic).squeeze(-1)
         return values, hidden_actor, rnn_hxs
