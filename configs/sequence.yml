@@ -8,4 +8,5 @@ ppo_args:
   agent_args:
     hidden_size: 64
   num_processes: ${env_args.n_permutations}
+  num_updates: 8
 test_size: ${ppo_args.num_processes}
