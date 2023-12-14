@@ -3,6 +3,7 @@ import itertools
 import numpy as np
 from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
+from miniworld.math import intersect_circle_segs
 
 from ppo.envs.one_room import OneRoom
 
@@ -51,8 +52,18 @@ class Sequence(OneRoom):
         for obj in self.objects:
             self.place_entity(obj)
 
-    def intersect(self, *args, **kwargs):  # noqa: Vulture
-        pass
+    def intersect(self, ent, pos, radius):  # noqa: Vulture
+        """
+        Check if an entity intersects with the world
+        """
+
+        # Ignore the Y position
+        px, _, pz = pos
+        pos = np.array([px, 0, pz])
+
+        # Check for intersection with walls
+        if intersect_circle_segs(pos, radius, self.wall_segs):
+            return True
 
     def reset(self, *args, **kwargs):
         self.obj_iter = iter(self.sequence)
