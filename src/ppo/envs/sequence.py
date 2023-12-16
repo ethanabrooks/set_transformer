@@ -16,6 +16,7 @@ class Sequence(OneRoom, Env):
         n_sequence: int,
         n_objects: int,
         n_permutations: int,
+        permutation_starting_idx: int,
         rank: int,
         **kwargs,
     ):
@@ -27,7 +28,10 @@ class Sequence(OneRoom, Env):
             for color in COLOR_NAMES
         ][:n_objects]
 
-        permutations = list(itertools.permutations(range(n_objects)))[:n_permutations]
+        permutations = list(itertools.permutations(range(n_objects)))
+        permutations = permutations[
+            permutation_starting_idx : permutation_starting_idx + n_permutations
+        ]
         self.sequence = permutations[rank % len(permutations)][:n_sequence]
         print("rank:", rank, "sequence:", self.sequence)
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
