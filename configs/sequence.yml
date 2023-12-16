@@ -7,6 +7,10 @@ inherit_from: miniworld
 ppo_args:
   agent_args:
     hidden_size: 64
+  env_args:
+    n_objects: ${env_args.n_objects}
+    n_permutations: ${env_args.n_permutations}
+    n_sequence: ${env_args.n_sequence}
   num_processes: ${env_args.n_permutations}
   num_updates: 6
   update_args:

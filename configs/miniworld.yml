@@ -14,6 +14,7 @@ ppo_args:
   disable_linear_lr_decay: false
   disable_proper_time_limits: false
   dummy_vec_env: true
+  env_args: {}
   gae_lambda: 0.95
   log_interval: 25
   lr: 3e-4
