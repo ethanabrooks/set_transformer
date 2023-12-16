@@ -1,5 +1,3 @@
-import itertools
-
 import numpy as np
 from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
@@ -15,25 +13,20 @@ class Sequence(OneRoom, Env):
         *args,
         n_sequence: int,
         n_objects: int,
-        n_permutations: int,
-        permutation_starting_idx: int,
         rank: int,
+        sequences: list[int],
         **kwargs,
     ):
         assert n_sequence >= 1
         assert n_objects >= n_sequence
+
+        self.sequence = sequences[rank % len(sequences)][:n_sequence]
+        print("rank:", rank, "sequence:", self.sequence)
         self.objects: list[Entity] = [
             obj_type(color=color)
             for obj_type in [Box, Ball, Key]
             for color in COLOR_NAMES
         ][:n_objects]
-
-        permutations = list(itertools.permutations(range(n_objects)))
-        permutations = permutations[
-            permutation_starting_idx : permutation_starting_idx + n_permutations
-        ]
-        self.sequence = permutations[rank % len(permutations)][:n_sequence]
-        print("rank:", rank, "sequence:", self.sequence)
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
 
     @property
