@@ -2,5 +2,6 @@ env_args:
   n_objects: 1
   n_permutations: 1
   n_sequence: 1
+  permutation_starting_idx: 0
 env_name: SEQUENCE
 inherit_from: miniworld
