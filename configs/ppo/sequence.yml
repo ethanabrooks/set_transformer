@@ -1,7 +1,12 @@
+agent_args:
+  hidden_size: 64
 env_args:
-  n_objects: 1
-  n_permutations: 1
-  n_sequence: 1
+  n_objects: 4
+  n_permutations: 12
+  n_sequence: 3
   permutation_starting_idx: 0
 env_name: SEQUENCE
 inherit_from: miniworld
+num_processes: ${env_args.n_permutations}
+update_args:
+  num_mini_batch: ${env_args.n_permutations}
