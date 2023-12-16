@@ -56,7 +56,7 @@ def make_ppo_sequence_and_env_fn(
     env_args: dict, env_name: str, ppo_args: dict, seed: int, **kwargs
 ):
     sequence = PPOSequence.make(
-        env_args=env_args, env_name=env_name, **kwargs, **ppo_args, run=None, seed=seed
+        env_name=env_name, **kwargs, **ppo_args, run=None, seed=seed
     )
 
     def make_env(i: int):
