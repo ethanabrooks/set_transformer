@@ -1,5 +1,7 @@
+import itertools
 import os
 from enum import Enum, auto
+from functools import lru_cache
 from warnings import warn
 
 import gymnasium as gym
@@ -33,7 +35,29 @@ class EnvType(Enum):
     SEQUENCE = auto()
 
 
+@lru_cache
+def all_sequences(n_sequence: int, n_objects: int) -> np.ndarray:
+    sequences = np.array(list(itertools.permutations(range(n_objects), n_sequence)))
+    perm = np.random.permutation(len(sequences))
+    return sequences[perm]
+
+
+def get_sequences(
+    n_permutations: int, permutation_starting_idx: int, **kwargs
+) -> np.ndarray:
+    sequences = all_sequences(**kwargs)
+    return sequences[
+        permutation_starting_idx : permutation_starting_idx + n_permutations
+    ]
+
+
 def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
+    if env_type == EnvType.SEQUENCE:
+        sequences = get_sequences(**kwargs)
+        kwargs.update(sequences=sequences)
+        del kwargs["n_permutations"]
+        del kwargs["permutation_starting_idx"]
+
     def _thunk():
         if env_type == EnvType.ONE_ROOM:
             env: gym.Env = OneRoom(**kwargs)
