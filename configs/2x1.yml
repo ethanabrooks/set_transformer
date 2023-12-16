@@ -1,0 +1,5 @@
+env_args:
+  n_objects: 2
+  n_permutations: 2
+  n_sequence: 2
+inherit_from: sequence
