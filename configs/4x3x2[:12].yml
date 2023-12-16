@@ -1,0 +1,5 @@
+inherit_from: 4x3x2
+ppo_args:
+  num_processes: 12
+train_args:
+  rmse_training_intermediate: 0.009
