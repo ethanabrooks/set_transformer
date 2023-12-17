@@ -1,0 +1,5 @@
+inherit_from: baseline
+model_args:
+  cql_loss_coef: 0.1
+train_args:
+  bellman_star: true

@@ -13,14 +13,30 @@ class Values(BaseValues):
     bootstrap_Q: torch.Tensor
 
     @classmethod
+    def compute_target_q(
+        cls,
+        bootstrap_Q: torch.Tensor,
+        done: torch.Tensor,
+        gamma: float,
+        Pi: torch.Tensor,
+        R: torch.Tensor,
+    ):
+        return R + gamma * ~done * (bootstrap_Q * Pi).sum(-1)
+
+    @classmethod
     def compute_values(cls, bootstrap_Q: torch.Tensor, sequence: Sequence):
         Pi = F.pad(sequence.transitions.action_probs[:, 1:], (0, 0, 0, 1))
         bootstrap_Q = F.pad(bootstrap_Q[:, :, 1:], (0, 0, 0, 1))
         Pi = Pi[None].expand_as(bootstrap_Q)
         R = sequence.transitions.rewards[None, ...]
         done = sequence.transitions.done[None, ...]
-        Q = R + sequence.gamma * ~done * (bootstrap_Q * Pi).sum(-1)
-        return Q
+        return cls.compute_target_q(
+            bootstrap_Q=bootstrap_Q,
+            done=done,
+            gamma=sequence.gamma,
+            Pi=Pi,
+            R=R,
+        )
 
     @classmethod
     def make(cls, bootstrap_Q: torch.Tensor, sequence: Sequence, **kwargs):
@@ -39,3 +55,17 @@ class Values(BaseValues):
             sequence=sequence,
             Q=Q,
         )
+
+
+@dataclass(frozen=True)
+class BellmanStarValues(Values):
+    @classmethod
+    def compute_target_q(
+        cls,
+        bootstrap_Q: torch.Tensor,
+        done: torch.Tensor,
+        gamma: float,
+        Pi: torch.Tensor,
+        R: torch.Tensor,
+    ):
+        return R + gamma * ~done * bootstrap_Q.max(-1).values

@@ -50,6 +50,7 @@ class Model(Base, ABC):
     def __init__(
         self,
         bellman_delta: int,
+        cql_loss_coef: Optional[float],
         n_actions: int,
         n_hidden: int,
         n_rotations: int,
@@ -68,6 +69,7 @@ class Model(Base, ABC):
         self.obs_encoder = self.build_obs_encoder()
         self.rew_encoder = self.build_rew_encoder()
         self.pad_value = pad_value
+        self.cql_loss_coef = cql_loss_coef
 
     @abstractmethod
     def build_obs_encoder(self, **kwargs) -> nn.Module:
@@ -146,13 +148,14 @@ class Model(Base, ABC):
             loss = None
         else:
             assert [*x.target_q.shape] == [b, l]
+            observed_q = outputs[
+                torch.arange(b)[:, None], torch.arange(l)[None], unmasked_actions
+            ]
 
-            loss = F.mse_loss(
-                outputs[
-                    torch.arange(b)[:, None], torch.arange(l)[None], unmasked_actions
-                ],
-                x.target_q,
-            )
+            loss = F.mse_loss(observed_q, x.target_q)
+            if self.cql_loss_coef is not None:
+                cql_loss = outputs.exp().sum(-1).log() - observed_q
+                loss = 0.5 * loss + self.cql_loss_coef * cql_loss.mean()
         return outputs, loss
 
     def forward_output(

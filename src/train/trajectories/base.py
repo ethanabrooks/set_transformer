@@ -24,7 +24,7 @@ from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save
-from values.bootstrap import Values as BootstrapValues
+from values.bootstrap import BellmanStarValues, Values
 
 
 @dataclass
@@ -49,6 +49,7 @@ class Trainer:
     alpha: float
     baseline: bool
     bellman_delta: int
+    bellman_star: bool
     count_threshold: int
     decay_args: dict
     evaluator: Evaluator
@@ -173,7 +174,11 @@ class Trainer:
 
         def make_dataset(bootstrap_Q: torch.Tensor):
             assert len(bootstrap_Q) == bellman_number
-            values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+            values = (
+                BellmanStarValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+                if self.bellman_star
+                else Values.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+            )
             return Dataset(
                 bellman_delta=self.bellman_delta, sequence=sequence, values=values
             )
