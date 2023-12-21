@@ -6,12 +6,13 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from gymnasium.spaces import Box
 from torch.optim.optimizer import Optimizer
 from transformers import GPT2Config, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 
 from models.set_transformer import SetTransformer as Base
-from ppo.networks import Flatten, init_conv
+from ppo.networks import MiniWorldObEncoder
 from utils import DataPoint
 
 
@@ -54,6 +55,7 @@ class Model(Base, ABC):
         n_hidden: int,
         n_rotations: int,
         n_tokens: int,
+        obs_space: Box,
         pad_value: int,
         positional_encoding_args: dict,
         **transformer_args: dict
@@ -65,7 +67,7 @@ class Model(Base, ABC):
         if bellman_delta > 1:
             self.input_bellman_embedding = nn.Embedding(bellman_delta - 1, n_hidden)
         self.n_rotations = n_rotations
-        self.obs_encoder = self.build_obs_encoder()
+        self.obs_encoder = self.build_obs_encoder(obs_space)
         self.rew_encoder = self.build_rew_encoder()
         self.pad_value = pad_value
 
@@ -227,27 +229,10 @@ class Model(Base, ABC):
         return agg_outputs, agg_loss
 
 
-class NormalizeLayer(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x: torch.Tensor):
-        return x / 255.0
-
-
 class MiniWorldModel(Model):
-    def build_obs_encoder(self):
-        return nn.Sequential(
-            NormalizeLayer(),
-            init_conv(nn.Conv2d(3, 32, 8, stride=4)),
-            nn.ReLU(),
-            init_conv(nn.Conv2d(32, 64, 4, stride=2)),
-            nn.ReLU(),
-            init_conv(nn.Conv2d(64, 32, 3, stride=1)),
-            nn.ReLU(),
-            Flatten(),
-            init_conv(nn.Linear(32 * 4 * 6, self.n_hidden)),
-            nn.ReLU(),
+    def build_obs_encoder(self, obs_space: Box):
+        return MiniWorldObEncoder(
+            n_hidden=self.n_hidden, n_tokens=self.n_tokens, obs_space=obs_space
         )
 
     def build_rew_encoder(self):
@@ -263,7 +248,8 @@ class CastToLongLayer(nn.Module):
 
 
 class GridWorldModel(Model):
-    def build_obs_encoder(self):
+    def build_obs_encoder(self, obs_space: Box):
+        assert len(obs_space.shape) == 1
         return nn.Sequential(CastToLongLayer(), self.embedding)
 
     def build_rew_encoder(self):

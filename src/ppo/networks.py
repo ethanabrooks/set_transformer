@@ -1,9 +1,12 @@
+import math
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
+from gymnasium.spaces import Box
 
+from ppo.envs.envs import Sequence
 from ppo.utils import init
 
 
@@ -160,9 +163,78 @@ class CNNBase(Network):
         return values, x, rnn_hxs
 
 
-class SequenceBase(CNNBase):
-    miniworld_obs_shape = (60, 80, 3)
+class SequenceEnvEmbedding(nn.Module):
+    def __init__(self, n_objects: int, n_hidden: int) -> None:
+        super().__init__()
+        self.obj_embedding = nn.Embedding(n_objects, n_hidden)
+        self.seq_embedding = nn.GRU(n_hidden, n_hidden, batch_first=True)
 
+    def forward(self, x: torch.Tensor):
+        x = self.obj_embedding(x.long())
+        _, [x] = self.seq_embedding(x)
+        return x
+
+
+RGB_SIZE = math.prod(Sequence.miniworld_obs_shape)
+
+
+class NormalizeLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor):
+        return x / 255.0
+
+
+class MiniWorldObEncoder(nn.Module):
+    def __init__(self, n_hidden: int, n_tokens: int, obs_space: Box) -> None:
+        super().__init__()
+        self.main = nn.Sequential(
+            NormalizeLayer(),
+            init_conv(nn.Conv2d(3, 32, 8, stride=4)),
+            nn.ReLU(),
+            init_conv(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            init_conv(nn.Conv2d(64, 32, 3, stride=1)),
+            nn.ReLU(),
+            Flatten(),
+            init_conv(nn.Linear(32 * 4 * 6, n_hidden)),
+            nn.ReLU(),
+        )
+        self.obs_space = obs_space
+        if len(obs_space.shape) == 1:
+            high = obs_space.high
+            sequence_high = high[RGB_SIZE:]
+            n_objects = int(sequence_high.max())
+            self.sequence_env_embedding = SequenceEnvEmbedding(
+                1 + max(n_objects, n_tokens), n_hidden
+            )
+        elif obs_space.shape == Sequence.miniworld_obs_shape:
+            self.sequence_env_embedding = None
+        else:
+            raise NotImplementedError
+
+    def forward(self, x: torch.Tensor):
+        _, *o = x.shape
+        if self.sequence_env_embedding is None:
+            assert o == Sequence.miniworld_obs_shape
+            return self.main(x)
+        else:
+            assert len(o) == 1
+            n_sequence = x.size(-1) - RGB_SIZE
+            rgb, sequence = torch.split(x, [RGB_SIZE, n_sequence], dim=-1)
+            rgb = (
+                rgb.reshape(-1, *Sequence.miniworld_obs_shape)
+                .permute(0, 3, 1, 2)
+                .contiguous()
+            )
+            rgb = self.main(rgb)
+            sequence = self.sequence_env_embedding(sequence)
+            return rgb + sequence
+        raise NotImplementedError
+
+
+class SequenceBase(CNNBase):
     def __init__(
         self,
         hidden_size: int,
@@ -183,7 +255,9 @@ class SequenceBase(CNNBase):
         o = inputs.size(-1) - self.n_sequence
         rgb, sequence = torch.split(inputs, [o, self.n_sequence], dim=-1)
         rgb = (
-            rgb.reshape(-1, *self.miniworld_obs_shape).permute(0, 3, 1, 2).contiguous()
+            rgb.reshape(-1, *Sequence.miniworld_obs_shape)
+            .permute(0, 3, 1, 2)
+            .contiguous()
         )
         rgb = super().embed_inputs(rgb)
         sequence = self.obj_embedding(sequence.long())

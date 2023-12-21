@@ -6,12 +6,14 @@ from abc import abstractmethod
 from dataclasses import asdict, dataclass
 from typing import Counter, Optional
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import wandb
+from gymnasium.spaces import Box
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
@@ -87,12 +89,21 @@ class Trainer:
         **kwargs,
     ):
         _, l = sequence.transitions.rewards.shape
+        max_obs: np.ndarray = torch.maximum(
+            sequence.transitions.obs, sequence.transitions.next_obs
+        ).numpy()
+        min_obs: np.ndarray = torch.minimum(
+            sequence.transitions.obs, sequence.transitions.next_obs
+        ).numpy()
+        axis = (0, 1)
+        obs_space = Box(low=min_obs.min(axis=axis), high=max_obs.max(axis=axis))
         net = cls.build_model(
             bellman_delta=bellman_delta,
             **model_args,
             n_actions=sequence.n_actions,
             n_ctx=l,
             n_tokens=sequence.n_tokens,
+            obs_space=obs_space,
             pad_value=sequence.pad_value,
         )
         if load_path is not None:

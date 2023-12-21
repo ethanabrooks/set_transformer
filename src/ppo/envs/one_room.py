@@ -6,6 +6,8 @@ from envs.base import Env
 
 
 class OneRoom(OneRoomS6Fast, Env):
+    miniworld_obs_shape = (60, 80, 3)
+
     @property
     def state(self):
         box: Box = self.box

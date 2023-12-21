@@ -31,7 +31,10 @@ class Sequence(OneRoom, Env):
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
         obs_space = self.observation_space
         self.observation_space = BoxSpace(
-            low=-np.inf, high=np.inf, shape=[np.prod(obs_space.shape) + n_sequence]
+            low=-np.inf,
+            high=np.inf,
+            shape=[np.prod(obs_space.shape) + n_sequence],
+            dtype=int,
         )
 
     @property
