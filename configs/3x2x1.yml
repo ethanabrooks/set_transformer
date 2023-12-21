@@ -3,3 +3,5 @@ env_args:
   n_permutations: 6
   n_sequence: 3
 inherit_from: sequence
+train_args:
+  rmse_training_intermediate: 0.008
