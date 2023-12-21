@@ -76,7 +76,10 @@ def train(
         agent_args.update(num_tasks=envs.task_space.n)
     else:
         agent_args.update(num_tasks=None)
+    if env_type == EnvType.SEQUENCE:
+        agent_args.update(**env_args)
     agent = Agent(
+        env_type=env_type,
         obs_shape=envs.observation_space.shape,
         action_space=envs.action_space,
         **agent_args,

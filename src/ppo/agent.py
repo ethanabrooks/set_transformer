@@ -7,7 +7,8 @@ from gym import Space
 from torch.optim import Optimizer
 
 from ppo.distributions import Bernoulli, Categorical, DiagGaussian
-from ppo.networks import CNNBase, MLPBase, Network
+from ppo.envs.envs import EnvType
+from ppo.networks import CNNBase, MLPBase, Network, SequenceBase
 from ppo.rollout_storage import RolloutStorage, Sample
 
 
@@ -22,12 +23,15 @@ class ActMetadata:
 class Agent(nn.Module):
     def __init__(
         self,
+        env_type: EnvType,
         obs_shape: tuple[int, ...],
         action_space: Space,
         **kwargs,
     ):
         super(Agent, self).__init__()
-        if len(obs_shape) == 3:
+        if env_type == EnvType.SEQUENCE:
+            base = SequenceBase
+        elif len(obs_shape) == 3:
             base = CNNBase
         elif len(obs_shape) == 1:
             base = MLPBase

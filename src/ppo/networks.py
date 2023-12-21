@@ -140,6 +140,9 @@ class CNNBase(Network):
 
         self.train()
 
+    def embed_inputs(self, inputs: torch.Tensor):
+        return self.main(inputs / 255.0)
+
     def forward(
         self,
         inputs: torch.Tensor,
@@ -147,7 +150,7 @@ class CNNBase(Network):
         rnn_hxs: torch.Tensor,
         tasks: torch.Tensor = None,
     ):
-        x = self.main(inputs / 255.0)
+        x = self.embed_inputs(inputs)
         if tasks is not None and self.task_embedding is not None:
             x = x + self.task_embedding(tasks)
 
@@ -157,13 +160,44 @@ class CNNBase(Network):
         return values, x, rnn_hxs
 
 
+class SequenceBase(CNNBase):
+    miniworld_obs_shape = (60, 80, 3)
+
+    def __init__(
+        self,
+        hidden_size: int,
+        n_objects: int,
+        n_permutations: int,
+        n_sequence: int,
+        num_inputs: int,
+        permutation_starting_idx: int,
+        **kwargs,
+    ):
+        del n_permutations, num_inputs, permutation_starting_idx  # unused
+        super().__init__(**kwargs, hidden_size=hidden_size, num_inputs=3)
+        self.n_sequence = n_sequence
+        self.obj_embedding = nn.Embedding(n_objects, hidden_size)
+        self.seq_embedding = nn.GRU(hidden_size, hidden_size, batch_first=True)
+
+    def embed_inputs(self, inputs: torch.Tensor):
+        o = inputs.size(-1) - self.n_sequence
+        rgb, sequence = torch.split(inputs, [o, self.n_sequence], dim=-1)
+        rgb = (
+            rgb.reshape(-1, *self.miniworld_obs_shape).permute(0, 3, 1, 2).contiguous()
+        )
+        rgb = super().embed_inputs(rgb)
+        sequence = self.obj_embedding(sequence.long())
+        _, [sequence] = self.seq_embedding(sequence)
+        return rgb + sequence
+
+
 class MLPBase(Network):
     def __init__(self, num_inputs: int, recurrent: bool, hidden_size: int, **kwargs):
         super(MLPBase, self).__init__(
             recurrent=recurrent,
             recurrent_input_size=num_inputs,
             hidden_size=hidden_size,
-            **kwargs
+            **kwargs,
         )
 
         if recurrent:

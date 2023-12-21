@@ -1,4 +1,5 @@
 import numpy as np
+from gymnasium.spaces import Box as BoxSpace
 from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
 from miniworld.math import intersect_circle_segs
@@ -28,6 +29,10 @@ class Sequence(OneRoom, Env):
             for color in COLOR_NAMES
         ][:n_objects]
         super().__init__(*args, **kwargs, max_episode_steps=50 * n_sequence)
+        obs_space = self.observation_space
+        self.observation_space = BoxSpace(
+            low=-np.inf, high=np.inf, shape=[np.prod(obs_space.shape) + n_sequence]
+        )
 
     @property
     def state(self) -> np.ndarray:
@@ -63,11 +68,15 @@ class Sequence(OneRoom, Env):
         if intersect_circle_segs(pos, radius, self.wall_segs):
             return True
 
+    def append_sequence(self, obs: np.ndarray):
+        return np.concatenate([obs.flatten(), self.sequence])
+
     def reset(self, *args, **kwargs):
         self.obj_iter = iter(self.sequence)
         self.target_obj_id = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
         info.update(task=self.target_obj_id)
+        obs = self.append_sequence(obs)
         return obs, info
 
     def step(self, action: np.ndarray):
@@ -81,6 +90,7 @@ class Sequence(OneRoom, Env):
             except StopIteration:
                 termination = True
         info.update(task=self.target_obj_id)
+        obs = self.append_sequence(obs)
         return obs, reward, termination, truncated, info
 
     def calculate_optimal_action(self):  # noqa: Vulture
