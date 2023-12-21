@@ -16,3 +16,5 @@ ppo_args:
   num_processes: ${env_args.n_permutations}
   num_updates: 8
 test_size: ${ppo_args.num_processes}
+train_args:
+  count_threshold: 1
