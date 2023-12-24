@@ -3,6 +3,7 @@ evaluator_args:
   rollout_length: ${trajectory_length}
 lr: 0.0005
 model_args:
+  conservative_loss_coef: null
   n_heads: 8
   n_hidden: 256
   n_layers: 3
@@ -25,6 +26,7 @@ train_args:
   log_interval: 50
   metrics_args: {}
   n_batch: 250
+  policy_improvement_values: false
   rmse_training_final: 0.002
   rmse_training_intermediate: 0.007
   test_interval: 1

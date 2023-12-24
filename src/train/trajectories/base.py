@@ -24,7 +24,7 @@ from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save
-from values.bootstrap import Values as BootstrapValues
+from values.bootstrap import PolicyImprovementValues, Values
 
 
 @dataclass
@@ -59,6 +59,7 @@ class Trainer:
     net: Model
     optimizer: optim.Optimizer
     plot_indices: torch.Tensor
+    policy_improvement_values: bool
     rmse_bellman: float
     rmse_training_final: float
     rmse_training_intermediate: float
@@ -82,6 +83,7 @@ class Trainer:
         lr: float,
         model_args: dict,
         n_plot: int,
+        policy_improvement_values: bool,
         run: Run,
         sequence: Sequence,
         **kwargs,
@@ -116,6 +118,7 @@ class Trainer:
             net=net,
             optimizer=optimizer,
             plot_indices=plot_indices,
+            policy_improvement_values=policy_improvement_values,
             run=run,
             sequence=sequence,
         )
@@ -173,7 +176,11 @@ class Trainer:
 
         def make_dataset(bootstrap_Q: torch.Tensor):
             assert len(bootstrap_Q) == bellman_number
-            values = BootstrapValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+            values = (
+                PolicyImprovementValues.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+                if self.policy_improvement_values
+                else Values.make(bootstrap_Q=bootstrap_Q, sequence=sequence)
+            )
             return Dataset(
                 bellman_delta=self.bellman_delta, sequence=sequence, values=values
             )
