@@ -1,0 +1,3 @@
+inherit_from: baseline
+train_args:
+  policy_improvement_values: true

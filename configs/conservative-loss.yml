@@ -1,0 +1,3 @@
+inherit_from: baseline
+model_args:
+  conservative_loss_coef: 0.1

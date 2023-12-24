@@ -50,6 +50,7 @@ class Model(Base, ABC):
     def __init__(
         self,
         bellman_delta: int,
+        conservative_loss_coef: Optional[float],
         n_actions: int,
         n_hidden: int,
         n_rotations: int,
@@ -68,6 +69,7 @@ class Model(Base, ABC):
         self.obs_encoder = self.build_obs_encoder()
         self.rew_encoder = self.build_rew_encoder()
         self.pad_value = pad_value
+        self.conservative_loss_coef = conservative_loss_coef
 
     @abstractmethod
     def build_obs_encoder(self, **kwargs) -> nn.Module:
@@ -146,13 +148,16 @@ class Model(Base, ABC):
             loss = None
         else:
             assert [*x.target_q.shape] == [b, l]
+            observed_q = outputs[
+                torch.arange(b)[:, None], torch.arange(l)[None], unmasked_actions
+            ]
 
-            loss = F.mse_loss(
-                outputs[
-                    torch.arange(b)[:, None], torch.arange(l)[None], unmasked_actions
-                ],
-                x.target_q,
-            )
+            loss = F.mse_loss(observed_q, x.target_q)
+            if self.conservative_loss_coef is not None:
+                conservative_loss = (
+                    (outputs - observed_q[..., None]).clamp(min=0).mean()
+                )
+                loss = loss + self.conservative_loss_coef * conservative_loss
         return outputs, loss
 
     def forward_output(
