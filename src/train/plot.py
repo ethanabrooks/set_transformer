@@ -4,6 +4,7 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.cm import hot, hsv
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.patches import Circle
 
 assert isinstance(hot, LinearSegmentedColormap)
 MAX_PLOTS = 30
@@ -31,7 +32,23 @@ def plot_trajectory(
     ep_start = 0
     norm_q = Normalize(vmin=0, vmax=1)
     norm_rewards = Normalize(vmin=0, vmax=1)
+
+    def set_alpha(value: float):
+        normalized = norm_q(value)
+        clipped = max(0, min(1, normalized))
+        return 0.2 + 0.8 * clipped
+
     for ax, ep_boundary in zip(axes, ep_boundaries):
+        ax.set_xlim([0, 6])
+        ax.set_ylim([0, 6])
+
+        for i, box in enumerate(boxes):
+            episode_goal = box[ep_boundary]
+            color = hsv(i / len(boxes))
+            radius = 1.7356854249492382
+            circle = Circle(edgecolor=color, fill=False, radius=radius, xy=episode_goal)
+            ax.add_patch(circle)  # Add circle to the plot
+
         episode_pos = pos[ep_start : ep_boundary + 1]
         xs, ys = episode_pos.T
         ax.plot(xs, ys)
@@ -52,6 +69,7 @@ def plot_trajectory(
                     head_length=0.2,
                     fc=color_q,
                     ec="black",
+                    alpha=set_alpha(norm_q(q)),
                 )
         episode_rewards = rewards[ep_start : ep_boundary + 1]
 
@@ -70,14 +88,8 @@ def plot_trajectory(
                 fc=color_r,
                 ec="black",
                 length_includes_head=True,
+                alpha=set_alpha(norm_rewards(r)),
             )
-
-        for i, box in enumerate(boxes):
-            episode_goal = box[ep_boundary]
-            color = hsv(i / len(boxes))
-            ax.scatter(*episode_goal, color=color)
-        ax.set_xlim(0, 6)
-        ax.set_ylim(0, 6)
 
         ep_start = ep_boundary + 1
     return fig
