@@ -268,6 +268,7 @@ class Trainer:
                     df=df,
                     run=self.run,
                     sequence=sequence,
+                    step=epoch_step,
                 )
                 if self.run is not None:
                     log = dict(

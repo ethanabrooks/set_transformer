@@ -237,6 +237,7 @@ def log(
     df: pd.DataFrame,
     run: Run,
     sequence: Sequence,
+    step: int,
 ):
     def get_returns(key: str, df: pd.DataFrame):
         exponents = np.arange(len(df))
@@ -312,7 +313,19 @@ def log(
 
         test_log[name] = means.iloc[-1]
         plot_log[name] = wandb.Image(fig)
+
+        # Step 1: Identify the Last Timestep of Each Episode
+        # Group by 'episode' and get the last entry of each group
+        last_timesteps = df.groupby("episode")["timesteps"].last()
+
+        # Step 2: Merge or Map to metrics DataFrame
+        # Since metrics is a Series with a MultiIndex (episode, idx),
+        # we can map the last_timesteps to the level 0 index (episode) of metrics
+        metrics = metrics.to_frame("value")  # Convert to DataFrame if it's a Series
+        metrics["timestep"] = metrics.index.get_level_values(0).map(last_timesteps)
+        metrics["step"] = step
+
         plot_log[f"table/{name}"] = wandb.Table(
-            dataframe=metrics.reset_index(name=name)
+            dataframe=metrics.reset_index().rename(columns=dict(value=name))
         )
     return plot_log, test_log
