@@ -24,9 +24,8 @@ class Trainer(Base):
             sequence = replace(sequence, grid_world=grid_world)
         return super().make(baseline=baseline, **kwargs, sequence=sequence)
 
-    def get_ground_truth(self, bellman_number: int):
-        Q = self.sequence.grid_world.Q
-        return Q[1 : 1 + bellman_number]  # omit Q_0 from ground_truth
+    def get_ground_truth(self):
+        return self.sequence.grid_world.Q
 
     def update_plots(self, bellman_number: int, Q: torch.Tensor):
         grid_world = self.sequence.grid_world

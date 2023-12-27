@@ -17,7 +17,7 @@ class Trainer(Base):
     def build_model(cls, **kwargs):
         return MiniWorldModel(**kwargs)
 
-    def get_ground_truth(self, bellman_number: int):
+    def get_ground_truth(self):
         pass
 
     def update_plots(self, bellman_number: int, Q: torch.Tensor):

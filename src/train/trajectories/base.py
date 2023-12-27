@@ -166,7 +166,7 @@ class Trainer:
 
         assert torch.all(bootstrap_Q[0] == 0)
         sequence = self.sequence
-        ground_truth = self.get_ground_truth(bellman_number)
+        ground_truth = self.get_ground_truth()
 
         test_log = {}
         counter = Counter()
@@ -211,24 +211,37 @@ class Trainer:
                 ],
             )
 
-            idxs = (
-                torch.arange(q)[:, None, None],
-                torch.arange(b)[None, :, None],
-                sequence.transitions.states[None],
-            )
-            if ground_truth is not None and q <= len(ground_truth):
-                ground_truth_metrics = _get_metrics(
-                    "(ground-truth)", outputs=Q, targets=ground_truth[idxs]
+            if ground_truth is not None:
+                states = sequence.transitions.states
+                idxs = (
+                    torch.arange(q)[:, None, None],
+                    torch.arange(b)[None, :, None],
+                    states[None],
+                )
+                try:
+                    ground_truth_indexed = ground_truth[1 : 1 + bellman_number][idxs]
+                except IndexError:
+                    ground_truth_indexed = None
+                if ground_truth_indexed is None:
+                    intermediate_ground_truth_metrics = {}
+                else:
+                    intermediate_ground_truth_metrics = _get_metrics(
+                        "(ground-truth intermediate)",
+                        outputs=Q,
+                        targets=ground_truth_indexed,
+                    )
+                ground_truth_indexed = ground_truth[
+                    -1, torch.arange(b)[:, None], states
+                ]
+                final_ground_truth_metrics = _get_metrics(
+                    "(ground-truth final)",
+                    outputs=Q[-1],
+                    targets=ground_truth_indexed,
                 )
 
-                versus_metrics = _get_metrics(
-                    "(bootstrap versus ground-truth)",
-                    outputs=train_data.values.Q,
-                    targets=ground_truth[[*idxs, sequence.transitions.actions[None]]],
-                )
             else:
-                ground_truth_metrics = {}
-                versus_metrics = {}
+                intermediate_ground_truth_metrics = {}
+                final_ground_truth_metrics = {}
 
             if self.baseline:
                 bootstrap_Q2 = Q
@@ -291,11 +304,11 @@ class Trainer:
                     train_log.update(
                         epoch=e,
                         epoch_rmse=epoch_rmse,
+                        **final_ground_truth_metrics,
                         fps=fps,
-                        **ground_truth_metrics,
+                        **intermediate_ground_truth_metrics,
                         lr=decayed_lr,
                         max_Q=train_data.values.Q.max().item(),
-                        **versus_metrics,
                     )
                     train_log = {f"train/{k}": v for k, v in train_log.items()}
                     counter = Counter()
