@@ -1,4 +1,5 @@
 grid_world_args:
+  dirichlet_concentration: 10
   grid_size: 5
 inherit_from: grid-world
 train_size: 5000
