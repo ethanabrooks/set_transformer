@@ -36,9 +36,12 @@ class Trainer(Base):
             torch.arange(len(self.plot_indices))[:, None],
             self.sequence.transitions.states[self.plot_indices],
         ] = Q[-1, self.plot_indices]
-        stacked = torch.stack(
-            [q_per_state, grid_world.Q[bellman_number, self.plot_indices]]
-        )
+        try:
+            stacked = torch.stack(
+                [q_per_state, grid_world.Q[bellman_number, self.plot_indices]]
+            )
+        except IndexError:
+            return
 
         Pi = grid_world.Pi[None, self.plot_indices]
         v_per_state: torch.Tensor = stacked * Pi
