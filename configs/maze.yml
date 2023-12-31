@@ -1,0 +1,11 @@
+env_args:
+  num_cols: 2
+  num_rows: 1
+env_name: MAZE
+inherit_from: miniworld
+ppo_args:
+  env_args:
+    num_cols: ${env_args.num_cols}
+    num_rows: ${env_args.num_rows}
+  num_processes: 1
+  num_updates: 6

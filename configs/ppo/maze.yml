@@ -1,0 +1,5 @@
+env_args:
+  num_cols: 2
+  num_rows: 2
+env_name: MAZE
+inherit_from: miniworld

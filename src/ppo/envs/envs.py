@@ -25,12 +25,14 @@ except (KeyError, ValueError):
 pyglet.options["headless_device"] = headless_device
 
 
+from ppo.envs.maze import Maze  # noqa: E402
 from ppo.envs.one_room import OneRoom  # noqa: E402
 from ppo.envs.sequence import Sequence  # noqa: E402
 
 
 class EnvType(Enum):
     CHEETAH = auto()
+    MAZE = auto()
     ONE_ROOM = auto()
     SEQUENCE = auto()
 
@@ -63,6 +65,8 @@ def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
             env: gym.Env = OneRoom(**kwargs)
         elif env_type == EnvType.CHEETAH:
             env: gym.Env = gym.make("HalfCheetah-v2")
+        elif env_type == EnvType.MAZE:
+            env: gym.Env = Maze(**kwargs)
         elif env_type == EnvType.SEQUENCE:
             env: gym.Env = Sequence(**kwargs, rank=rank)
         else:
