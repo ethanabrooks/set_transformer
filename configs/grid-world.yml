@@ -1,3 +1,4 @@
+env_name: GRID_WORLD
 evaluator_args:
   rollout_length: ${trajectory_length}
 grid_world_args:

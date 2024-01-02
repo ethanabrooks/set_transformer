@@ -68,6 +68,7 @@ def make_ppo_sequence_and_env_fn(
 
 def train(
     dummy_vec_env: bool,
+    env_name: str,
     evaluator_args: dict,
     load_path: Optional[str],
     lr: float,
@@ -91,12 +92,16 @@ def train(
         )
 
     else:
-        sequence, env_fn = make_ppo_sequence_and_env_fn(**kwargs, seed=seed)
+        sequence, env_fn = make_ppo_sequence_and_env_fn(
+            env_name=env_name, **kwargs, seed=seed
+        )
 
     env_fns = list(map(env_fn, range(test_size)))
     envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
+    env_type = EnvType[env_name]
     if use_grid_world:
         trainer: Trainer = GridWorldTrainer.make(
+            env_type=env_type,
             envs=envs,
             evaluator_args=evaluator_args,
             load_path=load_path,
@@ -110,6 +115,7 @@ def train(
         )
     else:
         trainer: Trainer = MiniWorldTrainer.make(
+            env_type=env_type,
             envs=envs,
             evaluator_args=evaluator_args,
             load_path=load_path,

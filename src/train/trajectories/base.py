@@ -22,6 +22,7 @@ from evaluate import log as log_evaluation
 from evaluate import rollout
 from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
+from ppo.envs.envs import EnvType
 from sequence.base import Sequence
 from utils import DataPoint, decay_lr, load, save
 from values.bootstrap import PolicyImprovementValues, Values
@@ -51,6 +52,7 @@ class Trainer:
     bellman_delta: int
     count_threshold: int
     decay_args: dict
+    env_type: EnvType
     evaluator: Evaluator
     load_path: Optional[str]
     log_interval: int
@@ -88,6 +90,7 @@ class Trainer:
         sequence: Sequence,
         **kwargs,
     ):
+
         _, l = sequence.transitions.rewards.shape
         net = cls.build_model(
             bellman_delta=bellman_delta,

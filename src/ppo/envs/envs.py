@@ -32,6 +32,7 @@ from ppo.envs.sequence import Sequence  # noqa: E402
 
 class EnvType(Enum):
     CHEETAH = auto()
+    GRID_WORLD = auto()  # noqa: Vulture
     MAZE = auto()
     ONE_ROOM = auto()
     SEQUENCE = auto()
