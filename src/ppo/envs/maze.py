@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 from miniworld.entity import Box
 from miniworld.envs.maze import MazeS3Fast
@@ -20,13 +22,20 @@ TEXTURES = [
 
 class Maze(MazeS3Fast, Env):
     def __init__(self, seed: int, **kwargs):
-        self.np_random = np.random.RandomState(seed)
+        self.seed = seed
         super().__init__(**kwargs)
 
-    def _reward(self):  # noqa: Vulture
-        return 1
+    # def reset(self, **kwargs):
+    #     obs, info = super().reset(**kwargs)
+    #     import matplotlib.pyplot as plt
 
-    def _gen_world(self):
+    #     print("SEED:", self.seed)
+
+    #     plt.imsave(f"{self.seed}.png", self.render_top_view())
+    #     breakpoint()
+    #     return obs, info
+
+    def __gen_world(self):
         rows = []
 
         # For each row
@@ -107,3 +116,13 @@ class Maze(MazeS3Fast, Env):
         self.box = self.place_entity(Box(color="red"))
 
         self.place_agent()
+
+    def _gen_world(self):
+        np_random = deepcopy(self.np_random)
+        self.np_random = np.random.RandomState(self.seed)
+        self.__gen_world()
+        self.np_random = np_random
+        self.place_agent()
+
+    def _reward(self):  # noqa: Vulture
+        return 1
