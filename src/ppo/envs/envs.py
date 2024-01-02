@@ -2,6 +2,7 @@ import itertools
 import os
 from enum import Enum, auto
 from functools import lru_cache
+from typing import Optional
 from warnings import warn
 
 import gymnasium as gym
@@ -54,7 +55,13 @@ def get_sequences(
     ]
 
 
-def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
+def make_env(
+    env_type: EnvType,
+    rank: int,
+    seed: int,
+    num_processes: Optional[int] = None,
+    **kwargs,
+):
     if env_type == EnvType.SEQUENCE:
         sequences = get_sequences(**kwargs)
         kwargs.update(sequences=sequences)
@@ -67,7 +74,9 @@ def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
         elif env_type == EnvType.CHEETAH:
             env: gym.Env = gym.make("HalfCheetah-v2")
         elif env_type == EnvType.MAZE:
-            env: gym.Env = Maze(**kwargs, seed=rank + seed)
+            env: gym.Env = Maze(
+                **kwargs, num_processes=num_processes, rank=rank, seed=rank + seed
+            )
         elif env_type == EnvType.SEQUENCE:
             env: gym.Env = Sequence(**kwargs, rank=rank)
         else:
@@ -96,7 +105,10 @@ def make_vec_envs(
     dummy_vec_env: bool,
     **kwargs,
 ) -> "VecPyTorch":
-    envs = [make_env(env_type=env_type, rank=i, **kwargs) for i in range(num_processes)]
+    envs = [
+        make_env(env_type=env_type, num_processes=num_processes, rank=i, **kwargs)
+        for i in range(num_processes)
+    ]
 
     envs: SubprocVecEnv = (
         DummyVecEnv.make(envs)

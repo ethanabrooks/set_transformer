@@ -53,15 +53,28 @@ def make_grid_world_sequence_and_env_fn(
 
 
 def make_ppo_sequence_and_env_fn(
-    env_args: dict, env_name: str, ppo_args: dict, seed: int, **kwargs
+    env_args: dict,
+    env_name: str,
+    ppo_args: dict,
+    seed: int,
+    **kwargs,
 ):
     sequence = PPOSequence.make(
-        env_name=env_name, **kwargs, **ppo_args, run=None, seed=seed
+        env_name=env_name,
+        **kwargs,
+        **ppo_args,
+        run=None,
+        seed=seed,
     )
 
     def make_env(i: int):
         env_type = EnvType[env_name]
-        return make_ppo_env(**env_args, env_type=env_type, rank=i, seed=seed + i)
+        return make_ppo_env(
+            **env_args,
+            env_type=env_type,
+            rank=i,
+            seed=seed + i,
+        )
 
     return sequence, make_env
 

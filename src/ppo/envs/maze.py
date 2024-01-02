@@ -1,6 +1,8 @@
 from copy import deepcopy
+from typing import Optional
 
 import numpy as np
+from gymnasium.spaces import Discrete
 from miniworld.entity import Box
 from miniworld.envs.maze import MazeS3Fast
 
@@ -21,19 +23,33 @@ TEXTURES = [
 
 
 class Maze(MazeS3Fast, Env):
-    def __init__(self, seed: int, **kwargs):
-        self.seed = seed
+    def __init__(self, num_processes: Optional[int], rank: int, seed: int, **kwargs):
+        self.rank = rank
+        self.seed = rank + seed
+        self.num_processes = num_processes
         super().__init__(**kwargs)
 
-    # def reset(self, **kwargs):
-    #     obs, info = super().reset(**kwargs)
-    #     import matplotlib.pyplot as plt
+    @property
+    def task_space(self) -> Discrete:
+        if self.num_processes is not None:
+            return Discrete(self.num_processes)
 
-    #     print("SEED:", self.seed)
+    def reset(self, **kwargs):
+        obs, info = super().reset(**kwargs)
+        #     import matplotlib.pyplot as plt
 
-    #     plt.imsave(f"{self.seed}.png", self.render_top_view())
-    #     breakpoint()
-    #     return obs, info
+        #     print("SEED:", self.seed)
+
+        #     plt.imsave(f"{self.seed}.png", self.render_top_view())
+        #     breakpoint()
+        info.update(task=self.rank)
+        return obs, info
+
+    def step(self, action):
+        info: dict
+        *res, info = super().step(action)
+        info.update(task=self.rank)
+        return *res, info
 
     def __gen_world(self):
         rows = []
