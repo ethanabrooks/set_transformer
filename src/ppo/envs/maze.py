@@ -27,6 +27,9 @@ class Maze(MazeS3Fast, Env):
         self.rank = rank
         self.seed = rank + seed
         self.num_processes = num_processes
+        self.np_random = np.random.RandomState(seed)
+        self.textures = [t for t in TEXTURES]
+        self.np_random.shuffle(self.textures)
         super().__init__(**kwargs)
 
     @property
@@ -71,7 +74,7 @@ class Maze(MazeS3Fast, Env):
                     max_x=max_x,
                     min_z=min_z,
                     max_z=max_z,
-                    wall_tex=TEXTURES[(j * self.num_cols + i) % len(TEXTURES)]
+                    wall_tex=self.textures[(j * self.num_cols + i) % len(self.textures)]
                     # floor_tex='asphalt'
                 )
                 row.append(room)
