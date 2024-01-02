@@ -1,3 +1,4 @@
+import numpy as np
 from miniworld.entity import Box
 from miniworld.envs.maze import MazeS3Fast
 
@@ -18,6 +19,10 @@ TEXTURES = [
 
 
 class Maze(MazeS3Fast, Env):
+    def __init__(self, seed: int, **kwargs):
+        self.np_random = np.random.RandomState(seed)
+        super().__init__(**kwargs)
+
     def _reward(self):  # noqa: Vulture
         return 1
 

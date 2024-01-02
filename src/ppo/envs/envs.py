@@ -66,7 +66,7 @@ def make_env(env_type: EnvType, rank: int, seed: int, **kwargs):
         elif env_type == EnvType.CHEETAH:
             env: gym.Env = gym.make("HalfCheetah-v2")
         elif env_type == EnvType.MAZE:
-            env: gym.Env = Maze(**kwargs)
+            env: gym.Env = Maze(**kwargs, seed=rank + seed)
         elif env_type == EnvType.SEQUENCE:
             env: gym.Env = Sequence(**kwargs, rank=rank)
         else:
