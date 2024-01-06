@@ -1,0 +1,5 @@
+inherit_from: 4x3-test
+model_args:
+  conservative_loss_coef: 0.1
+train_args:
+  policy_improvement_values: true
