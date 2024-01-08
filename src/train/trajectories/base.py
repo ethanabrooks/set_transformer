@@ -50,7 +50,6 @@ class Trainer:
     alpha: float
     baseline: bool
     bellman_delta: int
-    count_threshold: int
     decay_args: dict
     env_type: EnvType
     evaluator: Evaluator
@@ -280,7 +279,6 @@ class Trainer:
                     iterations=math.ceil(bellman_number / self.bellman_delta)
                 )
                 plot_log, test_log = log_evaluation(
-                    count_threshold=self.count_threshold,
                     df=df,
                     run=self.run,
                     sequence=sequence,

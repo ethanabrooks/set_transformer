@@ -19,7 +19,6 @@ train_args:
   alpha: .5
   baseline: false
   bellman_delta: 1
-  count_threshold: 40
   decay_args:
     final_step: 500_000
     warmup_steps: 10_000

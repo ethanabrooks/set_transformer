@@ -17,5 +17,3 @@ ppo_args:
   num_updates: 6
   update_args:
     num_mini_batch: 2
-train_args:
-  count_threshold: 1

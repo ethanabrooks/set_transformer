@@ -233,7 +233,6 @@ def render_eval_metrics(
 
 
 def log(
-    count_threshold: int,
     df: pd.DataFrame,
     run: Run,
     sequence: Sequence,
@@ -304,9 +303,6 @@ def log(
         metrics = episode_df[name]
         means = metrics.groupby("episode").mean()
         sems = metrics.groupby("episode").sem()
-        counts = metrics.groupby("episode").count()
-        means = means[counts > count_threshold]
-        sems = sems[counts > count_threshold]
         if run is None:
             graph = list(render_eval_metrics(*metrics, max_num=1))
             print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
