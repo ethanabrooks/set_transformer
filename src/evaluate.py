@@ -239,9 +239,13 @@ def log(
     sequence: Sequence,
     step: int,
 ):
-    def get_returns(key: str, df: pd.DataFrame):
+    def get_returns(
+        key: str,
+        gamma: float,
+        df: pd.DataFrame,
+    ):
         exponents = np.arange(len(df))
-        discounts = np.power(sequence.gamma, exponents)
+        discounts = np.power(gamma, exponents)
         discounted = df[key] * discounts
         return discounted.sum()
 
@@ -250,17 +254,31 @@ def log(
         return dones.iloc[-1]
 
     complete_episodes = df.groupby(["episode", "idx"]).filter(is_complete)
-    returns: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
-        functools.partial(get_returns, "rewards")
+    discounted_returns: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
+        functools.partial(get_returns, "rewards", sequence.gamma)
     )
-    graphs = dict(returns=returns)
+    undiscounted_returns = complete_episodes.groupby(["episode", "idx"]).apply(
+        functools.partial(get_returns, "rewards", 1)
+    )
+    last_timesteps = complete_episodes.groupby(["episode", "idx"])["timesteps"].last()
+    episode_df = pd.concat(
+        {
+            "discounted returns": discounted_returns,
+            "returns": undiscounted_returns,
+            "timesteps": last_timesteps,
+        },
+        axis=1,
+    )
+    episode_df["step"] = step
+    names = ["returns", "discounted returns"]
     if "optimals" in df.columns:
         optimals: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
-            functools.partial(get_returns, "optimals")
+            functools.partial(get_returns, "optimals", sequence.gamma)
         )
-        metrics = optimals - returns
+        metrics = optimals - discounted_returns
         # assert (metrics >= 0).all()
-        graphs["regret"] = metrics
+        episode_df["regret"] = metrics
+        names.append("regret")
     plot_log = {}
     test_log = {}
     if "states" in df.columns:
@@ -282,7 +300,8 @@ def log(
             # fig.savefig(f"plot_{i}.png")
             plot_log[f"trajectories/{i}"] = wandb.Image(fig)
 
-    for name, metrics in graphs.items():
+    for name in names:
+        metrics = episode_df[name]
         means = metrics.groupby("episode").mean()
         sems = metrics.groupby("episode").sem()
         counts = metrics.groupby("episode").count()
@@ -314,18 +333,5 @@ def log(
         test_log[name] = means.iloc[-1]
         plot_log[name] = wandb.Image(fig)
 
-        # Step 1: Identify the Last Timestep of Each Episode
-        # Group by 'episode' and get the last entry of each group
-        last_timesteps = df.groupby("episode")["timesteps"].last()
-
-        # Step 2: Merge or Map to metrics DataFrame
-        # Since metrics is a Series with a MultiIndex (episode, idx),
-        # we can map the last_timesteps to the level 0 index (episode) of metrics
-        metrics = metrics.to_frame("value")  # Convert to DataFrame if it's a Series
-        metrics["timestep"] = metrics.index.get_level_values(0).map(last_timesteps)
-        metrics["step"] = step
-
-        plot_log[f"table/{name}"] = wandb.Table(
-            dataframe=metrics.reset_index().rename(columns=dict(value=name))
-        )
+    plot_log["table"] = wandb.Table(dataframe=episode_df)
     return plot_log, test_log
