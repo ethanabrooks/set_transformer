@@ -2,4 +2,5 @@ env_args:
   n_objects: 2
   n_permutations: 2
   n_sequence: 2
+  size: 6
 inherit_from: sequence
