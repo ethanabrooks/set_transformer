@@ -1,3 +1,0 @@
-inherit_from: 4x3
-ppo_args:
-  num_processes: 10

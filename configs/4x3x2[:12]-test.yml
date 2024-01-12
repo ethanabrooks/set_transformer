@@ -1,3 +1,0 @@
-env_args:
-  permutation_starting_idx: ${ppo_args.num_processes}
-inherit_from: 4x3x2[:12]

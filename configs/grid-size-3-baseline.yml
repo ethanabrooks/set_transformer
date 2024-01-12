@@ -1,5 +1,0 @@
-inherit_from: grid-size-3
-train_args:
-  alpha: 0.1
-  baseline: true
-  test_interval: 1000
