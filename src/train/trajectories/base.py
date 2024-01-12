@@ -6,6 +6,7 @@ from abc import abstractmethod
 from dataclasses import asdict, dataclass
 from typing import Counter, Optional
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -289,6 +290,7 @@ class Trainer:
                         **plot_log, **{f"test/{k}": v for k, v in test_log.items()}
                     )
                     wandb.log(log, step=epoch_step)
+                    plt.close("all")
             x: DataPoint
             self.net.train()
             for t, x in enumerate(train_loader):
@@ -315,6 +317,7 @@ class Trainer:
                     counter = Counter()
                     if self.run is not None:
                         wandb.log(dict(**repeated_log, **train_log), step=step)
+                        plt.close("all")
                 if done:
                     return Q, epoch_step
 
