@@ -40,7 +40,7 @@ class EnvType(Enum):
 
 
 @lru_cache
-def all_sequences(n_sequence: int, n_objects: int) -> np.ndarray:
+def all_sequences(n_sequence: int, n_objects: int, **_) -> np.ndarray:
     sequences = np.array(list(itertools.permutations(range(n_objects), n_sequence)))
     perm = np.random.permutation(len(sequences))
     return sequences[perm]
