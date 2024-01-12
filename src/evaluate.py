@@ -153,7 +153,6 @@ def rollout(
         # record episode timesteps
         timesteps[t] = timestep
         timestep += 1
-        timestep[step.done] = 0
         episodes[t] = episode
         episode += step.done
 
