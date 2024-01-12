@@ -325,7 +325,7 @@ def log(
         ax.set_ylabel(name)
         ax.grid(True)
 
-        test_log[name] = means.iloc[-1]
+        test_log[name] = episode_df.groupby("episode")[name].last().mean()
         plot_log[name] = wandb.Image(fig)
 
     plot_log["table"] = wandb.Table(dataframe=episode_df)
