@@ -1,16 +1,14 @@
 import functools
 from dataclasses import dataclass
 from typing import Optional
-from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 import wandb
 from gym.spaces import Box, Discrete, MultiDiscrete, Space
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from tqdm import tqdm
 from transformers import GPT2Config
 from wandb.sdk.wandb_run import Run
@@ -236,6 +234,7 @@ def log(
     run: Run,
     sequence: Sequence,
     step: int,
+    bin_size: int = 50,
 ):
     def get_returns(
         key: str,
@@ -295,38 +294,24 @@ def log(
                 states=torch.from_numpy(np.stack(first_index["states"]))[None],
             )
         ):
-            # fig.savefig(f"plot_{i}.png")
             plot_log[f"trajectories/{i}"] = wandb.Image(fig)
 
+    episode_df["timestep"] = episode_df["timesteps"] // bin_size * bin_size
+
     for name in names:
-        metrics = episode_df[name]
-        means = metrics.groupby("episode").mean()
-        sems = metrics.groupby("episode").sem()
         if run is None:
-            graph = list(render_eval_metrics(*metrics, max_num=1))
+            graph = list(
+                render_eval_metrics(
+                    *episode_df.groupby("timestep").mean()[name], max_num=1
+                )
+            )
             print(f"\n{name}\n" + "\n".join(graph), end="\n\n")
 
-        if means.empty:
-            warn(f"No complete episodes for {name}.")
-            return plot_log, test_log
-
-        fig: Figure
-        ax: Axes
-        fig, ax = plt.subplots()
-        x = means.index + 1  # 1-indexed
-        ax.fill_between(x, means - sems, means + sems, alpha=0.2)
-        ax.plot(x, means)
-        if name == "returns":
-            ymin, ymax = None, means.max()
-        elif name == "regret":
-            ymin, ymax = 0, None
-        ax.set_ylim(ymin, ymax)
-        ax.set_xlabel("episode")
-        ax.set_ylabel(name)
-        ax.grid(True)
-
         test_log[name] = episode_df.groupby("episode")[name].last().mean()
-        plot_log[name] = wandb.Image(fig)
+        plt.figure()
+        plot_log[name] = wandb.Image(
+            sns.lineplot(episode_df, x="timestep", y=name, hue=None).figure
+        )
 
     plot_log["table"] = wandb.Table(dataframe=episode_df)
     return plot_log, test_log
