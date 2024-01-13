@@ -61,12 +61,7 @@ def make_ppo_sequence_and_env_fn(
     **kwargs,
 ):
     sequence = PPOSequence.make(
-        env_name=env_name,
-        gamma=gamma,
-        **kwargs,
-        **ppo_args,
-        run=None,
-        seed=seed,
+        env_name=env_name, gamma=gamma, **kwargs, **ppo_args, seed=seed
     )
 
     def make_env(i: int):

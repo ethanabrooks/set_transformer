@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import torch
 from gymnasium.spaces import Discrete
 from torch.optim import Adam
@@ -102,6 +103,13 @@ def train(
     rollouts.to(device)
 
     episode_rewards = []
+    df = pd.DataFrame(columns=["reward", "timestep"])
+
+    def append_rewards(timestep: int, update: int):
+        new_df = pd.DataFrame(
+            dict(reward=[reward], timestep=[timestep], update=[update])
+        )
+        return pd.concat([df, new_df], ignore_index=True)
 
     start = time.time()
 
@@ -182,10 +190,13 @@ def train(
                     transition=Transition[np.ndarray](**dict(to_numpy())),
                 )
 
+            total_num_steps = (j + 1) * num_processes * step
             info: dict
             for info in infos:
                 if "episode" in info.keys():
+                    reward = info["episode"]["r"]
                     episode_rewards.append(info["episode"]["r"])
+                    df = append_rewards(timestep=total_num_steps, update=j)
 
             # If done then clean the history of observations.
             masks = torch.from_numpy(~(done | truncated))
@@ -228,8 +239,8 @@ def train(
 
         rollouts.after_update()
 
-        if load_path is None and (j % log_interval == 0) and len(episode_rewards) > 1:
-            total_num_steps = (j + 1) * num_processes * num_steps
+        log_metrics = j % log_interval == 0
+        if load_path is None and log_metrics and len(episode_rewards) > 1:
             end = time.time()
             mean_reward = np.mean(episode_rewards)
 
@@ -247,5 +258,4 @@ def train(
         if (j + 1) % save_interval == 0 and run is not None:
             save(run, agent)
 
-    if use_replay_buffer:
-        return data_storage
+    return data_storage, df

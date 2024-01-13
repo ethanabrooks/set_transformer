@@ -1,7 +1,11 @@
 from dataclasses import asdict, dataclass
 
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import torch
+import wandb
 from gymnasium.spaces import Discrete
 
 from ppo.data_storage import DataStorage
@@ -26,14 +30,24 @@ class Sequence(BaseSequence):
             f"num_processes * num_steps * num_updates ({num_processes} * {num_steps} * {num_updates}) "
             f"must be divisible by sequence_length ({trajectory_length})"
         )
-        data_storage: DataStorage = train(
+        data_storage: DataStorage
+        df: pd.DataFrame
+        data_storage, df = train(
             gamma=gamma,
             **kwargs,
             load_path=None,
             num_processes=num_processes,
             num_steps=num_steps,
             num_updates=num_updates,
+            run=None,
         )
+        if wandb.run is not None:
+            plt.figure()
+            image = wandb.Image(
+                sns.lineplot(df, x="update", y="reward", hue=None).figure
+            )
+            table = wandb.Table(data=df)
+            wandb.run.log({"ppo/plot": image, "ppo/table": table})
 
         def preprocess():
             v: np.ndarray
