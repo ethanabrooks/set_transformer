@@ -55,12 +55,14 @@ def make_grid_world_sequence_and_env_fn(
 def make_ppo_sequence_and_env_fn(
     env_args: dict,
     env_name: str,
+    gamma: float,
     ppo_args: dict,
     seed: int,
     **kwargs,
 ):
     sequence = PPOSequence.make(
         env_name=env_name,
+        gamma=gamma,
         **kwargs,
         **ppo_args,
         run=None,
@@ -72,6 +74,7 @@ def make_ppo_sequence_and_env_fn(
         return make_ppo_env(
             **env_args,
             env_type=env_type,
+            gamma=gamma,
             rank=i,
             seed=seed + i,
         )

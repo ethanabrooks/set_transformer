@@ -159,7 +159,7 @@ class CNNBase(Network):
 
 class MLPBase(Network):
     def __init__(self, num_inputs: int, recurrent: bool, hidden_size: int, **kwargs):
-        super(MLPBase, self).__init__(
+        super().__init__(
             recurrent=recurrent,
             recurrent_input_size=num_inputs,
             hidden_size=hidden_size,
@@ -212,3 +212,13 @@ class MLPBase(Network):
 
         values = self.critic_linear.forward(hidden_critic).squeeze(-1)
         return values, hidden_actor, rnn_hxs
+
+
+class MLPEmbeddingBase(MLPBase):
+    def __init__(self, num_inputs: int, hidden_size: int, **kwargs):
+        super().__init__(hidden_size=hidden_size, num_inputs=hidden_size, **kwargs)
+        self.obs_embedding = nn.Embedding(num_inputs, hidden_size)
+
+    def forward(self, inputs: torch.Tensor, *args, **kwargs):
+        inputs = self.obs_embedding.forward(inputs.long())
+        return super().forward(*args, inputs=inputs, **kwargs)

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import torch
-from gym.spaces import Discrete, MultiDiscrete
+from gymnasium.spaces import Discrete
 
 from envs.base import Env
 from grid_world.values import GridWorld, GridWorldWithValues
@@ -25,7 +25,7 @@ class Env(Env):
 
     @property
     def observation_space(self):
-        return MultiDiscrete([self.grid_size, self.grid_size])
+        return Discrete(self.grid_size**2)
 
     @property
     def policy(self):
@@ -47,7 +47,8 @@ class Env(Env):
                 self.grid_world.optimally_improved_policy_values[:, state].max().item()
             )
 
-    def reset(self, state: Optional[torch.Tensor] = None):
+    def reset(self, state: Optional[torch.Tensor] = None, seed: Optional[int] = None):
+        del seed
         assert self.grid_world.n_tasks == 1
         if state is None:
             current_state = self.grid_world.reset_fn()

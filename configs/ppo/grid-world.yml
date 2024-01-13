@@ -1,0 +1,19 @@
+agent_args:
+  recurrent: false
+dummy_vec_env: false
+env_args:
+  absorbing_state: false
+  dense_reward: false
+  dirichlet_concentration: 1
+  grid_size: 5
+  heldout_goals: []
+  n_maze: 0
+  p_wall: 0
+  terminate_on_goal: true
+  time_limit: 10
+  use_heldout_goals: false
+env_name: GRID_WORLD
+inherit_from: base
+num_processes: 1
+update_args:
+  num_mini_batch: 1

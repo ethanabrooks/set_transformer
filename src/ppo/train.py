@@ -77,7 +77,7 @@ def train(
     else:
         agent_args.update(num_tasks=None)
     agent = Agent(
-        obs_shape=envs.observation_space.shape,
+        obs_space=envs.observation_space,
         action_space=envs.action_space,
         **agent_args,
     )

@@ -12,6 +12,8 @@ import torch
 from gymnasium.spaces import Box, Discrete
 from gymnasium.wrappers import OrderEnforcing, PassiveEnvChecker
 
+from grid_world.base import GridWorld
+from grid_world.env import Env as GridWorldEnv
 from ppo.envs.dummy_vec_env import DummyVecEnv
 from ppo.envs.monitor import Monitor
 from ppo.envs.subproc_vec_env import SubprocVecEnv
@@ -55,6 +57,7 @@ def get_sequences(
 
 def make_env(
     env_type: EnvType,
+    gamma: float,
     rank: int,
     seed: int,
     num_processes: Optional[int] = None,
@@ -75,6 +78,17 @@ def make_env(
             )
         elif env_type == EnvType.SEQUENCE:
             env: gym.Env = Sequence(**kwargs, rank=rank)
+        elif env_type == EnvType.GRID_WORLD:
+            time_limit = kwargs.pop("time_limit")
+            torch.random.manual_seed(rank + seed)
+            grid_world = GridWorld.make(
+                **kwargs,
+                gamma=gamma,
+                n_tasks=1,
+                seed=rank + seed,
+                terminal_transitions=None,
+            )
+            env: gym.Env = GridWorldEnv(grid_world, time_limit=time_limit)
         else:
             raise ValueError(f"Unknown env_type: {env_type}")
         env = PassiveEnvChecker(env)
@@ -102,7 +116,13 @@ def make_vec_envs(
     **kwargs,
 ) -> "VecPyTorch":
     envs = [
-        make_env(env_type=env_type, num_processes=num_processes, rank=i, **kwargs)
+        make_env(
+            env_type=env_type,
+            gamma=gamma,
+            num_processes=num_processes,
+            rank=i,
+            **kwargs,
+        )
         for i in range(num_processes)
     ]
 

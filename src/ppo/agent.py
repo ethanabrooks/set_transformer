@@ -4,10 +4,11 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from gym import Space
+from gymnasium.spaces import Discrete
 from torch.optim import Optimizer
 
 from ppo.distributions import Bernoulli, Categorical, DiagGaussian
-from ppo.networks import CNNBase, MLPBase, Network
+from ppo.networks import CNNBase, MLPBase, MLPEmbeddingBase, Network
 from ppo.rollout_storage import RolloutStorage, Sample
 
 
@@ -22,19 +23,19 @@ class ActMetadata:
 class Agent(nn.Module):
     def __init__(
         self,
-        obs_shape: tuple[int, ...],
+        obs_space: Space,
         action_space: Space,
         **kwargs,
     ):
         super(Agent, self).__init__()
-        if len(obs_shape) == 3:
-            base = CNNBase
-        elif len(obs_shape) == 1:
-            base = MLPBase
+        if isinstance(obs_space, Discrete):
+            self.base: Network = MLPEmbeddingBase(num_inputs=obs_space.n, **kwargs)
+        elif len(obs_space.shape) == 3:
+            self.base: Network = CNNBase(num_inputs=obs_space.shape[0], **kwargs)
+        elif len(obs_space.shape) == 1:
+            self.base: Network = MLPBase(num_inputs=obs_space.shape[0], **kwargs)
         else:
             raise NotImplementedError
-
-        self.base: Network = base(num_inputs=obs_shape[0], **kwargs)
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
