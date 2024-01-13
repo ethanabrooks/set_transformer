@@ -131,7 +131,7 @@ class GridWorld:
         )
 
         # generate walls
-        is_wall = torch.rand(b, g, a) < p_wall
+        is_wall = torch.tensor(random.random((b, g, a)) < p_wall)
         if n_maze:
             mazes = [
                 maze_to_state_action(generate_maze(grid_size)).view(g, a)
@@ -139,16 +139,14 @@ class GridWorld:
             ]
             mazes = torch.stack(mazes)
             assert [*mazes.shape] == [m, g, a]
-            maze_idx = torch.randint(0, m, (b,))
-            is_wall = mazes[maze_idx] & is_wall
+            maze_idx = torch.tensor(random.integers(0, m, (b,)))
+            is_wall: torch.Tensor = mazes[maze_idx] & is_wall
             assert [*is_wall.shape] == [b, g, a]
-        goals = torch.randint(0, g, (b,))
+        goals = torch.tensor(random.integers(0, g, (b,)))
 
-        Pi: torch.Tensor = torch.distributions.Dirichlet(
-            dirichlet_concentration * torch.ones(a)
-        ).sample(
-            (b, s)
-        )  # random policies
+        Pi = random.dirichlet(dirichlet_concentration * np.ones(a), size=(b, s))
+        Pi = torch.tensor(Pi).float()
+
         assert [*Pi.shape] == [b, s, a]
         hashcode = cls.compute_hashcode(
             deltas=deltas,

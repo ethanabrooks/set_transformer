@@ -80,7 +80,6 @@ def make_env(
             env: gym.Env = Sequence(**kwargs, rank=rank)
         elif env_type == EnvType.GRID_WORLD:
             time_limit = kwargs.pop("time_limit")
-            torch.random.manual_seed(rank + seed)
             grid_world = GridWorld.make(
                 **kwargs,
                 gamma=gamma,
