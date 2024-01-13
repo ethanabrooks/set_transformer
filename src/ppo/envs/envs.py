@@ -27,7 +27,6 @@ pyglet.options["headless_device"] = headless_device
 
 
 from ppo.envs.maze import Maze  # noqa: E402
-from ppo.envs.one_room import OneRoom  # noqa: E402
 from ppo.envs.sequence import Sequence  # noqa: E402
 
 
@@ -35,7 +34,6 @@ class EnvType(Enum):
     CHEETAH = auto()
     GRID_WORLD = auto()  # noqa: Vulture
     MAZE = auto()
-    ONE_ROOM = auto()
     SEQUENCE = auto()
 
 
@@ -69,9 +67,7 @@ def make_env(
         del kwargs["permutation_starting_idx"]
 
     def _thunk():
-        if env_type == EnvType.ONE_ROOM:
-            env: gym.Env = OneRoom(**kwargs)
-        elif env_type == EnvType.CHEETAH:
+        if env_type == EnvType.CHEETAH:
             env: gym.Env = gym.make("HalfCheetah-v2")
         elif env_type == EnvType.MAZE:
             env: gym.Env = Maze(

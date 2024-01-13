@@ -1,13 +1,13 @@
 import numpy as np
 from gymnasium.spaces import Discrete
 from miniworld.entity import COLOR_NAMES, Ball, Box, Entity, Key
+from miniworld.envs.oneroom import OneRoomS6Fast
 from miniworld.math import intersect_circle_segs
 
 from envs.base import Env
-from ppo.envs.one_room import OneRoom
 
 
-class Sequence(OneRoom, Env):
+class Sequence(OneRoomS6Fast, Env):
     def __init__(
         self,
         *args,
@@ -67,7 +67,7 @@ class Sequence(OneRoom, Env):
         self.obj_iter = iter(self.sequence)
         self.target_obj_id = next(self.obj_iter)
         obs, info = super().reset(*args, **kwargs)
-        info.update(task=self.target_obj_id)
+        info.update(state=self.state, task=self.target_obj_id)
         return obs, info
 
     def step(self, action: np.ndarray):
@@ -80,7 +80,7 @@ class Sequence(OneRoom, Env):
                 self.target_obj_id = next(self.obj_iter)
             except StopIteration:
                 termination = True
-        info.update(task=self.target_obj_id)
+        info.update(state=self.state, task=self.target_obj_id)
         return obs, reward, termination, truncated, info
 
     def calculate_optimal_action(self):  # noqa: Vulture
