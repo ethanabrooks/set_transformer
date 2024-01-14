@@ -97,7 +97,7 @@ class Trainer:
             bellman_delta=bellman_delta,
             env_type=env_type,
             **model_args,
-            n_actions=sequence.n_actions,
+            n_actions=sequence.action_space.n,
             n_ctx=l,
             n_tokens=sequence.n_tokens,
             pad_value=sequence.pad_value,
@@ -134,7 +134,7 @@ class Trainer:
 
     def train(self, lr: float):
         b, l = self.sequence.transitions.rewards.shape
-        a = self.sequence.n_actions
+        a = self.sequence.action_space.n
         Q = torch.zeros(1, b, l, a)
         final = self.baseline
         start_step = 0

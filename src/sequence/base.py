@@ -3,14 +3,16 @@ from dataclasses import dataclass
 
 import torch
 import torch.utils.data
+from gymnasium.spaces import Discrete
 
 from utils import Transition
 
 
 @dataclass(frozen=True)
 class Sequence(ABC):
+    action_space: Discrete
     gamma: float
-    n_actions: int
+    observation_space: Discrete
     pad_value: int
     transitions: Transition[torch.Tensor]
 

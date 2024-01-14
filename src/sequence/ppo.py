@@ -60,13 +60,14 @@ class Sequence(BaseSequence):
 
         transitions = Transition(**dict(preprocess()))
         assert isinstance(data_storage.action_space, Discrete)
-        pad_value = n_actions = data_storage.action_space.n
+        pad_value = data_storage.action_space.n
         if isinstance(data_storage.observation_space, Discrete):
             pad_value += data_storage.observation_space.n
 
         return Sequence(
+            action_space=data_storage.action_space,
             gamma=gamma,
-            n_actions=n_actions,
+            observation_space=data_storage.observation_space,
             pad_value=pad_value,
             transitions=transitions,
         )

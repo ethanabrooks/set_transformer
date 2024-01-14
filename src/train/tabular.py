@@ -7,12 +7,12 @@ from typing import Optional
 
 import torch
 import torch.optim as optim
+import wandb
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from wandb.sdk.wandb_run import Run
 
-import wandb
 from metrics import get_metrics
 from models.tabular import DataPoint, SetTransformer
 from train.make_tabular_data import make_data
@@ -56,7 +56,7 @@ def train(
     print("Create net... ", end="", flush=True)
     net = SetTransformer(
         **model_args,
-        n_actions=train_data.sequence.n_actions,
+        n_actions=train_data.sequence.action_space.n,
         n_tokens=train_data.sequence.n_tokens,
     )
     if load_path is not None:

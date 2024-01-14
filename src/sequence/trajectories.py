@@ -1,4 +1,5 @@
 from dataclasses import dataclass, replace
+from gymnasium.spaces import Discrete
 
 import torch
 import torch.nn.functional as F
@@ -67,9 +68,10 @@ class Sequence(BaseSequence):
             grid_world=grid_world, stop_at_rmse=stop_at_rmse, verbose=True
         )
         return cls(
+            action_space=Discrete(grid_world.n_actions),
             gamma=grid_world.gamma,
             grid_world=grid_world,
-            n_actions=grid_world.n_actions,
+            observation_space=Discrete(grid_world.n_states),
             pad_value=max_discrete_value(transitions) + 1,
             transitions=transitions,
         )
