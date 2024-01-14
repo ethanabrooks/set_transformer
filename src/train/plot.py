@@ -1,10 +1,12 @@
 from typing import Optional
 
+import numpy as np
 import torch
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.cm import hot, hsv
 from matplotlib.colors import LinearSegmentedColormap, Normalize
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Polygon
 
 assert isinstance(hot, LinearSegmentedColormap)
 MAX_PLOTS = 30
@@ -120,3 +122,39 @@ def plot_trajectories(
         if fig is None:
             continue
         yield fig
+
+
+def plot_grid_world_q_values(ax: Axes, grid_size: int, q_values: np.ndarray):
+    """
+    Plots the state values as triangles in a grid with the hypotenuse placed diagonally.
+
+    Args:
+    data (numpy.array): A 2D array of shape (n x grid_size^2, 4) representing the values.
+    ax (matplotlib.axes.Axes): The matplotlib axis to plot on.
+    """
+    assert q_values.ndim == 2
+
+    # Define the triangle coordinates relative to the center of each cell
+    # The hypotenuse will now be diagonal rather than horizontal or vertical
+    triangles = [
+        np.array([[0.5, 0.5], [1, 0], [1, 1]]),  # Down-Right
+        np.array([[0.5, 0.5], [0, 1], [0, 0]]),  # Up-Left
+        np.array([[0.5, 0.5], [0, 0], [1, 0]]),  # Down-Left
+        np.array([[0.5, 0.5], [1, 1], [0, 1]]),  # Up-Right
+    ]
+
+    for index, value in enumerate(q_values):
+        row, col = divmod(index, grid_size)
+        for v, triangle in zip(value, triangles):
+            # Shift the triangle to the correct grid cell
+            shifted_triangle = triangle + np.array([col, row])
+            color = plt.cm.hot(v)
+            patch = Polygon(shifted_triangle, closed=True, color=color)
+            ax.add_patch(patch)
+
+    y_size = len(q_values) / grid_size
+    assert y_size.is_integer()
+    ax.set_xlim([0, grid_size])
+    ax.set_ylim([0, y_size])
+    ax.set_aspect("equal", "box")
+    ax.axis("off")
