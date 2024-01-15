@@ -110,11 +110,11 @@ def train(
         replay_buffer_dir = Path("/tmp" if run is None else run.dir)
         action_probs_shape = (action_space.n,)
         data_storage = DataStorage.make(
-            action_dtype=envs.action_space.dtype,
             action_probs_shape=action_probs_shape,
+            action_space=envs.action_space,
             num_timesteps=num_updates * num_steps,
             num_processes=num_processes,
-            obs_shape=envs.observation_space.shape,
+            obs_space=envs.observation_space,
             path=DataStorage.make_path(replay_buffer_dir),
             state_shape=state.shape[1:],
         )

@@ -79,6 +79,7 @@ class Trainer:
         cls,
         baseline: bool,
         bellman_delta: int,
+        env_type: EnvType,
         envs: SubprocVecEnv,
         evaluator_args: dict,
         load_path: Optional[str],
@@ -94,6 +95,7 @@ class Trainer:
         _, l = sequence.transitions.rewards.shape
         net = cls.build_model(
             bellman_delta=bellman_delta,
+            env_type=env_type,
             **model_args,
             n_actions=sequence.n_actions,
             n_ctx=l,
@@ -115,6 +117,7 @@ class Trainer:
         return cls(
             baseline=baseline,
             bellman_delta=bellman_delta,
+            env_type=env_type,
             evaluator=evaluator,
             **kwargs,
             load_path=load_path,

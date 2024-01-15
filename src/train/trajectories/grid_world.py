@@ -13,7 +13,7 @@ class Trainer(Base):
     sequence: Sequence
 
     @classmethod
-    def build_model(cls, **kwargs):
+    def build_model(cls, env_type, **kwargs):
         return GridWorldModel(**kwargs)
 
     @classmethod

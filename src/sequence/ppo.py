@@ -2,6 +2,7 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 import torch
+from gymnasium.spaces import Discrete
 
 from ppo.data_storage import DataStorage
 from ppo.train import train
@@ -44,8 +45,11 @@ class Sequence(BaseSequence):
                 yield k, tensor
 
         transitions = Transition(**dict(preprocess()))
-        actions: torch.Tensor = transitions.actions
-        pad_value = n_actions = 1 + actions.max().item()
+        assert isinstance(data_storage.action_space, Discrete)
+        pad_value = n_actions = data_storage.action_space.n
+        if isinstance(data_storage.observation_space, Discrete):
+            pad_value += data_storage.observation_space.n
+
         return Sequence(
             gamma=gamma,
             n_actions=n_actions,

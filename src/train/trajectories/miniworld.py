@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import torch
 import wandb
 
-from models.trajectories import MiniWorldModel
+from models.trajectories import GridWorldModel, MiniWorldModel
 from ppo.envs.envs import EnvType
 from sequence.grid_world_base import Sequence
 from train.plot import plot_trajectories
@@ -15,8 +15,11 @@ class Trainer(Base):
     sequence: Sequence
 
     @classmethod
-    def build_model(cls, **kwargs):
-        return MiniWorldModel(**kwargs)
+    def build_model(cls, env_type: EnvType, **kwargs):
+        if env_type == EnvType.GRID_WORLD:
+            return GridWorldModel(**kwargs)
+        else:
+            return MiniWorldModel(**kwargs)
 
     def get_ground_truth(self):
         pass
