@@ -16,7 +16,8 @@ from ppo.agent import Agent
 from ppo.data_storage import DataStorage
 from ppo.envs.envs import EnvType, VecPyTorch, make_vec_envs
 from ppo.rollout_storage import RolloutStorage
-from utils import Transition, load, save
+from utils.checkpoints import load, save
+from utils.dataclasses import Transition
 
 
 def infos_to_array(infos: list[dict], key: str) -> np.ndarray:

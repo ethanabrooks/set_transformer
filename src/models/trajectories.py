@@ -12,7 +12,7 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 
 from models.set_transformer import SetTransformer as Base
 from ppo.networks import Flatten, init_conv
-from utils import DataPoint
+from utils.dataclasses import DataPoint
 
 
 def get_input_bellman(n_bellman: int, bellman_delta: int):

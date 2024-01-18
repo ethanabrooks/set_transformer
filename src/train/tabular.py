@@ -16,7 +16,8 @@ from wandb.sdk.wandb_run import Run
 from metrics import get_metrics
 from models.tabular import DataPoint, SetTransformer
 from train.make_tabular_data import make_data
-from utils import decay_lr, load, save, set_seed
+from utils import decay_lr, set_seed
+from utils.checkpoints import load, save
 
 
 def train(

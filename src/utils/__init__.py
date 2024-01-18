@@ -1,0 +1,42 @@
+import math
+import random
+
+import numpy as np
+import torch
+
+
+def decay_lr(lr: float, final_step: int, step: int, warmup_steps: int):
+    if step < warmup_steps:
+        # linear warmup
+        lr_mult = float(step) / float(max(1, warmup_steps))
+    else:
+        # cosine learning rate decay
+        progress = float(step - warmup_steps) / float(max(1, final_step - warmup_steps))
+        progress = np.clip(progress, 0.0, 1.0)
+        lr_mult = max(0.1, 0.5 * (1.0 + math.cos(math.pi * progress)))
+    return lr * lr_mult
+
+
+def set_seed(seed: int):
+    # Set the seed for PyTorch
+    torch.manual_seed(seed)
+
+    # If you are using CUDA (GPU), you also need to set the seed for the CUDA device
+    # This ensures reproducibility for GPU calculations as well
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    # Set the seed for NumPy
+    np.random.seed(seed)
+
+    # Set the seed for Python's random module
+    random.seed(seed)
+
+
+def tensor_hash(tensor: torch.Tensor):
+    # Ensure that the tensor is on the CPU and converted to 1D
+    tensor_1d: torch.Tensor = tensor.cpu().flatten()
+    array_1d: np.ndarray = tensor_1d.numpy()
+
+    # Convert the 1D tensor to bytes and hash
+    return hash(array_1d.tobytes())

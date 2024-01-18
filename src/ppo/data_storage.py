@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from gymnasium.spaces import Space
 
-from utils import Transition
+from utils.dataclasses import Transition
 
 
 @dataclass

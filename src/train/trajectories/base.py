@@ -25,7 +25,9 @@ from metrics import Metrics, compute_rmse, get_metrics
 from models.trajectories import Model
 from ppo.envs.envs import EnvType
 from sequence.base import Sequence
-from utils import DataPoint, decay_lr, load, save
+from utils import decay_lr
+from utils.checkpoints import load, save
+from utils.dataclasses import DataPoint
 from values.bootstrap import PolicyImprovementValues, Values
 
 

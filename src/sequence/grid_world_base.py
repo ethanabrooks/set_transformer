@@ -8,7 +8,7 @@ import torch.utils.data
 from grid_world.base import GridWorld
 from grid_world.values import GridWorldWithValues
 from sequence.base import Sequence as Base
-from utils import Transition
+from utils.dataclasses import Transition
 
 
 def max_discrete_value(transitions: Transition[torch.Tensor]):

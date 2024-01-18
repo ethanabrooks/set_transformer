@@ -5,7 +5,7 @@ import torch
 import torch.utils.data
 from gymnasium.spaces import Discrete
 
-from utils import Transition
+from utils.dataclasses import Transition
 
 
 @dataclass(frozen=True)

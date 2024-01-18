@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from models.set_transformer import SetTransformer as Base
-from utils import DataPoint
+from utils.dataclasses import DataPoint
 
 
 class SetTransformer(Base):

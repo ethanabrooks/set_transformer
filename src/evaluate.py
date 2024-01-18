@@ -18,7 +18,7 @@ from models.trajectories import GPT2, Model
 from ppo.train import infos_to_array
 from sequence.base import Sequence
 from train.plot import plot_trajectories
-from utils import DataPoint
+from utils.dataclasses import DataPoint
 
 
 def clamp(action: torch.Tensor, space: Space):

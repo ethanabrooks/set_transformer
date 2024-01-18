@@ -11,7 +11,7 @@ from gymnasium.spaces import Discrete
 from ppo.data_storage import DataStorage
 from ppo.train import train
 from sequence.base import Sequence as BaseSequence
-from utils import Transition
+from utils.dataclasses import Transition
 
 
 @dataclass(frozen=True)

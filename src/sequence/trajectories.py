@@ -1,14 +1,14 @@
 from dataclasses import dataclass, replace
-from gymnasium.spaces import Discrete
 
 import torch
 import torch.nn.functional as F
+from gymnasium.spaces import Discrete
 
 from grid_world.base import GridWorld
 from grid_world.values import GridWorldWithValues
 from sequence.grid_world_base import Sequence as BaseSequence
 from sequence.grid_world_base import max_discrete_value
-from utils import Transition
+from utils.dataclasses import Transition
 
 
 @dataclass(frozen=True)

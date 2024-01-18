@@ -12,7 +12,8 @@ from tqdm import tqdm
 
 from grid_world.maze import generate_maze, maze_to_state_action
 from metrics import compute_rmse
-from utils import Transition, tensor_hash
+from utils import tensor_hash
+from utils.dataclasses import Transition
 
 
 def convert_2d_to_1d(grid_size: int, x: torch.Tensor):
