@@ -16,6 +16,7 @@ from ray.air.integrations.wandb import setup_wandb
 from rich import print
 from wandb.sdk.wandb_run import Run
 
+from evaluate import run
 from param_space import param_space
 from train.tabular import train as train_tabular_fn
 from train.trajectories.train import train as train_trajectories_fn
@@ -54,6 +55,25 @@ def include_fn(path: str, exclude: list[str]):
 
 
 parsers = dict(config=option("config", default="delta-1"))
+
+
+@tree.subcommand()
+def evaluate(
+    load_path: str,
+    iterations: int,
+    dummy_vec_env: bool = False,
+    n_tokens: int = None,
+    pad_value: int = None,
+):
+    config: dict = wandb.Api().run(load_path).config
+    if "dummy_vec_env" not in config:
+        config.update(dummy_vec_env=dummy_vec_env)
+    config.update(load_path=load_path)
+    if n_tokens is not None:
+        config.update(n_tokens=n_tokens)
+    if pad_value is not None:
+        config.update(pad_value=pad_value)
+    return run(**config, iterations=iterations, run=None)
 
 
 @tree.subcommand(parsers=dict(name=argument("name"), **parsers))

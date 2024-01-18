@@ -5,7 +5,6 @@ import torch
 import wandb
 from matplotlib.axes import Axes
 
-from models.trajectories import GridWorldModel, MiniWorldModel
 from ppo.envs.envs import EnvType
 from sequence.grid_world_base import Sequence
 from train.plot import plot_grid_world_q_values, plot_trajectories
@@ -16,13 +15,6 @@ from values.bootstrap import Values
 @dataclass(frozen=True)
 class Trainer(Base):
     sequence: Sequence
-
-    @classmethod
-    def build_model(cls, env_type: EnvType, **kwargs):
-        if env_type == EnvType.GRID_WORLD:
-            return GridWorldModel(**kwargs)
-        else:
-            return MiniWorldModel(**kwargs)
 
     def get_ground_truth(self):
         pass

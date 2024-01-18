@@ -2,14 +2,12 @@ import itertools
 import math
 import shutil
 import time
-from abc import abstractmethod
 from dataclasses import asdict, dataclass
 from typing import Counter, Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import wandb
@@ -22,7 +20,7 @@ from envs.subproc_vec_env import SubprocVecEnv
 from evaluate import log as log_evaluation
 from evaluate import rollout
 from metrics import Metrics, compute_rmse, get_metrics
-from models.trajectories import Model
+from models.trajectories import GridWorldModel, MiniWorldModel, Model
 from ppo.envs.envs import EnvType
 from sequence.base import Sequence
 from utils import decay_lr
@@ -72,9 +70,11 @@ class Trainer:
     test_interval: int
 
     @classmethod
-    @abstractmethod
-    def build_model(cls, **kwargs) -> nn.Module:
-        pass
+    def build_model(cls, env_type: EnvType, **kwargs):
+        if env_type == EnvType.GRID_WORLD:
+            return GridWorldModel(**kwargs)
+        else:
+            return MiniWorldModel(**kwargs)
 
     @classmethod
     def make(
@@ -286,8 +286,8 @@ class Trainer:
                 )
                 plot_log, test_log = log_evaluation(
                     df=df,
+                    gamma=sequence.gamma,
                     run=self.run,
-                    sequence=sequence,
                     step=epoch_step,
                 )
                 if self.run is not None:

@@ -1,5 +1,6 @@
 import functools
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -13,11 +14,18 @@ from tqdm import tqdm
 from transformers import GPT2Config
 from wandb.sdk.wandb_run import Run
 
+from envs.dummy_vec_env import DummyVecEnv
 from envs.subproc_vec_env import SubprocVecEnv
-from models.trajectories import GPT2, Model
+from grid_world.base import GridWorld
+from grid_world.env import Env
+from grid_world.values import GridWorldWithValues
+from models.trajectories import GPT2, GridWorldModel, MiniWorldModel, Model
+from ppo.envs.envs import EnvType
+from ppo.envs.envs import make_env as make_ppo_env
 from ppo.train import infos_to_array
-from sequence.base import Sequence
 from train.plot import plot_trajectories
+from utils import set_seed
+from utils.checkpoints import load
 from utils.dataclasses import DataPoint
 
 
@@ -231,8 +239,8 @@ def render_eval_metrics(
 
 def log(
     df: pd.DataFrame,
+    gamma: float,
     run: Run,
-    sequence: Sequence,
     step: int,
     bin_size: int = 50,
 ):
@@ -252,7 +260,7 @@ def log(
 
     complete_episodes = df.groupby(["episode", "idx"]).filter(is_complete)
     discounted_returns: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
-        functools.partial(get_returns, "rewards", sequence.gamma)
+        functools.partial(get_returns, "rewards", gamma)
     )
     undiscounted_returns = complete_episodes.groupby(["episode", "idx"]).apply(
         functools.partial(get_returns, "rewards", 1)
@@ -270,7 +278,7 @@ def log(
     names = ["returns", "discounted returns"]
     if "optimals" in df.columns:
         optimals: pd.Series = complete_episodes.groupby(["episode", "idx"]).apply(
-            functools.partial(get_returns, "optimals", sequence.gamma)
+            functools.partial(get_returns, "optimals", gamma)
         )
         metrics = optimals - discounted_returns
         # assert (metrics >= 0).all()
@@ -315,3 +323,125 @@ def log(
 
     plot_log["table"] = wandb.Table(dataframe=episode_df)
     return plot_log, test_log
+
+
+def run(
+    config: str,
+    dummy_vec_env: bool,
+    env_name: str,
+    evaluator_args: dict,
+    iterations: int,
+    load_path: Path,
+    lr: float,
+    model_args: dict,
+    n_plot: int,
+    n_tokens: int,
+    pad_value: int,
+    run: Run,
+    seed: int,
+    test_size: int,
+    trajectory_length: int,
+    train_args: dict,
+    train_trajectories: bool,
+    use_grid_world: bool,
+    **kwargs,
+):
+    del config
+    del lr
+    del n_plot
+    del train_trajectories
+
+    set_seed(seed)
+
+    if use_grid_world:
+
+        def make_env(
+            grid_world_args: dict,
+            i: int,
+            rmse_bellman: float,
+            time_limit: int,
+            **_,
+        ):
+            def thunk():
+                return Env(
+                    grid_world=GridWorldWithValues.make(
+                        stop_at_rmse=rmse_bellman,
+                        grid_world=GridWorld.make(
+                            **grid_world_args,
+                            n_tasks=1,
+                            seed=seed + i,
+                            terminal_transitions=None,
+                        ),
+                    ),
+                    time_limit=time_limit,
+                )
+
+            return thunk
+
+        def get_gamma(grid_world_args: dict, **_) -> float:
+            return grid_world_args["gamma"]
+
+        gamma = get_gamma(**kwargs)
+
+    else:
+
+        def get_gamma(gamma: dict, **_) -> float:
+            return gamma
+
+        gamma = get_gamma(**kwargs)
+
+        def make_env(i: int, env_args: dict, **_):
+            env_type = EnvType[env_name]
+            return make_ppo_env(
+                **env_args,
+                env_type=env_type,
+                gamma=gamma,
+                rank=i,
+                seed=seed + i,
+            )
+
+    def env_fn(i: int):
+        return make_env(i=i, **kwargs)
+
+    env_fns = list(map(env_fn, range(test_size)))
+    envs = DummyVecEnv.make(env_fns) if dummy_vec_env else SubprocVecEnv.make(env_fns)
+    env_type = EnvType[env_name]
+
+    def make_model(
+        bellman_delta: int,
+        n_actions: int,
+        n_ctx: int,
+        n_tokens: int,
+        pad_value: int,
+        **_,
+    ):
+        kwargs = dict(
+            bellman_delta=bellman_delta,
+            **model_args,
+            n_actions=n_actions,
+            n_ctx=n_ctx,
+            n_tokens=n_tokens,
+            pad_value=pad_value,
+        )
+        if env_type == EnvType.GRID_WORLD:
+            return GridWorldModel(**kwargs)
+        else:
+            return MiniWorldModel(**kwargs)
+
+    net = make_model(
+        **train_args,
+        env_type=env_type,
+        **model_args,
+        n_actions=envs.action_space.n,
+        n_ctx=trajectory_length,
+        n_tokens=n_tokens,
+        pad_value=pad_value,
+    )
+    load(load_path=load_path, net=net, run=run)
+    net = net.cuda()
+    df = rollout(envs=envs, net=net, **evaluator_args, iterations=iterations)
+    plot_log, test_log = log(df=df, gamma=gamma, run=run, step=0)
+    if run is not None:
+        wandb.log(
+            dict(**plot_log, **{f"test/{k}": v for k, v in test_log.items()}), step=0
+        )

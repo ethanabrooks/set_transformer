@@ -32,6 +32,7 @@ class Sequence(BaseSequence):
         )
         data_storage: DataStorage
         df: pd.DataFrame
+
         data_storage, df = train(
             gamma=gamma,
             **kwargs,
