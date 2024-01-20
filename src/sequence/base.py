@@ -25,5 +25,14 @@ class Sequence(ABC):
     def n_tokens(self):
         return 1 + int(self.pad_value)
 
+    def __getitem__(self, item):
+        return type(self)(
+            action_space=self.action_space,
+            gamma=self.gamma,
+            observation_space=self.observation_space,
+            pad_value=self.pad_value,
+            transitions=self.transitions[item],
+        )
+
     def __len__(self):
         return len(self.transitions)
