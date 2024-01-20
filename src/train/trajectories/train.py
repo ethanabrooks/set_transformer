@@ -37,7 +37,7 @@ def make_grid_world_sequence_and_env_fn(
         partial_observation=partial_observation,
         sample_from_trajectories=True,
         stop_at_rmse=rmse_bellman,
-        time_limit=time_limit,
+        time_limit=None,
     )
 
     def make_env(i: int):
