@@ -48,6 +48,6 @@ class Trainer(Base):
         v_per_state = v_per_state.sum(-1)
         v_per_state = torch.unbind(v_per_state, dim=1)
         for i, plot_value in enumerate(v_per_state):
-            fig = grid_world.visualize_values(plot_value)
+            fig = grid_world.visualize_values(plot_value[None])
             if self.run is not None:
                 self.run.log({f"plot {i}/bellman {bellman_number}": wandb.Image(fig)})

@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from grid_world.maze import generate_maze, maze_to_state_action
 from metrics import compute_rmse
+from train.plot import plot_grid_world_values
 from utils import tensor_hash
 from utils.dataclasses import Transition
 
@@ -515,60 +516,19 @@ class GridWorld:
         plt.savefig("policy.png")
 
     def visualize_values(self, V: torch.Tensor, save_path: Optional[str] = None):
-        dims = len(V.shape)
-        global_min = V.min().item()
-        global_max = V.max().item()
-
-        def imshow(values: torch.Tensor, ax: plt.Axes):
-            n, _ = values.shape
-            if self.use_absorbing_state:
-                values = values[..., :-1]
-            im = ax.imshow(
-                values.reshape((n * self.grid_size, self.grid_size)),
-                cmap="hot",
-                interpolation="nearest",
-                vmin=global_min,
-                vmax=global_max,
+        n_tasks = V.shape[0]
+        fig, axes = plt.subplots(
+            1, n_tasks, figsize=(self.grid_size * n_tasks, self.grid_size)
+        )
+        if n_tasks == 1:
+            axes = [axes]
+        for idx, ax in enumerate(axes):
+            plot_grid_world_values(
+                ax=ax,
+                grid_size=self.grid_size,
+                values=V[idx],
+                use_absorbing_state=self.use_absorbing_state,
             )
-            ax.axis("off")  # Turn off the axes
-            return im
-
-        if dims == 2:
-            fig, ax = plt.subplots(figsize=(self.grid_size, self.grid_size))
-            imshow(V, ax)
-
-        elif dims == 3:
-            n_tasks = V.shape[0]
-            fig, axes = plt.subplots(
-                1, n_tasks, figsize=(self.grid_size * n_tasks, self.grid_size)
-            )
-            if n_tasks == 1:
-                axes = [axes]
-            for idx, ax in enumerate(axes):
-                imshow(V[idx], ax)
-
-        elif dims == 4:
-            n_rows, n_cols = V.shape[:2]
-            # Adjust the subplot size depending on the number of rows
-            fig_size = (self.grid_size / (n_rows**0.5)) * n_cols, (
-                self.grid_size / (n_rows**0.5)
-            ) * n_rows
-            fig, axes = plt.subplots(
-                n_rows, n_cols, figsize=fig_size, sharex="all", sharey="all"
-            )
-
-            # Capture the return image for colorbar
-            ims = []
-            for i in range(n_rows):
-                for j in range(n_cols):
-                    im = imshow(V[i, j], axes[i, j])
-                    ims.append(im)
-
-            # Add a single colorbar for all plots
-            # fig.colorbar(ims[0], ax=axes.ravel().tolist())
-
-        else:
-            raise ValueError(f"Unsupported number of dimensions: {dims}")
 
         if save_path:
             plt.savefig(
@@ -652,5 +612,4 @@ def imshow(values: torch.Tensor, ax: plt.Axes, grid_size: int):
 
 # whitelist
 GridWorld.visualize_policy
-GridWorld.visualize_values
 GridWorld.create_exploration_policy
