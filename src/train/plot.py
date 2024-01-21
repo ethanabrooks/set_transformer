@@ -158,3 +158,20 @@ def plot_grid_world_q_values(ax: Axes, grid_size: int, q_values: np.ndarray):
     ax.set_ylim([0, y_size])
     ax.set_aspect("equal", "box")
     ax.axis("off")
+
+
+def plot_grid_world_values(  # noqa: Vulture
+    ax: Axes, grid_size: int, values: np.ndarray, use_absorbing_state: bool
+):
+
+    n, _ = values.shape
+    if use_absorbing_state:
+        values = values[..., :-1]
+    ax.imshow(
+        values.reshape((n * grid_size, grid_size)),
+        cmap="hot",
+        interpolation="nearest",
+        vmin=0,
+        vmax=1,
+    )
+    ax.axis("off")  # Turn off the axes
