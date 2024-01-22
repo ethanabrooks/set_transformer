@@ -50,7 +50,6 @@ class GridWorld:
     gamma: float
     goals: torch.Tensor
     grid_size: int
-    hashcode: int
     heldout_goals: list[tuple[int, int]]
     is_wall: torch.Tensor
     n_tasks: int
@@ -61,41 +60,6 @@ class GridWorld:
     terminate_on_goal: bool
     use_absorbing_state: bool
     use_heldout_goals: bool
-
-    @classmethod
-    def compute_hashcode(
-        cls,
-        deltas: torch.Tensor,
-        gamma: float,
-        goals: torch.Tensor,
-        grid_size: int,
-        is_wall: torch.Tensor,
-        n_tasks: int,
-        Pi: torch.Tensor,
-        random: np.random.Generator,
-        states: torch.Tensor,
-        terminal_transitions: Optional[torch.Tensor],
-        terminate_on_goal: bool,
-        use_heldout_goals: bool,
-    ):
-        return hash(
-            (
-                tensor_hash(deltas),
-                gamma,
-                tensor_hash(goals),
-                grid_size,
-                tensor_hash(is_wall),
-                n_tasks,
-                tensor_hash(Pi),
-                random,
-                tensor_hash(states),
-                None
-                if terminal_transitions is None
-                else tensor_hash(terminal_transitions),
-                terminate_on_goal,
-                use_heldout_goals,
-            )
-        )
 
     @classmethod
     def make(
@@ -149,20 +113,6 @@ class GridWorld:
         Pi = torch.tensor(Pi).float()
 
         assert [*Pi.shape] == [b, s, a]
-        hashcode = cls.compute_hashcode(
-            deltas=deltas,
-            gamma=gamma,
-            goals=goals,
-            grid_size=grid_size,
-            is_wall=is_wall,
-            n_tasks=n_tasks,
-            Pi=Pi,
-            random=random,
-            states=states,
-            terminal_transitions=terminal_transitions,
-            terminate_on_goal=terminate_on_goal,
-            use_heldout_goals=use_heldout_goals,
-        )
 
         return cls(
             deltas=deltas,
@@ -170,7 +120,6 @@ class GridWorld:
             gamma=gamma,
             goals=goals,
             grid_size=grid_size,
-            hashcode=hashcode,
             heldout_goals=heldout_goals,
             is_wall=is_wall,
             n_tasks=n_tasks,
@@ -267,7 +216,24 @@ class GridWorld:
         return matrix.float()
 
     def __hash__(self):
-        return self.hashcode
+        return hash(
+            (
+                tensor_hash(self.deltas),
+                self.gamma,
+                tensor_hash(self.goals),
+                self.grid_size,
+                tensor_hash(self.is_wall),
+                self.n_tasks,
+                tensor_hash(self.Pi),
+                self.random,
+                tensor_hash(self.states),
+                None
+                if self.terminal_transitions is None
+                else tensor_hash(self.terminal_transitions),
+                self.terminate_on_goal,
+                self.use_heldout_goals,
+            )
+        )
 
     def __getitem__(self, idx: torch.Tensor):
         self = deepcopy(self)
@@ -275,7 +241,6 @@ class GridWorld:
         def to_device(x: torch.Tensor):
             return x.to(idx.device) if isinstance(idx, torch.Tensor) else x
 
-        deltas = to_device(self.deltas)
         goals = to_device(self.goals)[idx]
         is_wall = to_device(self.is_wall)[idx]
         n_tasks = goals.numel()
@@ -286,27 +251,12 @@ class GridWorld:
             if self.terminal_transitions is None
             else to_device(self.terminal_transitions)[idx]
         )
-        hashcode = self.compute_hashcode(
-            deltas=deltas,
-            gamma=self.gamma,
-            goals=goals,
-            grid_size=self.grid_size,
-            is_wall=is_wall,
-            n_tasks=n_tasks,
-            Pi=Pi,
-            random=self.random,
-            states=states,
-            terminal_transitions=terminal_transitions,
-            terminate_on_goal=self.terminate_on_goal,
-            use_heldout_goals=self.use_heldout_goals,
-        )
         return GridWorld(
             deltas=to_device(self.deltas),
             dense_reward=self.dense_reward,
             gamma=self.gamma,
             goals=goals,
             grid_size=self.grid_size,
-            hashcode=hashcode,
             heldout_goals=self.heldout_goals,
             is_wall=is_wall,
             n_tasks=n_tasks,
