@@ -4,13 +4,15 @@ from typing import Optional
 
 import torch
 import torch.utils.data
+import wandb
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
-import wandb
 from dataset.base import Dataset as BaseDataset
 from metrics import get_metrics
 from models.tabular import DataPoint, SetTransformer
 from sequence.grid_world_base import Sequence
+from train.plot import plot_grid_world_values
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,7 @@ class Dataset(BaseDataset):
                             counter.update({k: v})
                     yield x.idx, outputs, targets
 
+        metrics = {k: v / len(loader) for k, v in counter.items()}
         A = len(grid_world.deltas)
 
         # add values plots to metrics
@@ -58,9 +61,23 @@ class Dataset(BaseDataset):
         plot_values: torch.Tensor = plot_values * Pi
         plot_values = plot_values.sum(-1).cpu()
         plot_values = torch.unbind(plot_values, dim=2)
-        metrics = {k: v / len(loader) for k, v in counter.items()}
-        for i, plot_value in zip(idxs, plot_values):
-            fig = grid_world.visualize_values(plot_value)
+        grid_size = grid_world.grid_size
+        for i, V in zip(idxs, plot_values):
+            n_tasks = V.shape[0]
+            fig, axes = plt.subplots(
+                1,
+                n_tasks,
+                figsize=(grid_size * n_tasks, grid_size),
+            )
+            if n_tasks == 1:
+                axes = [axes]
+            for idx, ax in enumerate(axes):
+                plot_grid_world_values(
+                    ax=ax,
+                    grid_size=grid_size,
+                    values=V[idx],
+                    use_absorbing_state=grid_world.use_absorbing_state,
+                )
             metrics[f"values-plot {i}"] = wandb.Image(fig)
 
         return metrics
