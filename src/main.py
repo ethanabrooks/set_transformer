@@ -5,7 +5,7 @@ import sys
 import time
 import urllib
 from pathlib import Path
-from typing import Set
+from typing import Optional, Set
 
 import tomli
 import wandb
@@ -77,11 +77,7 @@ def evaluate(
 
 
 @tree.subcommand(parsers=dict(name=argument("name"), **parsers))
-def log(
-    config: str,
-    name: str,
-    allow_dirty: bool = False,
-):
+def log(config: str, name: str, allow_dirty: bool = False, group: Optional[str] = None):
     if not allow_dirty:
         check_dirty()
 
@@ -89,6 +85,7 @@ def log(
     config: dict = get_config(config)
     run = wandb.init(
         config=dict(**config, config=config_name),
+        group=group,
         name=name,
         project=get_project_name(),
     )
