@@ -23,7 +23,7 @@ from models.trajectories import GPT2, GridWorldModel, MiniWorldModel, Model
 from ppo.envs.envs import EnvType
 from ppo.envs.envs import make_env as make_ppo_env
 from ppo.train import infos_to_array
-from train.plot import plot_trajectories
+from train.plot import plot_grid_world_q_values, plot_trajectories
 from utils import set_seed
 from utils.checkpoints import load
 from utils.dataclasses import DataPoint
@@ -93,6 +93,7 @@ def rollout(
     action_space.seed(0)
 
     input_q_zero = torch.zeros((context_length, n, a), dtype=float)
+    fig, ax = plt.subplots()
 
     for t in tqdm(range(l)):
         obs[t] = observation
@@ -172,6 +173,13 @@ def rollout(
                 optimal = envs.optimal(index, reset_obs)
                 if optimal is not None and t + 1 < len(optimals):
                     optimals[t + 1, index] = optimal
+
+    fig, ax = plt.subplots()
+    q_per_state = torch.zeros(25, 4)
+    q_per_state[obs[:, 0].long()] = Q[:, 0]
+    plot_grid_world_q_values(ax, 5, q_per_state)
+    fig.savefig("q_values.png")
+    breakpoint()
     idx = torch.arange(n)[None].expand(l, -1)
     data = dict(
         actions=actions,

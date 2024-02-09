@@ -42,6 +42,7 @@ class Sequence(BaseSequence):
             num_updates=num_updates,
             run=None,
         )
+        breakpoint()
         if wandb.run is not None:
             plt.figure()
             image = wandb.Image(
