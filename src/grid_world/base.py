@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 from grid_world.maze import generate_maze, maze_to_state_action
 from metrics import compute_rmse
-from train.plot import plot_grid_world_values
 from utils import tensor_hash
 from utils.dataclasses import Transition
 
@@ -514,27 +513,6 @@ class GridWorld:
 
         plt.tight_layout()
         plt.savefig("policy.png")
-
-    def visualize_values(self, V: torch.Tensor, save_path: Optional[str] = None):
-        n_tasks = V.shape[0]
-        fig, axes = plt.subplots(
-            1, n_tasks, figsize=(self.grid_size * n_tasks, self.grid_size)
-        )
-        if n_tasks == 1:
-            axes = [axes]
-        for idx, ax in enumerate(axes):
-            plot_grid_world_values(
-                ax=ax,
-                grid_size=self.grid_size,
-                values=V[idx],
-                use_absorbing_state=self.use_absorbing_state,
-            )
-
-        if save_path:
-            plt.savefig(
-                save_path, dpi=self.grid_size**2 / 2
-            )  # adjust dpi if necessary
-        return fig
 
 
 def plot_policy(policy: torch.Tensor, ax: plt.Axes, grid_size: int, deltas: list):
