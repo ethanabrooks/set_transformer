@@ -54,7 +54,7 @@ def include_fn(path: str, exclude: list[str]):
     return include
 
 
-parsers = dict(config=option("config", default="delta-1"))
+parsers = dict(config=option("config", default="tabular/cross-product"))
 
 
 @tree.subcommand()
@@ -116,9 +116,11 @@ def no_log(
     # set signal handler for when resource limit is reached
     signal.signal(signal.SIGXCPU, signal_handler)
 
-    config: dict = get_config(config)
-    if load_path is not None:
+    if load_path is None:
+        config: dict = get_config(config)
+    else:
         config = wandb.Api().run(load_path).config
+
     config.update(load_path=load_path)
     if dummy_vec_env:
         config.update(dummy_vec_env=dummy_vec_env)
