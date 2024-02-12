@@ -5,6 +5,7 @@ import sys
 import time
 import urllib
 from pathlib import Path
+from pprint import pprint
 from typing import Optional, Set
 
 import tomli
@@ -157,15 +158,21 @@ def sweep(
         sleep_time = 1
         k: str
         for k, v in sweep_params.items():
+            error = ValueError(f"Failed to index into config with path {k}")
             *path, key = k.split("/")
             subconfig = config
 
             for name in path:
-                subconfig = subconfig[name]
-            if key not in subconfig:
-                print(config)
-                raise ValueError(f"Failed to index into config with path {k}")
-            subconfig[key] = v
+                if name in subconfig:
+                    subconfig = subconfig[name]
+                else:
+                    pprint(subconfig)
+                    raise error
+            if key in subconfig:
+                subconfig[key] = v
+            else:
+                pprint(config)
+                raise error
 
         run: Run
         while True:
