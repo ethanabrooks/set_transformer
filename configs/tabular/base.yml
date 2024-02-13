@@ -7,7 +7,7 @@ data_args:
       dense_reward: false
       dirichlet_concentration: 1
       gamma: 0.99
-      grid_size: 4
+      grid_size: 5
       heldout_goals: []
       terminate_on_goal: true
       use_heldout_goals: false
