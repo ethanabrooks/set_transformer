@@ -16,6 +16,7 @@ decay_args:
   final_step: 500_000
   warmup_steps: 10_000
 evaluate_args: {}
+iterations: 16
 load_path: null
 lr: 0.0002
 max_regret: 0.8
