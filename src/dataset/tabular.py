@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
 from dataset.base import Dataset as BaseDataset
-from metrics import get_metrics
+from metrics import compute_rmse, get_metrics
 from models.tabular import DataPoint, SetTransformer
 from sequence.grid_world_base import Sequence
 from train.plot import plot_grid_world_values
@@ -98,21 +98,23 @@ class Dataset(BaseDataset):
             for _ in range(iterations):
                 with torch.no_grad():
                     input_q: torch.Tensor
-                    input_q, _ = net.forward(x._replace(input_q=input_q, target_q=None))
-                yield input_q
+                    output_q, _ = net.forward(
+                        x._replace(input_q=input_q, target_q=None)
+                    )
+                rmse = compute_rmse(output_q, input_q)
+                input_q = output_q
+                yield input_q, rmse
 
-        outputs = torch.stack(list(generate(x.input_q)))
+        outputs, (*_, rmse) = zip(*generate(x.input_q))
+        if isinstance(outputs, tuple):
+            outputs = torch.stack(outputs)
         idx = 1 + torch.arange(iterations)[:, None].cuda()
         idx = idx * self.bellman_delta + x.n_bellman[None]
         idx = torch.clamp(idx, 0, len(self.values.Q) - 1)
         targets = self.values.Q[idx.cpu(), x.idx[None].cpu()].cuda()
 
-        metrics = get_metrics(
-            loss=None,
-            outputs=outputs[-1],
-            targets=targets[-1],
-        )
-        metrics = asdict(metrics)
+        metrics = get_metrics(loss=None, outputs=outputs[-1], targets=targets[-1])
+        metrics = dict(**asdict(metrics), rmse_iterations=rmse)
         return metrics, outputs, targets
 
     def input_q(self, idx: int, n_bellman: int):
